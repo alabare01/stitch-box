@@ -22,7 +22,7 @@ const PHOTOS = {
 const PILL = [PHOTOS.blanket, PHOTOS.cardigan, PHOTOS.granny, PHOTOS.tote, PHOTOS.pillow, PHOTOS.market];
 
 /* ─── VERSION ────────────────────────────────────────────────────────────── */
-const APP_VERSION = "v1.3 — Mar 20 2026";
+const APP_VERSION = "v1.3.3 — Mar 20 2026";
 
 /* ─── GEMINI API KEY ─────────────────────────────────────────────────────── */
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
@@ -618,7 +618,7 @@ const PaywallGate = ({onClose, onUpgrade, patternCount}) => (
       <div style={{background:`linear-gradient(135deg,${T.terra},#7A2E14)`,borderRadius:18,padding:"20px",marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
           <div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>Stitch Box Pro</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>YarnHive Pro</div>
             <div style={{fontFamily:T.serif,fontSize:28,color:"#fff",fontWeight:700}}>$9.99<span style={{fontSize:14,fontWeight:400,opacity:.7}}>/month</span></div>
             <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>or $74.99/year — save 37%</div>
           </div>
@@ -1648,8 +1648,8 @@ const SidebarNav = ({view, setView, count, isPro, onAddPattern}) => {
         <Photo src={PHOTOS.hero} alt="crochet" style={{width:"100%",height:"100%"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
         <div style={{position:"absolute",bottom:18,left:20}}>
-          <div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>Stitch Box</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet collection</div>
+          <div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div>
         </div>
       </div>
       <div style={{padding:"16px 16px 8px"}}>
@@ -1677,7 +1677,7 @@ const SidebarNav = ({view, setView, count, isPro, onAddPattern}) => {
         {isPro ? (
           <div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:16}}>✨</span>
-            <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Stitch Box Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div>
+            <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div>
           </div>
         ) : (
           <div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px"}}>
@@ -1715,8 +1715,8 @@ const NavPanel = ({open, onClose, view, setView, count, isPro}) => {
           <Photo src={PHOTOS.hero} alt="crochet" style={{width:"100%",height:"100%"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.8) 0%,rgba(20,14,10,.2) 100%)"}}/>
           <div style={{position:"absolute",bottom:16,left:18}}>
-            <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>Stitch Box</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet collection</div>
+            <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div>
           </div>
         </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:6}}>
@@ -1739,7 +1739,7 @@ const NavPanel = ({open, onClose, view, setView, count, isPro}) => {
           {isPro ? (
             <div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:18}}>✨</span>
-              <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Stitch Box Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div>
+              <div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div>
             </div>
           ) : (
             <div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:14,padding:"14px 16px"}}>
@@ -1775,7 +1775,7 @@ const Auth = ({onEnter, onEnterAsPro}) => {
           <Photo src={PHOTOS.hero} alt="crochet" style={{position:"absolute",inset:0,width:"100%",height:"100%"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(10,6,4,.88) 0%,rgba(10,6,4,.1) 60%,transparent 100%)"}}/>
           <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 52px 56px"}}>
-            <div style={{fontFamily:T.serif,fontSize:56,fontWeight:700,color:"#fff",lineHeight:1,marginBottom:14,letterSpacing:"-.02em"}}>Stitch Box</div>
+            <div style={{fontFamily:T.serif,fontSize:56,fontWeight:700,color:"#fff",lineHeight:1,marginBottom:14,letterSpacing:"-.02em"}}>YarnHive</div>
             <p style={{fontSize:17,color:"rgba(255,255,255,.7)",lineHeight:1.7,maxWidth:340}}>Save every pattern. Track every row. Scale, calculate, and create.</p>
             <div style={{marginTop:32,display:"flex",gap:16}}>
               {["Pattern tracking","Gauge calculator","Snap to Pattern","Yarn stash"].map(f=>(
@@ -1820,7 +1820,7 @@ const Auth = ({onEnter, onEnterAsPro}) => {
                 <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
                 <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
                 {!isSignup&&<div style={{textAlign:"right",marginBottom:18}}><span style={{fontSize:13,color:T.terra,cursor:"pointer"}}>Forgot password?</span></div>}
-                <Btn onClick={onEnter} style={{marginTop:8}}>{isSignup?"Create my Stitch Box":"Sign in"}</Btn>
+                <Btn onClick={onEnter} style={{marginTop:8}}>{isSignup?"Create my YarnHive":"Sign in"}</Btn>
               </>
             )}
           </div>
@@ -1836,7 +1836,7 @@ const Auth = ({onEnter, onEnterAsPro}) => {
         <Photo src={PHOTOS.hero} alt="crochet" style={{position:"absolute",inset:0,width:"100%",height:"100%"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(15,10,8,.92) 0%,rgba(15,10,8,.15) 55%,transparent 100%)"}}/>
         <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 28px 36px"}}>
-          <div style={{fontFamily:T.serif,fontSize:46,fontWeight:700,color:"#fff",lineHeight:1,marginBottom:10,letterSpacing:"-.02em"}}>Stitch Box</div>
+          <div style={{fontFamily:T.serif,fontSize:46,fontWeight:700,color:"#fff",lineHeight:1,marginBottom:10,letterSpacing:"-.02em"}}>YarnHive</div>
           <p style={{fontSize:16,color:"rgba(255,255,255,.72)",lineHeight:1.65,maxWidth:290}}>Save every pattern. Track every row. Scale, calculate, and create.</p>
         </div>
       </div>
@@ -1870,7 +1870,7 @@ const Auth = ({onEnter, onEnterAsPro}) => {
         <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
         <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
         {!isSignup&&<div style={{textAlign:"right",marginBottom:18}}><span style={{fontSize:13,color:T.terra,cursor:"pointer"}}>Forgot password?</span></div>}
-        <Btn onClick={onEnter} style={{marginTop:8,marginBottom:12}}>{isSignup?"Create my Stitch Box":"Sign in"}</Btn>
+        <Btn onClick={onEnter} style={{marginTop:8,marginBottom:12}}>{isSignup?"Create my YarnHive":"Sign in"}</Btn>
         <Btn variant="ghost" onClick={()=>setScreen("welcome")} full>← Back</Btn>
       </div>
     </div>
@@ -2159,16 +2159,16 @@ const ShareCardModal = ({pattern, onClose}) => {
                : "Working on \"" + pattern.title + "\" — " + done + "% done! 🪡 Making progress!"
   );
   const [shared, setShared] = useState(false);
-  const shareText = caption + "\n\nMade with Stitch Box 📱 #crochet #stitchbox #crochetlife";
+  const shareText = caption + "\n\nMade with YarnHive 📱 #crochet #yarnhive #crochetlife";
 
   const doShare = async (platformId) => {
     if (platformId === "native") {
       if (navigator.share) {
-        try { await navigator.share({title:pattern.title,text:shareText,url:"https://stitch-box.vercel.app"}); setShared(true); } catch(e) {}
+        try { await navigator.share({title:pattern.title,text:shareText,url:"https://yarnhive.app"}); setShared(true); } catch(e) {}
       } else { navigator.clipboard?.writeText(shareText); setShared(true); }
     } else {
       const encodedText = encodeURIComponent(shareText);
-      const encodedUrl  = encodeURIComponent("https://stitch-box.vercel.app");
+      const encodedUrl  = encodeURIComponent("https://yarnhive.app");
       const urls = {
         twitter:  "https://twitter.com/intent/tweet?text=" + encodedText,
         facebook: "https://www.facebook.com/sharer/sharer.php?u=" + encodedUrl + "&quote=" + encodedText,
@@ -2197,7 +2197,7 @@ const ShareCardModal = ({pattern, onClose}) => {
             </div>
             {!isComplete&&<div style={{background:"rgba(255,255,255,.15)",borderRadius:99,height:6,overflow:"hidden",marginBottom:10}}><div style={{width:done+"%",height:"100%",background:"#fff",borderRadius:99}}/></div>}
             {isComplete&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.2)",borderRadius:99,padding:"5px 12px",fontSize:12,color:"#fff",fontWeight:600}}>✓ Complete</div>}
-            <div style={{marginTop:12,fontSize:10,color:"rgba(255,255,255,.4)",letterSpacing:".08em"}}>STITCH BOX · stitch-box.vercel.app</div>
+            <div style={{marginTop:12,fontSize:10,color:"rgba(255,255,255,.4)",letterSpacing:".08em"}}>YARNHIVE · yarnhive.app</div>
           </div>
         </div>
         <div style={{marginBottom:16}}>
@@ -2703,7 +2703,7 @@ const CollectionView = ({patterns, cat, setCat, search, setSearch, openDetail, o
 /* ══════════════════════════════════════════════════════════════════════════
    ROOT
 ══════════════════════════════════════════════════════════════════════════ */
-export default function StitchBox() {
+export default function YarnHive() {
   const [authed,setAuthed]           = useState(false);
   const [isPro,setIsPro]             = useState(false);
   const [patterns,setPatterns]       = useState(SEED_PATTERNS);
@@ -2739,7 +2739,7 @@ export default function StitchBox() {
       <SidebarNav view={view} setView={setView} count={patterns.length} isPro={isPro} onAddPattern={openAddModal}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
         <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 40px",height:64,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
-          <div style={{fontFamily:T.serif,fontSize:24,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Stitch Box"}</div>
+          <div style={{fontFamily:T.serif,fontSize:24,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {isPro&&<div style={{background:T.sageLt,borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,color:T.sage}}>✨ Pro</div>}
             <button onClick={openAddModal} style={{background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",display:"flex",alignItems:"center",gap:8}}>
@@ -2778,7 +2778,7 @@ export default function StitchBox() {
           <div style={{width:15,height:1.5,background:T.ink,borderRadius:99}}/>
           <div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/>
         </button>
-        <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Stitch Box"}</div>
+        <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
         <button onClick={openAddModal} style={{background:T.terra,border:"none",borderRadius:9,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(184,90,60,.4)"}}>+</button>
       </div>
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
