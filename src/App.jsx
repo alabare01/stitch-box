@@ -312,15 +312,31 @@ const CATS = ["All","Blankets","Wearables","Accessories","Amigurumi","Home Déco
 /* ══════════════════════════════════════════════════════════════════════════
    WIREFRAME VIEWER — Three.js 3D component visualization
 ══════════════════════════════════════════════════════════════════════════ */
+
+// Infer logical position for "detail" and "unknown" roles from primitive_type
+const inferDetailOffset = (primitive, detailIndex) => {
+  // cone = hat → sits above head
+  if (primitive === "cone" || primitive === "tapered_cylinder") return { y: 2.8, x: 0, zOff: 0 };
+  // oval/sphere at detail = beard/face feature → between body and head
+  if (primitive === "oval") return { y: 1.0 + detailIndex * 0.5, x: 0, zOff: 0.2 };
+  if (primitive === "sphere") return { y: 1.2 + detailIndex * 0.4, x: 0, zOff: 0.4 };
+  // flat disc/circle = base or decorative flat piece
+  if (primitive === "flat_disc" || primitive === "flat_circle") return { y: -1.5 - detailIndex * 0.3, x: 0, zOff: 0 };
+  // cylinder detail = extra body section
+  if (primitive === "cylinder") return { y: -0.8 - detailIndex * 0.8, x: 0, zOff: 0 };
+  // default: spread around center
+  return { y: 0.5 + detailIndex * 0.7, x: detailIndex % 2 === 0 ? 0.5 : -0.5, zOff: 0 };
+};
+
 const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
   const mountRef = useRef(null);
-  const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
-  const frameRef = useRef(null);
+  const cameraRef = useRef(null);
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: 0.3, y: 0.4 });
   const groupRef = useRef(null);
+  const zoomRef = useRef(5.5); // camera z distance
+  const lastPinchDist = useRef(null);
   const [threeLoaded, setThreeLoaded] = useState(false);
   const [error, setError] = useState(false);
 
@@ -334,7 +350,7 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     document.head.appendChild(script);
   }, []);
 
-  // Primitive color palette — warm neutrals matching app tokens
+  // Primitive color palette
   const PRIM_COLORS = {
     head:   0xC97A5E,
     body:   0xB85A3C,
@@ -345,33 +361,26 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     nose:   0xC07050,
     eye:    0x3A2A20,
     base:   0xA04828,
-    detail: 0xD4956E,
+    detail: 0xD4A870,
     unknown:0xB89A80,
   };
 
   const buildGeometry = useCallback((THREE, primitive, sizeRatio) => {
-    const s = sizeRatio * 0.8;
+    const s = Math.max(0.18, sizeRatio * 0.8);
     switch (primitive) {
-      case "sphere":
-        return new THREE.SphereGeometry(s, 14, 10);
-      case "oval":
-        const og = new THREE.SphereGeometry(s, 14, 10);
-        og.scale(1, 1.4, 1);
+      case "sphere":       return new THREE.SphereGeometry(s, 16, 12);
+      case "oval": {
+        const og = new THREE.SphereGeometry(s, 16, 12);
+        og.scale(1, 1.45, 1);
         return og;
-      case "flat_disc":
-        return new THREE.CylinderGeometry(s, s, s * 0.2, 16);
-      case "cylinder":
-        return new THREE.CylinderGeometry(s * 0.45, s * 0.45, s * 1.4, 14);
-      case "tapered_cylinder":
-        return new THREE.CylinderGeometry(s * 0.25, s * 0.5, s * 1.4, 14);
-      case "cone":
-        return new THREE.ConeGeometry(s * 0.55, s * 1.4, 14);
-      case "flat_square":
-        return new THREE.BoxGeometry(s * 1.2, s * 0.15, s * 1.2);
-      case "flat_circle":
-        return new THREE.CylinderGeometry(s, s, s * 0.12, 20);
-      default:
-        return new THREE.SphereGeometry(s * 0.5, 10, 8);
+      }
+      case "flat_disc":    return new THREE.CylinderGeometry(s, s, s * 0.2, 16);
+      case "cylinder":     return new THREE.CylinderGeometry(s * 0.45, s * 0.45, s * 1.4, 14);
+      case "tapered_cylinder": return new THREE.CylinderGeometry(s * 0.2, s * 0.55, s * 1.5, 14);
+      case "cone":         return new THREE.ConeGeometry(s * 0.6, s * 1.6, 16);
+      case "flat_square":  return new THREE.BoxGeometry(s * 1.2, s * 0.15, s * 1.2);
+      case "flat_circle":  return new THREE.CylinderGeometry(s, s, s * 0.12, 20);
+      default:             return new THREE.SphereGeometry(s * 0.5, 10, 8);
     }
   }, []);
 
@@ -382,59 +391,55 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     const W = el.clientWidth || 300;
     const H = height;
 
-    // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xFAF7F3);
-    sceneRef.current = scene;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
-    camera.position.set(0, 0, 5.5);
+    camera.position.set(0, 0, zoomRef.current);
+    cameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     el.innerHTML = "";
     el.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
 
     // Lighting
-    const ambient = new THREE.AmbientLight(0xfff5ee, 0.7);
-    scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.position.set(3, 4, 5);
-    scene.add(dirLight);
-    const fillLight = new THREE.DirectionalLight(0xffe8d8, 0.4);
-    fillLight.position.set(-3, -2, -3);
-    scene.add(fillLight);
+    scene.add(new THREE.AmbientLight(0xfff5ee, 0.7));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(3, 4, 5);
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight(0xffe8d8, 0.4);
+    fill.position.set(-3, -2, -3);
+    scene.add(fill);
 
-    // Build component group
     const group = new THREE.Group();
     groupRef.current = group;
 
-    // Sort components: body first (dominant/largest), then others
+    // Sort: dominant/body first, then by size descending
     const sorted = [...components].sort((a, b) => {
-      if (a.role === "body" || a.size_relative === "dominant") return -1;
-      if (b.role === "body" || b.size_relative === "dominant") return 1;
+      const aIsDom = a.role === "body" || a.size_relative === "dominant";
+      const bIsDom = b.role === "body" || b.size_relative === "dominant";
+      if (aIsDom && !bIsDom) return -1;
+      if (!aIsDom && bIsDom) return 1;
       return (b.size_ratio_to_dominant || 0.5) - (a.size_ratio_to_dominant || 0.5);
     });
 
-    // Position map for logical assembly
+    // Role-based position map — explicit named roles
     const ROLE_OFFSETS = {
       body:   { y:  0,    x: 0 },
-      head:   { y:  1.3,  x: 0 },
+      head:   { y:  1.4,  x: 0 },
       arm:    { y:  0.3,  x: 1.1, mirror: true },
-      leg:    { y: -1.1,  x: 0.7, mirror: true },
-      ear:    { y:  1.9,  x: 0.5, mirror: true },
-      tail:   { y: -0.8,  x: 0, zOff: -0.8 },
-      nose:   { y:  1.3,  x: 0, zOff: 0.6 },
-      base:   { y: -1.4,  x: 0 },
-      detail: { y:  0,    x: 0 },
-      unknown:{ y:  0,    x: 0 },
+      leg:    { y: -1.2,  x: 0.7, mirror: true },
+      ear:    { y:  2.0,  x: 0.5, mirror: true },
+      tail:   { y: -0.9,  x: 0,   zOff: -0.8 },
+      nose:   { y:  1.4,  x: 0,   zOff: 0.7 },
+      eye:    { y:  1.5,  x: 0.35, mirror: true, zOff: 0.5 },
+      base:   { y: -1.6,  x: 0 },
     };
 
-    const roleCounts = {};
+    // Track how many of each primitive type we've seen in detail/unknown
+    const detailPrimCount = {};
 
     sorted.forEach((comp) => {
       const role = comp.role || "unknown";
@@ -442,91 +447,80 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
       const ratio = comp.size_ratio_to_dominant || 0.5;
       const count = comp.count || 1;
       const color = PRIM_COLORS[role] || PRIM_COLORS.unknown;
-      const offset = ROLE_OFFSETS[role] || ROLE_OFFSETS.unknown;
 
-      roleCounts[role] = (roleCounts[role] || 0) + 1;
+      // Resolve offset — detail/unknown get inferred from primitive
+      let offset;
+      if (role === "detail" || role === "unknown") {
+        const primKey = primitive;
+        const idx = detailPrimCount[primKey] || 0;
+        detailPrimCount[primKey] = idx + 1;
+        offset = inferDetailOffset(primitive, idx);
+      } else {
+        offset = ROLE_OFFSETS[role] || { y: 0, x: 0 };
+      }
 
       const geo = buildGeometry(THREE, primitive, Math.max(0.2, ratio));
-      const mat = new THREE.MeshPhongMaterial({
-        color,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.75,
-      });
-      const solidMat = new THREE.MeshPhongMaterial({
-        color,
-        transparent: true,
-        opacity: 0.12,
-      });
+      const wireMat = new THREE.MeshPhongMaterial({ color, wireframe: true, transparent: true, opacity: 0.8 });
+      const solidMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.13 });
 
-      const placeCount = Math.min(count, 4); // cap render at 4 instances
+      const placeCount = Math.min(count, 4);
       for (let i = 0; i < placeCount; i++) {
-        const wireframeMesh = new THREE.Mesh(geo, mat);
-        const solidMesh = new THREE.Mesh(geo, solidMat);
+        const wMesh = new THREE.Mesh(geo, wireMat);
+        const sMesh = new THREE.Mesh(geo, solidMat);
 
         let xPos = offset.x || 0;
         let yPos = offset.y || 0;
         let zPos = offset.zOff || 0;
 
-        // Mirror paired parts (arms, legs, ears)
         if (offset.mirror && placeCount > 1) {
-          xPos = i === 0 ? offset.x : -offset.x;
-        }
-        // Stack multiple of same role vertically
-        if (placeCount > 1 && !offset.mirror) {
-          yPos += i * 0.6;
+          xPos = i === 0 ? Math.abs(offset.x) : -Math.abs(offset.x);
+        } else if (placeCount > 1 && !offset.mirror) {
+          yPos += i * 0.55;
         }
 
-        wireframeMesh.position.set(xPos, yPos, zPos);
-        solidMesh.position.set(xPos, yPos, zPos);
+        wMesh.position.set(xPos, yPos, zPos);
+        sMesh.position.set(xPos, yPos, zPos);
 
-        // Rotate limbs to face outward
-        if (role === "arm" || role === "leg") {
-          wireframeMesh.rotation.z = i === 0 ? -0.4 : 0.4;
-          solidMesh.rotation.z = i === 0 ? -0.4 : 0.4;
+        if ((role === "arm" || role === "leg") && placeCount > 1) {
+          wMesh.rotation.z = i === 0 ? -0.4 : 0.4;
+          sMesh.rotation.z = i === 0 ? -0.4 : 0.4;
         }
-        if (role === "tail") {
-          wireframeMesh.rotation.x = 0.5;
-          solidMesh.rotation.x = 0.5;
-        }
-        if (role === "nose") {
-          wireframeMesh.rotation.x = Math.PI / 2;
-          solidMesh.rotation.x = Math.PI / 2;
-        }
+        if (role === "tail")  { wMesh.rotation.x = 0.5; sMesh.rotation.x = 0.5; }
+        if (role === "nose")  { wMesh.rotation.x = Math.PI / 2; sMesh.rotation.x = Math.PI / 2; }
+        // Cone details (hats) point upward by default — fine as-is
 
-        group.add(solidMesh);
-        group.add(wireframeMesh);
+        group.add(sMesh);
+        group.add(wMesh);
 
-        // Labels (labeled mode only)
+        // Labels
         if (labeled) {
-          const canvas2d = document.createElement("canvas");
-          canvas2d.width = 256; canvas2d.height = 64;
-          const ctx = canvas2d.getContext("2d");
-          ctx.fillStyle = "rgba(28,23,20,0.0)";
-          ctx.fillRect(0, 0, 256, 64);
+          const c2d = document.createElement("canvas");
+          c2d.width = 280; c2d.height = 56;
+          const ctx = c2d.getContext("2d");
+          ctx.clearRect(0, 0, 280, 56);
           ctx.fillStyle = "#B85A3C";
-          ctx.font = "bold 22px Inter, sans-serif";
+          ctx.font = "bold 20px Inter, sans-serif";
           ctx.textAlign = "center";
-          const labelText = role !== "unknown" ? role.toUpperCase() : primitive.toUpperCase();
-          ctx.fillText(labelText, 128, 38);
-
-          const tex = new THREE.CanvasTexture(canvas2d);
-          const labelMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-          const sprite = new THREE.Sprite(labelMat);
-          sprite.scale.set(1.4, 0.35, 1);
-          sprite.position.set(xPos + 0.05, yPos + ratio * 0.8 + 0.4, zPos + 0.1);
+          const lbl = (role !== "unknown" && role !== "detail") ? role.toUpperCase()
+                     : primitive !== "unknown" ? primitive.toUpperCase()
+                     : "PART";
+          ctx.fillText(lbl, 140, 36);
+          const tex = new THREE.CanvasTexture(c2d);
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+          sprite.scale.set(1.5, 0.37, 1);
+          sprite.position.set(xPos, yPos + ratio * 0.9 + 0.45, zPos + 0.1);
           group.add(sprite);
         }
       }
     });
 
-    // Auto-scale group to fit view
+    // Auto-scale to fit — use tighter padding so small pieces are visible
     const box = new THREE.Box3().setFromObject(group);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     if (maxDim > 0) {
-      const scale = 3.2 / maxDim;
+      const scale = 2.8 / maxDim;
       group.scale.setScalar(scale);
       group.position.sub(center.multiplyScalar(scale));
     }
@@ -536,39 +530,50 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     scene.add(group);
 
     // Grid floor
-    const gridHelper = new THREE.GridHelper(6, 10, 0xEAE0D5, 0xEAE0D5);
-    gridHelper.position.y = -2;
-    gridHelper.material.transparent = true;
-    gridHelper.material.opacity = 0.4;
-    scene.add(gridHelper);
+    const grid = new THREE.GridHelper(8, 12, 0xEAE0D5, 0xEAE0D5);
+    grid.position.y = -2.2;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.35;
+    scene.add(grid);
 
-    // Animate
     let animFrame;
     const animate = () => {
       animFrame = requestAnimationFrame(animate);
-      if (!isDragging.current && group) {
-        group.rotation.y += 0.003; // slow auto-rotate when not dragging
-      }
+      if (!isDragging.current && group) group.rotation.y += 0.003;
       renderer.render(scene, camera);
     };
     animate();
-    frameRef.current = animFrame;
 
-    return () => {
-      cancelAnimationFrame(animFrame);
-      renderer.dispose();
-    };
+    return () => { cancelAnimationFrame(animFrame); renderer.dispose(); };
   }, [threeLoaded, components, labeled, height, buildGeometry]);
 
-  // Drag to rotate
+  // Pointer handlers — rotate + zoom
+  const getXY = (e) => ({
+    x: e.clientX ?? e.touches?.[0]?.clientX,
+    y: e.clientY ?? e.touches?.[0]?.clientY,
+  });
+
   const onPointerDown = (e) => {
     isDragging.current = true;
-    lastMouse.current = { x: e.clientX || e.touches?.[0]?.clientX, y: e.clientY || e.touches?.[0]?.clientY };
+    lastMouse.current = getXY(e);
   };
   const onPointerMove = (e) => {
     if (!isDragging.current || !groupRef.current) return;
-    const x = e.clientX || e.touches?.[0]?.clientX;
-    const y = e.clientY || e.touches?.[0]?.clientY;
+    // Two-finger pinch = zoom
+    if (e.touches?.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastPinchDist.current !== null) {
+        const delta = lastPinchDist.current - dist;
+        zoomRef.current = Math.max(1.5, Math.min(12, zoomRef.current + delta * 0.04));
+        if (cameraRef.current) cameraRef.current.position.z = zoomRef.current;
+      }
+      lastPinchDist.current = dist;
+      return;
+    }
+    lastPinchDist.current = null;
+    const { x, y } = getXY(e);
     const dx = x - lastMouse.current.x;
     const dy = y - lastMouse.current.y;
     groupRef.current.rotation.y += dx * 0.012;
@@ -576,7 +581,14 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     rotationRef.current = { x: groupRef.current.rotation.x, y: groupRef.current.rotation.y };
     lastMouse.current = { x, y };
   };
-  const onPointerUp = () => { isDragging.current = false; };
+  const onPointerUp = () => { isDragging.current = false; lastPinchDist.current = null; };
+
+  // Scroll wheel zoom
+  const onWheel = (e) => {
+    e.preventDefault();
+    zoomRef.current = Math.max(1.5, Math.min(12, zoomRef.current + e.deltaY * 0.01));
+    if (cameraRef.current) cameraRef.current.position.z = zoomRef.current;
+  };
 
   if (error) return (
     <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
@@ -603,9 +615,10 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
         onTouchStart={onPointerDown}
         onTouchMove={onPointerMove}
         onTouchEnd={onPointerUp}
+        onWheel={onWheel}
       />
-      <div style={{position:"absolute",bottom:8,right:10,fontSize:10,color:T.ink3,pointerEvents:"none",display:"flex",alignItems:"center",gap:4}}>
-        <span>⟳</span> drag to rotate
+      <div style={{position:"absolute",bottom:8,right:10,fontSize:10,color:T.ink3,pointerEvents:"none",display:"flex",alignItems:"center",gap:6}}>
+        <span>⟳ drag</span><span style={{opacity:.5}}>·</span><span>scroll/pinch to zoom</span>
       </div>
     </div>
   );
