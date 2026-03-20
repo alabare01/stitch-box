@@ -384,7 +384,7 @@ const callGeminiVision = async (base64Image) => {
             { inline_data: { mime_type: mediaType, data: imageData } }
           ]
         }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
       })
     }
   );
