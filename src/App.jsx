@@ -313,74 +313,89 @@ const CATS = ["All","Blankets","Wearables","Accessories","Amigurumi","Home Déco
    WIREFRAME VIEWER — Three.js 3D component visualization
 ══════════════════════════════════════════════════════════════════════════ */
 
-// Infer logical position for "detail" and "unknown" roles from primitive_type
-const inferDetailOffset = (primitive, detailIndex) => {
-  // cone = hat → sits above head
-  if (primitive === "cone" || primitive === "tapered_cylinder") return { y: 2.8, x: 0, zOff: 0 };
-  // oval/sphere at detail = beard/face feature → between body and head
-  if (primitive === "oval") return { y: 1.0 + detailIndex * 0.5, x: 0, zOff: 0.2 };
-  if (primitive === "sphere") return { y: 1.2 + detailIndex * 0.4, x: 0, zOff: 0.4 };
-  // flat disc/circle = base or decorative flat piece
-  if (primitive === "flat_disc" || primitive === "flat_circle") return { y: -1.5 - detailIndex * 0.3, x: 0, zOff: 0 };
-  // cylinder detail = extra body section
-  if (primitive === "cylinder") return { y: -0.8 - detailIndex * 0.8, x: 0, zOff: 0 };
-  // default: spread around center
-  return { y: 0.5 + detailIndex * 0.7, x: detailIndex % 2 === 0 ? 0.5 : -0.5, zOff: 0 };
+// Comprehensive role normalizer — maps ANY role Gemini might return to a known slot
+const normalizeRole = (role, primitive) => {
+  if (!role) return "unknown";
+  const r = role.toLowerCase().trim();
+  const KNOWN = ["body","head","arm","leg","ear","tail","nose","eye","base"];
+  if (KNOWN.includes(r)) return r;
+  if (["hat","cap","hood","brim","top"].includes(r)) return "hat";
+  if (["beard","moustache","mustache","mouth","snout","beak","tuft","pom"].includes(r)) return "beard";
+  if (["wing","fin","flipper"].includes(r)) return "wing";
+  if (["torso","chest","trunk","midsection"].includes(r)) return "body";
+  if (["hand","paw","foot","hoof","claw"].includes(r)) return "arm";
+  if (["antenna","horn","spike"].includes(r)) return "horn";
+  if (["flower","bow","ribbon","accessory","button","pompom"].includes(r)) return "accessory";
+  if (r === "detail" || r === "unknown") {
+    if (primitive === "cone" || primitive === "tapered_cylinder") return "hat";
+    if (primitive === "oval") return "beard";
+    if (primitive === "flat_disc" || primitive === "flat_circle") return "base";
+    if (primitive === "sphere") return "beard";
+    return "detail";
+  }
+  return "detail";
+};
+
+// Canonical slot positions — fixed world-space coords, no post-scale crush
+const SLOT_POSITIONS = {
+  body:      { y:  0.0,  x: 0,     zOff: 0 },
+  head:      { y:  1.6,  x: 0,     zOff: 0 },
+  hat:       { y:  3.1,  x: 0,     zOff: 0 },
+  beard:     { y:  1.05, x: 0,     zOff: 0.35 },
+  nose:      { y:  1.65, x: 0,     zOff: 0.75 },
+  eye:       { y:  1.75, x: 0.38,  zOff: 0.6,  mirror: true },
+  ear:       { y:  2.25, x: 0.55,  zOff: 0,    mirror: true },
+  arm:       { y:  0.3,  x: 1.2,   zOff: 0,    mirror: true },
+  leg:       { y: -1.35, x: 0.6,   zOff: 0,    mirror: true },
+  tail:      { y: -0.8,  x: 0,     zOff: -0.9 },
+  base:      { y: -1.8,  x: 0,     zOff: 0 },
+  horn:      { y:  2.4,  x: 0.3,   zOff: 0,    mirror: true },
+  wing:      { y:  0.5,  x: 1.5,   zOff: -0.3, mirror: true },
+  accessory: { y:  2.1,  x: 0,     zOff: 0.2 },
+  detail:    { y:  0.7,  x: 0,     zOff: 0.5 },
+};
+
+const ROLE_COLORS = {
+  body: 0xB85A3C, head: 0xC97A5E, hat: 0xA04828,
+  beard: 0xE8D4B8, nose: 0xC07050, eye: 0x3A2A20,
+  ear: 0xE8B49A, arm: 0xD4956E, leg: 0xD4956E,
+  tail: 0xD4B89A, base: 0x9A7060, horn: 0xD4956E,
+  wing: 0xC8A878, accessory: 0xB8902C, detail: 0xD4A870, unknown: 0xB89A80,
 };
 
 const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
-  const mountRef = useRef(null);
-  const cameraRef = useRef(null);
+  const mountRef   = useRef(null);
+  const cameraRef  = useRef(null);
+  const groupRef   = useRef(null);
   const isDragging = useRef(false);
-  const lastMouse = useRef({ x: 0, y: 0 });
-  const rotationRef = useRef({ x: 0.3, y: 0.4 });
-  const groupRef = useRef(null);
-  const zoomRef = useRef(5.5); // camera z distance
-  const lastPinchDist = useRef(null);
+  const lastMouse  = useRef({ x: 0, y: 0 });
+  const rotRef     = useRef({ x: 0.25, y: 0.4 });
+  const zoomRef    = useRef(7.0);
+  const pinchRef   = useRef(null);
   const [threeLoaded, setThreeLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [loadError,   setLoadError]   = useState(false);
 
-  // Load Three.js from CDN
   useEffect(() => {
     if (window.THREE) { setThreeLoaded(true); return; }
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-    script.onload = () => setThreeLoaded(true);
-    script.onerror = () => setError(true);
-    document.head.appendChild(script);
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    s.onload = () => setThreeLoaded(true);
+    s.onerror = () => setLoadError(true);
+    document.head.appendChild(s);
   }, []);
 
-  // Primitive color palette
-  const PRIM_COLORS = {
-    head:   0xC97A5E,
-    body:   0xB85A3C,
-    arm:    0xD4956E,
-    leg:    0xD4956E,
-    ear:    0xE8B49A,
-    tail:   0xE8B49A,
-    nose:   0xC07050,
-    eye:    0x3A2A20,
-    base:   0xA04828,
-    detail: 0xD4A870,
-    unknown:0xB89A80,
-  };
-
-  const buildGeometry = useCallback((THREE, primitive, sizeRatio) => {
-    const s = Math.max(0.18, sizeRatio * 0.8);
+  const buildGeo = useCallback((THREE, primitive, s) => {
+    const r = Math.max(0.15, s);
     switch (primitive) {
-      case "sphere":       return new THREE.SphereGeometry(s, 16, 12);
-      case "oval": {
-        const og = new THREE.SphereGeometry(s, 16, 12);
-        og.scale(1, 1.45, 1);
-        return og;
-      }
-      case "flat_disc":    return new THREE.CylinderGeometry(s, s, s * 0.2, 16);
-      case "cylinder":     return new THREE.CylinderGeometry(s * 0.45, s * 0.45, s * 1.4, 14);
-      case "tapered_cylinder": return new THREE.CylinderGeometry(s * 0.2, s * 0.55, s * 1.5, 14);
-      case "cone":         return new THREE.ConeGeometry(s * 0.6, s * 1.6, 16);
-      case "flat_square":  return new THREE.BoxGeometry(s * 1.2, s * 0.15, s * 1.2);
-      case "flat_circle":  return new THREE.CylinderGeometry(s, s, s * 0.12, 20);
-      default:             return new THREE.SphereGeometry(s * 0.5, 10, 8);
+      case "sphere":           return new THREE.SphereGeometry(r, 16, 12);
+      case "oval": { const g = new THREE.SphereGeometry(r, 16, 12); g.scale(1, 1.5, 1); return g; }
+      case "flat_disc":        return new THREE.CylinderGeometry(r, r, r * 0.18, 16);
+      case "cylinder":         return new THREE.CylinderGeometry(r * 0.42, r * 0.42, r * 1.5, 14);
+      case "tapered_cylinder": return new THREE.CylinderGeometry(r * 0.18, r * 0.52, r * 1.6, 14);
+      case "cone":             return new THREE.ConeGeometry(r * 0.58, r * 1.8, 16);
+      case "flat_square":      return new THREE.BoxGeometry(r * 1.3, r * 0.14, r * 1.3);
+      case "flat_circle":      return new THREE.CylinderGeometry(r, r, r * 0.1, 20);
+      default:                 return new THREE.SphereGeometry(r * 0.5, 10, 8);
     }
   }, []);
 
@@ -394,7 +409,7 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xFAF7F3);
 
-    const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
     camera.position.set(0, 0, zoomRef.current);
     cameraRef.current = camera;
 
@@ -404,198 +419,155 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     el.innerHTML = "";
     el.appendChild(renderer.domElement);
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xfff5ee, 0.7));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(3, 4, 5);
-    scene.add(dir);
-    const fill = new THREE.DirectionalLight(0xffe8d8, 0.4);
-    fill.position.set(-3, -2, -3);
-    scene.add(fill);
+    scene.add(new THREE.AmbientLight(0xfff5ee, 0.75));
+    const d = new THREE.DirectionalLight(0xffffff, 0.85); d.position.set(3, 5, 5); scene.add(d);
+    const f = new THREE.DirectionalLight(0xffe8d8, 0.35); f.position.set(-3, -2, -3); scene.add(f);
 
     const group = new THREE.Group();
     groupRef.current = group;
 
-    // Sort: dominant/body first, then by size descending
-    const sorted = [...components].sort((a, b) => {
-      const aIsDom = a.role === "body" || a.size_relative === "dominant";
-      const bIsDom = b.role === "body" || b.size_relative === "dominant";
-      if (aIsDom && !bIsDom) return -1;
-      if (!aIsDom && bIsDom) return 1;
-      return (b.size_ratio_to_dominant || 0.5) - (a.size_ratio_to_dominant || 0.5);
-    });
+    // Track which slots are already occupied so duplicates stack offset
+    const slotCount = {};
 
-    // Role-based position map — explicit named roles
-    const ROLE_OFFSETS = {
-      body:   { y:  0,    x: 0 },
-      head:   { y:  1.4,  x: 0 },
-      arm:    { y:  0.3,  x: 1.1, mirror: true },
-      leg:    { y: -1.2,  x: 0.7, mirror: true },
-      ear:    { y:  2.0,  x: 0.5, mirror: true },
-      tail:   { y: -0.9,  x: 0,   zOff: -0.8 },
-      nose:   { y:  1.4,  x: 0,   zOff: 0.7 },
-      eye:    { y:  1.5,  x: 0.35, mirror: true, zOff: 0.5 },
-      base:   { y: -1.6,  x: 0 },
-    };
-
-    // Track how many of each primitive type we've seen in detail/unknown
-    const detailPrimCount = {};
-
-    sorted.forEach((comp) => {
-      const role = comp.role || "unknown";
+    components.forEach((comp) => {
+      const rawRole   = comp.role || "unknown";
       const primitive = comp.primitive_type || "sphere";
-      const ratio = comp.size_ratio_to_dominant || 0.5;
-      const count = comp.count || 1;
-      const color = PRIM_COLORS[role] || PRIM_COLORS.unknown;
+      const ratio     = Math.max(0.15, comp.size_ratio_to_dominant || 0.5);
+      const count     = Math.min(comp.count || 1, 4);
 
-      // Resolve offset — detail/unknown get inferred from primitive
-      let offset;
-      if (role === "detail" || role === "unknown") {
-        const primKey = primitive;
-        const idx = detailPrimCount[primKey] || 0;
-        detailPrimCount[primKey] = idx + 1;
-        offset = inferDetailOffset(primitive, idx);
-      } else {
-        offset = ROLE_OFFSETS[role] || { y: 0, x: 0 };
-      }
+      const slot  = normalizeRole(rawRole, primitive);
+      const pos   = SLOT_POSITIONS[slot] || SLOT_POSITIONS.detail;
+      const color = ROLE_COLORS[slot] || ROLE_COLORS.unknown;
 
-      const geo = buildGeometry(THREE, primitive, Math.max(0.2, ratio));
-      const wireMat = new THREE.MeshPhongMaterial({ color, wireframe: true, transparent: true, opacity: 0.8 });
-      const solidMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.13 });
+      // Stack duplicates of same slot vertically with small offset
+      const slotKey = slot;
+      const stackIdx = slotCount[slotKey] || 0;
+      slotCount[slotKey] = stackIdx + 1;
 
-      const placeCount = Math.min(count, 4);
-      for (let i = 0; i < placeCount; i++) {
-        const wMesh = new THREE.Mesh(geo, wireMat);
-        const sMesh = new THREE.Mesh(geo, solidMat);
+      const geo      = buildGeo(THREE, primitive, ratio * 0.75);
+      const wireMat  = new THREE.MeshPhongMaterial({ color, wireframe: true,  transparent: true, opacity: 0.82 });
+      const solidMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.1 });
 
-        let xPos = offset.x || 0;
-        let yPos = offset.y || 0;
-        let zPos = offset.zOff || 0;
+      for (let i = 0; i < count; i++) {
+        const wm = new THREE.Mesh(geo, wireMat);
+        const sm = new THREE.Mesh(geo, solidMat);
 
-        if (offset.mirror && placeCount > 1) {
-          xPos = i === 0 ? Math.abs(offset.x) : -Math.abs(offset.x);
-        } else if (placeCount > 1 && !offset.mirror) {
-          yPos += i * 0.55;
+        // Mirror symmetrical parts (arms, legs, ears, eyes, horns, wings)
+        let xPos = pos.x || 0;
+        const yPos = (pos.y || 0) + stackIdx * 0.45;
+        const zPos = pos.zOff || 0;
+
+        if (pos.mirror && count > 1) {
+          xPos = i === 0 ? Math.abs(pos.x) : -Math.abs(pos.x);
+        } else if (!pos.mirror && count > 1) {
+          // non-mirrored multiples (e.g. 3 buttons) spread horizontally
+          xPos = (i - (count - 1) / 2) * 0.5;
         }
 
-        wMesh.position.set(xPos, yPos, zPos);
-        sMesh.position.set(xPos, yPos, zPos);
+        wm.position.set(xPos, yPos, zPos);
+        sm.position.set(xPos, yPos, zPos);
 
-        if ((role === "arm" || role === "leg") && placeCount > 1) {
-          wMesh.rotation.z = i === 0 ? -0.4 : 0.4;
-          sMesh.rotation.z = i === 0 ? -0.4 : 0.4;
+        // Role-specific rotations
+        if (slot === "tail")  { wm.rotation.x = 0.5;          sm.rotation.x = 0.5; }
+        if (slot === "nose")  { wm.rotation.x = Math.PI / 2;  sm.rotation.x = Math.PI / 2; }
+        if ((slot === "arm" || slot === "leg") && count > 1) {
+          const ang = i === 0 ? -0.4 : 0.4;
+          wm.rotation.z = ang; sm.rotation.z = ang;
         }
-        if (role === "tail")  { wMesh.rotation.x = 0.5; sMesh.rotation.x = 0.5; }
-        if (role === "nose")  { wMesh.rotation.x = Math.PI / 2; sMesh.rotation.x = Math.PI / 2; }
-        // Cone details (hats) point upward by default — fine as-is
 
-        group.add(sMesh);
-        group.add(wMesh);
+        group.add(sm); group.add(wm);
 
-        // Labels
+        // Sprite labels — use original role name so user sees what Gemini found
         if (labeled) {
-          const c2d = document.createElement("canvas");
-          c2d.width = 280; c2d.height = 56;
-          const ctx = c2d.getContext("2d");
-          ctx.clearRect(0, 0, 280, 56);
+          const cv = document.createElement("canvas");
+          cv.width = 320; cv.height = 58;
+          const ctx = cv.getContext("2d");
+          ctx.clearRect(0, 0, 320, 58);
           ctx.fillStyle = "#B85A3C";
-          ctx.font = "bold 20px Inter, sans-serif";
+          ctx.font = "bold 22px Inter, sans-serif";
           ctx.textAlign = "center";
-          const lbl = (role !== "unknown" && role !== "detail") ? role.toUpperCase()
-                     : primitive !== "unknown" ? primitive.toUpperCase()
-                     : "PART";
-          ctx.fillText(lbl, 140, 36);
-          const tex = new THREE.CanvasTexture(c2d);
+          // Show original role if informative, else show slot
+          const displayLabel = (rawRole !== "unknown" && rawRole !== "detail")
+            ? rawRole.toUpperCase()
+            : slot !== "detail" ? slot.toUpperCase() : primitive.toUpperCase();
+          ctx.fillText(displayLabel, 160, 40);
+          const tex = new THREE.CanvasTexture(cv);
           const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-          sprite.scale.set(1.5, 0.37, 1);
-          sprite.position.set(xPos, yPos + ratio * 0.9 + 0.45, zPos + 0.1);
+          sprite.scale.set(1.6, 0.38, 1);
+          // Position label above the piece
+          sprite.position.set(xPos, yPos + ratio * 0.85 + 0.5, zPos + 0.15);
           group.add(sprite);
         }
       }
     });
 
-    // Auto-scale to fit — use tighter padding so small pieces are visible
-    const box = new THREE.Box3().setFromObject(group);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    if (maxDim > 0) {
-      const scale = 2.8 / maxDim;
-      group.scale.setScalar(scale);
-      group.position.sub(center.multiplyScalar(scale));
-    }
+    // Scale based on body component only — prevents hat/limbs from crushing scene
+    const bodyComp = components.find(c => {
+      const s = normalizeRole(c.role || "", c.primitive_type || "");
+      return s === "body";
+    });
+    const bodyRatio = bodyComp ? Math.max(0.15, bodyComp.size_ratio_to_dominant || 1.0) : 0.75;
+    const sceneScale = 0.9 / (bodyRatio * 0.75);
+    group.scale.setScalar(Math.min(sceneScale, 1.4));
 
-    group.rotation.x = rotationRef.current.x;
-    group.rotation.y = rotationRef.current.y;
+    // Center vertically on body slot
+    group.position.set(0, -SLOT_POSITIONS.body.y * group.scale.y * 0.5, 0);
+
+    group.rotation.x = rotRef.current.x;
+    group.rotation.y = rotRef.current.y;
     scene.add(group);
 
-    // Grid floor
-    const grid = new THREE.GridHelper(8, 12, 0xEAE0D5, 0xEAE0D5);
-    grid.position.y = -2.2;
+    const grid = new THREE.GridHelper(10, 14, 0xEAE0D5, 0xEAE0D5);
+    grid.position.y = -2.5;
     grid.material.transparent = true;
-    grid.material.opacity = 0.35;
+    grid.material.opacity = 0.3;
     scene.add(grid);
 
-    let animFrame;
+    let af;
     const animate = () => {
-      animFrame = requestAnimationFrame(animate);
+      af = requestAnimationFrame(animate);
       if (!isDragging.current && group) group.rotation.y += 0.003;
       renderer.render(scene, camera);
     };
     animate();
+    return () => { cancelAnimationFrame(af); renderer.dispose(); };
+  }, [threeLoaded, components, labeled, height, buildGeo]);
 
-    return () => { cancelAnimationFrame(animFrame); renderer.dispose(); };
-  }, [threeLoaded, components, labeled, height, buildGeometry]);
+  const getXY = e => ({ x: e.clientX ?? e.touches?.[0]?.clientX, y: e.clientY ?? e.touches?.[0]?.clientY });
 
-  // Pointer handlers — rotate + zoom
-  const getXY = (e) => ({
-    x: e.clientX ?? e.touches?.[0]?.clientX,
-    y: e.clientY ?? e.touches?.[0]?.clientY,
-  });
-
-  const onPointerDown = (e) => {
-    isDragging.current = true;
-    lastMouse.current = getXY(e);
-  };
-  const onPointerMove = (e) => {
+  const onDown  = e => { isDragging.current = true; lastMouse.current = getXY(e); };
+  const onUp    = () => { isDragging.current = false; pinchRef.current = null; };
+  const onMove  = e => {
     if (!isDragging.current || !groupRef.current) return;
-    // Two-finger pinch = zoom
     if (e.touches?.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (lastPinchDist.current !== null) {
-        const delta = lastPinchDist.current - dist;
-        zoomRef.current = Math.max(1.5, Math.min(12, zoomRef.current + delta * 0.04));
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (pinchRef.current !== null) {
+        zoomRef.current = Math.max(2, Math.min(14, zoomRef.current + (pinchRef.current - dist) * 0.04));
         if (cameraRef.current) cameraRef.current.position.z = zoomRef.current;
       }
-      lastPinchDist.current = dist;
+      pinchRef.current = dist;
       return;
     }
-    lastPinchDist.current = null;
+    pinchRef.current = null;
     const { x, y } = getXY(e);
-    const dx = x - lastMouse.current.x;
-    const dy = y - lastMouse.current.y;
-    groupRef.current.rotation.y += dx * 0.012;
-    groupRef.current.rotation.x += dy * 0.012;
-    rotationRef.current = { x: groupRef.current.rotation.x, y: groupRef.current.rotation.y };
+    groupRef.current.rotation.y += (x - lastMouse.current.x) * 0.012;
+    groupRef.current.rotation.x += (y - lastMouse.current.y) * 0.012;
+    rotRef.current = { x: groupRef.current.rotation.x, y: groupRef.current.rotation.y };
     lastMouse.current = { x, y };
   };
-  const onPointerUp = () => { isDragging.current = false; lastPinchDist.current = null; };
-
-  // Scroll wheel zoom
-  const onWheel = (e) => {
+  const onWheel = e => {
     e.preventDefault();
-    zoomRef.current = Math.max(1.5, Math.min(12, zoomRef.current + e.deltaY * 0.01));
+    zoomRef.current = Math.max(2, Math.min(14, zoomRef.current + e.deltaY * 0.012));
     if (cameraRef.current) cameraRef.current.position.z = zoomRef.current;
   };
 
-  if (error) return (
+  if (loadError) return (
     <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
       <div style={{fontSize:12,color:T.ink3}}>3D preview unavailable</div>
     </div>
   );
-
   if (!threeLoaded) return (
     <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
       <div className="spinner" style={{width:24,height:24,border:`2px solid ${T.border}`,borderTop:`2px solid ${T.terra}`,borderRadius:"50%"}}/>
@@ -604,21 +576,14 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
 
   return (
     <div style={{position:"relative"}}>
-      <div
-        ref={mountRef}
-        className="wireframe-container"
+      <div ref={mountRef} className="wireframe-container"
         style={{width:"100%",height,borderRadius:12,overflow:"hidden",cursor:"grab",userSelect:"none"}}
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
+        onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+        onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
         onWheel={onWheel}
       />
-      <div style={{position:"absolute",bottom:8,right:10,fontSize:10,color:T.ink3,pointerEvents:"none",display:"flex",alignItems:"center",gap:6}}>
-        <span>⟳ drag</span><span style={{opacity:.5}}>·</span><span>scroll/pinch to zoom</span>
+      <div style={{position:"absolute",bottom:8,right:10,fontSize:10,color:T.ink3,pointerEvents:"none",display:"flex",gap:6}}>
+        <span>⟳ drag</span><span style={{opacity:.4}}>·</span><span>scroll/pinch to zoom</span>
       </div>
     </div>
   );
