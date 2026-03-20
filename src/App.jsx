@@ -754,7 +754,7 @@ const URLImportForm = ({onSave}) => {
       setPreview({
         ...data,
         rows,
-        photo: PILL[Math.floor(Math.random() * PILL.length)],
+        photo: data.thumbnail_url || PILL[Math.floor(Math.random() * PILL.length)],
         smartNote: `${rows.length} steps extracted and ready to track.`,
       });
 
@@ -1738,7 +1738,7 @@ const ShareCardModal = ({pattern, onClose}) => {
 ══════════════════════════════════════════════════════════════════════════ */
 const Detail = ({p, onBack, onSave}) => {
   const [rows,setRows]               = useState(p.rows);
-  const [tab,setTab]                 = useState("rows");
+const [tab,setTab]                 = useState("materials");
   const [newRow,setNewRow]           = useState("");
   const [editing,setEditing]         = useState(false);
   const [draft,setDraft]             = useState({...p});
@@ -1814,7 +1814,7 @@ const Detail = ({p, onBack, onSave}) => {
         </div>
       </div>
       <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-        {[["rows","Rows"],["materials","Materials"],["notes","Notes"]].map(([key,label])=>(
+       {[["materials","Materials"],["rows","Rows"],["notes","Notes"]].map(([key,label])=>(
           <button key={key} onClick={()=>setTab(key)} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:`2px solid ${tab===key?T.terra:"transparent"}`,transition:"color .15s"}}>{label}</button>
         ))}
       </div>
