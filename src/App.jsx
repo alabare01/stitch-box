@@ -372,7 +372,7 @@ const callGeminiVision = async (base64Image) => {
     }
   );
 
-  if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
+if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   const clean = text.replace(/```json|```/g, "").trim();
