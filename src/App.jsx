@@ -363,7 +363,7 @@ const ROLE_COLORS = {
   wing: 0xC8A878, accessory: 0xB8902C, detail: 0xD4A870, unknown: 0xB89A80,
 };
 
-const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
+const WireframeViewer = ({ components, labeled = false, height = 220, fillContainer = false }) => {
   const mountRef   = useRef(null);
   const cameraRef  = useRef(null);
   const groupRef   = useRef(null);
@@ -404,7 +404,7 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     const THREE = window.THREE;
     const el = mountRef.current;
     const W = el.clientWidth || 300;
-    const H = height;
+    const H = fillContainer ? (el.clientHeight || el.clientWidth || 300) : height;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xFAF7F3);
@@ -531,7 +531,7 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     };
     animate();
     return () => { cancelAnimationFrame(af); renderer.dispose(); };
-  }, [threeLoaded, components, labeled, height, buildGeo]);
+  }, [threeLoaded, components, labeled, height, fillContainer, buildGeo]);
 
   const getXY = e => ({ x: e.clientX ?? e.touches?.[0]?.clientX, y: e.clientY ?? e.touches?.[0]?.clientY });
 
@@ -563,21 +563,29 @@ const WireframeViewer = ({ components, labeled = false, height = 220 }) => {
     if (cameraRef.current) cameraRef.current.position.z = zoomRef.current;
   };
 
+  // fillContainer = stretch to fill absolutely-positioned parent
+  const outerStyle = fillContainer
+    ? { position:"absolute", inset:0 }
+    : { position:"relative" };
+  const mountStyle = fillContainer
+    ? { width:"100%", height:"100%", cursor:"grab", userSelect:"none" }
+    : { width:"100%", height, borderRadius:12, overflow:"hidden", cursor:"grab", userSelect:"none" };
+
   if (loadError) return (
-    <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
+    <div style={{...outerStyle,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
       <div style={{fontSize:12,color:T.ink3}}>3D preview unavailable</div>
     </div>
   );
   if (!threeLoaded) return (
-    <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
+    <div style={{...outerStyle,display:"flex",alignItems:"center",justifyContent:"center",background:T.linen,borderRadius:12}}>
       <div className="spinner" style={{width:24,height:24,border:`2px solid ${T.border}`,borderTop:`2px solid ${T.terra}`,borderRadius:"50%"}}/>
     </div>
   );
 
   return (
-    <div style={{position:"relative"}}>
+    <div style={outerStyle}>
       <div ref={mountRef} className="wireframe-container"
-        style={{width:"100%",height,borderRadius:12,overflow:"hidden",cursor:"grab",userSelect:"none"}}
+        style={mountStyle}
         onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
         onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
         onWheel={onWheel}
@@ -635,33 +643,60 @@ const PaywallGate = ({onClose, onUpgrade, patternCount}) => (
    SNAP TO PATTERN
 ══════════════════════════════════════════════════════════════════════════ */
 
-const GEMINI_PROMPT = `Analyze this crochet object photograph and return ONLY a JSON object matching this exact schema. Do not explain. Do not add commentary. Return JSON only.
+const GEMINI_PROMPT = `You are an expert crochet pattern designer with deep knowledge of amigurumi, garment construction, blankets, and all crochet techniques. Analyze this photograph of a finished crochet object.
+
+Your task: identify every distinct visible component, determine the exact crochet construction technique that produces each shape, and provide enough detail that a crocheter could recreate the object from scratch.
+
+Return ONLY valid raw JSON. No markdown. No explanation. No backticks. Just the JSON object.
 
 {
+  "object_name": "the actual name of what this is — gnome, teddy bear, blanket, etc",
   "object_category": "amigurumi or blanket or garment or accessory or home_goods or unknown",
-  "confidence_overall": 75,
+  "confidence_overall": 85,
+  "size_class": "tiny_under5cm or small_5to10cm or medium_10to20cm or large_over20cm",
+  "color_structure": {
+    "primary_color": "red",
+    "accent_colors": ["cream", "brown"],
+    "color_count": 3
+  },
   "components": [
     {
-      "primitive_type": "sphere or oval or flat_disc or cylinder or tapered_cylinder or cone or flat_square or flat_circle or unknown",
-      "role": "head or body or arm or leg or ear or tail or nose or eye or base or detail or unknown",
-      "count": 1,
-      "size_relative": "small or medium or large or dominant",
+      "id": "body",
+      "role": "body",
+      "label": "Body",
+      "primitive_type": "cylinder or sphere or oval or cone or tapered_cylinder or flat_disc or flat_square or flat_circle",
+      "size_relative": "dominant or large or medium or small",
       "size_ratio_to_dominant": 1.0,
-      "confidence": 80,
-      "notes": "any observations"
+      "color": "main color of this piece",
+      "confidence": 90,
+      "construction": {
+        "technique": "worked_in_the_round or worked_flat or joined_granny_squares",
+        "stitch": "single_crochet or half_double_crochet or double_crochet or bobble or ribbed",
+        "start": "magic_ring or chain_foundation or chain_ring",
+        "increase_to": 36,
+        "even_rounds": 10,
+        "decrease_from": 36,
+        "final_sts": 6,
+        "stuffed": true,
+        "notes": "Detailed construction note — include stitch counts, round counts, any special techniques"
+      },
+      "join_to": "head",
+      "join_method": "sew_flat_to_bottom_of_head or sew_side_to_body or worked_as_extension or no_join"
     }
   ],
-  "color_structure": {
-    "primary_color": "brown",
-    "accent_colors": ["cream"],
-    "color_count": 2,
-    "colorwork_type": "solid or striped or colorblock or variegated or unknown"
-  },
-  "stitch_texture": "smooth_sc or textured or bobble or ribbed or open_lace or unknown",
-  "construction_type": "in_the_round or worked_flat or mixed or unknown",
-  "surface_details": ["safety_eyes"],
-  "size_class": "tiny_under5cm or small_5to10cm or medium_10to20cm or large_over20cm or unknown"
-}`;
+  "assembly_order": ["list component ids in the order they should be made and assembled"],
+  "assembly_notes": "Specific instructions for how to connect all pieces together in order"
+}
+
+CRITICAL RULES — follow exactly:
+- Identify EVERY distinct visible part as its own component. For a gnome: hat, head, beard, body, nose are ALL separate components.
+- role values: hat, head, beard, body, arm, leg, ear, tail, nose, eye, base, pom_pom, bow, wing, horn, brim — use the REAL part name, never use generic words like detail or unknown
+- primitive_type: sphere=round ball, oval=elongated ball, cylinder=same-width tube, tapered_cylinder=narrowing tube, cone=pointed top open base, flat_disc=flat round, flat_square=flat rectangle
+- size_ratio_to_dominant: body=1.0, head=0.7-0.9, hat=0.6-0.8 for amigurumi gnome, beard=0.4, nose=0.08-0.15, arm=0.3, leg=0.35
+- construction.increase_to: estimate the widest stitch count from photo proportions. Small amigurumi head ~24, medium ~30, large ~36. Hat base ~24-30. Gnome body ~36-42.
+- construction.even_rounds: estimate from visual height vs width ratio. Tall narrow piece = more even rounds.
+- Be a master pattern designer. Use your crochet knowledge. Specific numbers beat vague descriptions every time.
+- assembly_notes must describe EXACTLY how pieces connect — which piece attaches where, what join technique, in what order.`;
 
 const callGeminiVision = async (base64Image) => {
   const mediaType = base64Image.split(";")[0].split(":")[1] || "image/jpeg";
@@ -693,15 +728,18 @@ const callGeminiVision = async (base64Image) => {
 
 const calculateConfidence = (analysis) => {
   if (!analysis?.components) return 30;
-  const avgComponentConfidence = analysis.components.reduce((sum, c) => sum + (c.confidence || 50), 0) / analysis.components.length;
-  let score = avgComponentConfidence;
-  analysis.components.forEach(c => {
-    if (c.primitive_type === "unknown") score -= 10;
+  const comps = analysis.components;
+  const avgConf = comps.reduce((s, c) => s + (c.confidence || 50), 0) / comps.length;
+  let score = avgConf;
+  comps.forEach(c => {
+    if (c.primitive_type === "unknown") score -= 8;
+    if (c.role === "unknown" || c.role === "detail") score -= 5;
     if (c.confidence < 60) score -= 5;
+    if (c.construction?.increase_to > 0) score += 3; // reward specific stitch counts
   });
   if (analysis.object_category === "unknown") score -= 10;
-  if (analysis.construction_type === "unknown") score -= 5;
-  return Math.min(95, Math.max(30, Math.round(score)));
+  if (!analysis.object_name || analysis.object_name === "unknown") score -= 5;
+  return Math.min(97, Math.max(30, Math.round(score)));
 };
 
 const confidenceLabel = (score) => {
@@ -709,6 +747,94 @@ const confidenceLabel = (score) => {
   if (score >= 75) return { text: "Good match — review highlighted components", color: T.terra, emoji: "🎯" };
   if (score >= 60) return { text: "Partial match — a few pieces need your input", color: T.gold, emoji: "⚠️" };
   return { text: "Rough estimate — use this as a starting point and adjust", color: T.ink3, emoji: "🔍" };
+};
+
+// Stitch row generator — takes a component with construction data and returns crochet rows
+const buildComponentRows = (comp, rowIdStart) => {
+  const rows = [];
+  let id = rowIdStart;
+  const c = comp.construction || {};
+  const label = comp.label || comp.role || "Part";
+  const color = comp.color ? " — " + comp.color + " yarn" : "";
+  const technique = c.technique || "worked_in_the_round";
+  const stitch = c.stitch || "single_crochet";
+  const stitchAbbr = stitch === "single_crochet" ? "sc"
+                   : stitch === "half_double_crochet" ? "hdc"
+                   : stitch === "double_crochet" ? "dc"
+                   : "sc";
+  const incTo = c.increase_to || 24;
+  const evenRnds = c.even_rounds || 6;
+  const decFrom = c.decrease_from || incTo;
+  const finalSts = c.final_sts || 6;
+  const stuffed = c.stuffed !== false;
+
+  rows.push({ id: id++, text: "━━━ " + label.toUpperCase() + color + " ━━━", done: false, note: c.notes || "" });
+
+  if (technique === "worked_in_the_round") {
+    // Magic ring start
+    if (c.start === "magic_ring" || !c.start) {
+      rows.push({ id: id++, text: "Magic ring, 6 " + stitchAbbr + ". (6)", done: false, note: "" });
+    } else if (c.start === "chain_ring") {
+      rows.push({ id: id++, text: "Ch 4, sl st to form ring. Rnd 1: 6 " + stitchAbbr + " in ring. (6)", done: false, note: "" });
+    }
+
+    // Increase rounds — calculate actual rounds needed
+    const startSts = 6;
+    const incsPerRound = 6;
+    const incRoundsNeeded = Math.ceil((incTo - startSts) / incsPerRound);
+
+    if (incRoundsNeeded >= 1) rows.push({ id: id++, text: "Rnd 2: 2 " + stitchAbbr + " in each st. (" + (startSts * 2) + ")", done: false, note: "" });
+    if (incRoundsNeeded >= 2) {
+      let prev = startSts * 2;
+      for (let r = 2; r <= incRoundsNeeded && prev < incTo; r++) {
+        const even = r - 1;
+        const next = Math.min(prev + 6, incTo);
+        const evenStr = even === 1 ? "sc" : (even) + " sc";
+        rows.push({ id: id++, text: `Rnd ${r + 1}: [${evenStr}, 2 sc in next] x6. (${next})`, done: false, note: "" });
+        prev = next;
+      }
+    }
+
+    // Even rounds
+    if (evenRnds > 0) {
+      rows.push({ id: id++, text: "Rnds " + (incRoundsNeeded + 2) + "–" + (incRoundsNeeded + 1 + evenRnds) + ": " + stitchAbbr + " in each st around. (" + incTo + ")", done: false, note: "" });
+    }
+
+    // Stuff before closing if needed
+    if (stuffed && decFrom > 12) {
+      rows.push({ id: id++, text: "Stuff " + label.toLowerCase() + " firmly before closing.", done: false, note: "" });
+    }
+
+    // Decrease rounds
+    if (decFrom > finalSts) {
+      const decRoundsNeeded = Math.ceil((decFrom - finalSts) / 6);
+      let cur = decFrom;
+      for (let r = 0; r < decRoundsNeeded && cur > finalSts; r++) {
+        const even = r;
+        const next = Math.max(cur - 6, finalSts);
+        if (even === 0) {
+          rows.push({ id: id++, text: "Dec rnd 1: [" + (decFrom / 6 - 1) + " sc, sc2tog] x6. (" + next + ")", done: false, note: "" });
+        } else if (next <= 6) {
+          rows.push({ id: id++, text: "Final dec: [sc2tog] x" + (cur / 2) + ". (" + next + ") — fasten off, leave tail.", done: false, note: "" });
+        } else {
+          rows.push({ id: id++, text: "Dec rnd " + (r + 1) + ": [" + (cur / 6 - 1) + " sc, sc2tog] x6. (" + next + ")", done: false, note: "" });
+        }
+        cur = next;
+      }
+    } else {
+      rows.push({ id: id++, text: "Fasten off, leave long tail for sewing.", done: false, note: "" });
+    }
+
+  } else if (technique === "worked_flat") {
+    const chainLen = c.chain_length || incTo || 20;
+    const rowCount = c.row_count || evenRnds || 10;
+    rows.push({ id: id++, text: "Foundation: Ch " + chainLen + ".", done: false, note: "" });
+    rows.push({ id: id++, text: "Row 1: " + stitchAbbr.toUpperCase() + " in 2nd ch from hook and across. (" + (chainLen - 1) + " sts)", done: false, note: "" });
+    rows.push({ id: id++, text: "Rows 2–" + rowCount + ": Ch 1, turn, " + stitchAbbr + " across. (" + (chainLen - 1) + " sts)", done: false, note: "" });
+    rows.push({ id: id++, text: "Fasten off, weave in ends.", done: false, note: "" });
+  }
+
+  return { rows, nextId: id };
 };
 
 const buildStarterPattern = (analysis) => {
@@ -721,69 +847,107 @@ const buildStarterPattern = (analysis) => {
         { id: 1, name: "Worsted weight yarn", amount: "~200 yds", yardage: 200 },
         { id: 2, name: "5.0mm crochet hook", amount: "1" },
       ],
-      rows: [{ id: 1, text: "Review photo and retake for better results", done: false, note: "" }]
+      rows: [{ id: 1, text: "Retake photo with better lighting for best results.", done: false, note: "" }]
     };
   }
 
-  const isAmigurumi = analysis.object_category === "amigurumi";
   const components = analysis.components;
-  const body = components.find(c => c.role === "body" || c.size_relative === "dominant") || components[0];
-  const head = components.find(c => c.role === "head");
-  const arms = components.find(c => c.role === "arm");
-  const legs = components.find(c => c.role === "leg");
-  const ears = components.find(c => c.role === "ear");
-
-  const rows = [];
-  let rowId = 1;
-
-  if (isAmigurumi) {
-    rows.push({ id: rowId++, text: "BODY (" + (body?.primitive_type || "oval") + "): Magic ring, 6 sc. (6)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 2: 2 sc in each st around. (12)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 3: [Sc, 2 sc in next] x6. (18)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 4: [Sc x2, 2 sc in next] x6. (24)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 5: [Sc x3, 2 sc in next] x6. (30)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnds 6-10: Sc in each st around. (30)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 11: [Sc x3, sc2tog] x6. (24) — begin decrease", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Stuff body firmly before closing.", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 12: [Sc x2, sc2tog] x6. (18)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 13: [Sc, sc2tog] x6. (12)", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Rnd 14: [Sc2tog] x6. (6) — fasten off, sew closed.", done: false, note: "" });
-    if (head) {
-      rows.push({ id: rowId++, text: "HEAD (" + (head.primitive_type || "sphere") + "): Magic ring, 6 sc. (6)", done: false, note: "" });
-      rows.push({ id: rowId++, text: "Rnds 2-5: Increase rounds to 30 sts following body pattern.", done: false, note: "" });
-      rows.push({ id: rowId++, text: "Rnds 6-8: Sc in each st around. (30)", done: false, note: "" });
-      rows.push({ id: rowId++, text: "Attach safety eyes between Rnds 9-10, 6 sts apart.", done: false, note: "" });
-      rows.push({ id: rowId++, text: "Decrease rounds: mirror increase rounds in reverse. Stuff, sew closed.", done: false, note: "" });
-    }
-    if (arms) rows.push({ id: rowId++, text: "ARMS (make " + (arms.count || 2) + "): Magic ring, 6 sc. Sc around for 8 rounds. Fasten off, leave tail.", done: false, note: "" });
-    if (legs) rows.push({ id: rowId++, text: "LEGS (make " + (legs.count || 2) + "): Magic ring, 8 sc. Increase to 16 sts. Work 10 rounds even. Fasten off.", done: false, note: "" });
-    if (ears) rows.push({ id: rowId++, text: "EARS (make " + (ears.count || 2) + "): Magic ring, 6 sc. Rnd 2: 2 sc in each st (12). Fasten off, sew to head.", done: false, note: "" });
-    rows.push({ id: rowId++, text: "ASSEMBLY: Sew head to body. Attach legs to base. Attach arms to sides. Embroider nose and mouth.", done: false, note: "" });
-  } else {
-    rows.push({ id: rowId++, text: "Pattern identified as " + analysis.object_category + ". Foundation: Chain to desired width.", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Row 1: Sc in 2nd ch from hook and across.", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Continue in pattern stitch to desired length.", done: false, note: "" });
-    rows.push({ id: rowId++, text: "Fasten off and weave in ends.", done: false, note: "" });
-  }
-
+  const isAmigurumi = analysis.object_category === "amigurumi";
+  const objectName = analysis.object_name || analysis.object_category || "Crochet Object";
   const colorInfo = analysis.color_structure?.primary_color || "your chosen color";
   const colorCount = analysis.color_structure?.color_count || 1;
 
+  // Determine assembly order — use Gemini's order if provided, else default
+  const assemblyOrder = analysis.assembly_order?.length
+    ? analysis.assembly_order
+    : components.map(c => c.id || c.role);
+
+  // Sort components by assembly order
+  const ordered = assemblyOrder
+    .map(id => components.find(c => (c.id || c.role) === id))
+    .filter(Boolean)
+    .concat(components.filter(c => !assemblyOrder.includes(c.id || c.role)));
+
+  // Build rows for each component
+  const allRows = [];
+  let rowId = 1;
+
+  ordered.forEach(comp => {
+    if (!comp) return;
+    const result = buildComponentRows(comp, rowId);
+    allRows.push(...result.rows);
+    rowId = result.nextId;
+  });
+
+  // Assembly section — use Gemini's notes if available, else generate from join_to data
+  allRows.push({ id: rowId++, text: "━━━ ASSEMBLY ━━━", done: false, note: "" });
+
+  if (analysis.assembly_notes) {
+    // Split Gemini's assembly notes into steps
+    const steps = analysis.assembly_notes.split(/[.!]/).filter(s => s.trim().length > 10);
+    steps.forEach(step => {
+      allRows.push({ id: rowId++, text: step.trim() + ".", done: false, note: "" });
+    });
+  } else {
+    // Fallback: generate join instructions from component join_to fields
+    ordered.forEach(comp => {
+      if (comp.join_to && comp.join_method) {
+        const label = comp.label || comp.role;
+        const target = comp.join_to;
+        const method = comp.join_method.replace(/_/g, " ");
+        allRows.push({ id: rowId++, text: label + ": " + method + " to " + target + ".", done: false, note: "" });
+      }
+    });
+    if (isAmigurumi) {
+      allRows.push({ id: rowId++, text: "Sew all pieces firmly. Weave in all ends. Add safety eyes if not already attached.", done: false, note: "" });
+    }
+  }
+
+  // Estimate yardage from components
+  const totalYards = components.reduce((sum, c) => {
+    const incTo = c.construction?.increase_to || 24;
+    const evenRnds = c.construction?.even_rounds || 6;
+    const estSts = incTo * (evenRnds + incTo / 6);
+    return sum + Math.round(estSts * 0.025); // ~0.025 yds per stitch worsted
+  }, 0);
+
+  // Build materials list from component colors
+  const colorMap = {};
+  components.forEach(c => {
+    const col = c.color || colorInfo;
+    if (!colorMap[col]) colorMap[col] = 0;
+    const incTo = c.construction?.increase_to || 24;
+    const evenRnds = c.construction?.even_rounds || 6;
+    colorMap[col] += Math.round(incTo * (evenRnds + 4) * 0.025);
+  });
+
+  const yarnMaterials = Object.entries(colorMap).map(([color, yds], i) => ({
+    id: i + 1, name: "Worsted yarn — " + color, amount: "~" + Math.max(20, yds) + " yds", yardage: Math.max(20, yds)
+  }));
+
+  const materials = [
+    ...yarnMaterials,
+    { id: yarnMaterials.length + 1, name: "5.0mm crochet hook", amount: "1" },
+    { id: yarnMaterials.length + 2, name: "Yarn needle", amount: "1" },
+    ...(isAmigurumi ? [
+      { id: yarnMaterials.length + 3, name: "Safety eyes (9mm)", amount: "2" },
+      { id: yarnMaterials.length + 4, name: "Polyfill stuffing", amount: "small bag" },
+    ] : []),
+  ];
+
   return {
-    title: "Snap to Pattern — " + (analysis.object_category === "amigurumi" ? "Amigurumi" : analysis.object_category || "Crochet Object"),
-    hook: "5.0mm", weight: "Worsted",
-    yardage: isAmigurumi ? 150 * components.length : 400,
-    notes: "Snapped from photo. Primary color: " + colorInfo + ". " + (colorCount > 1 ? colorCount + " colors used." : "") + " Stitch texture: " + (analysis.stitch_texture || "smooth sc") + ". Review and adjust stitch counts to match your gauge.",
-    materials: [
-      { id: 1, name: "Worsted yarn — " + colorInfo, amount: "~" + (isAmigurumi ? 150 * components.length : 400) + " yds", yardage: isAmigurumi ? 150 * components.length : 400 },
-      { id: 2, name: "5.0mm crochet hook", amount: "1" },
-      { id: 3, name: "Yarn needle", amount: "1" },
-      ...(isAmigurumi ? [
-        { id: 4, name: "Safety eyes (9mm)", amount: "1 pair" },
-        { id: 5, name: "Polyfill stuffing", amount: "small bag" },
-      ] : []),
-    ],
-    rows,
+    title: "Snap to Pattern — " + objectName.charAt(0).toUpperCase() + objectName.slice(1),
+    hook: "5.0mm",
+    weight: "Worsted",
+    yardage: Math.max(150, totalYards),
+    notes: [
+      "Snapped from photo of a " + objectName + ".",
+      colorCount > 1 ? colorCount + " colors: " + (analysis.color_structure?.accent_colors || []).concat([colorInfo]).join(", ") + "." : "Primary color: " + colorInfo + ".",
+      "Stitch counts estimated from photo proportions — adjust to match your gauge.",
+      components.length + " components identified."
+    ].join(" "),
+    materials,
+    rows: allRows,
   };
 };
 
@@ -954,13 +1118,13 @@ const SnapToPatternForm = ({onSave}) => {
       {analysis && preview && !loading && (
         <div className="fu">
 
-          {/* Confidence score — prominent, pre-accept */}
+          {/* Confidence score */}
           <div className="conf-pop" style={{background:T.surface,borderRadius:14,border:`2px solid ${confInfo?.color || T.border}`,padding:"16px",marginBottom:14,textAlign:"center"}}>
             <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".09em",marginBottom:6}}>Pattern Confidence</div>
             <div style={{fontFamily:T.serif,fontSize:52,fontWeight:700,color:confInfo?.color,lineHeight:1,marginBottom:4}}>{confidence}%</div>
             <div style={{fontSize:12,color:T.ink2,marginBottom:10}}>{confInfo?.emoji} {confInfo?.text}</div>
             <Bar val={confidence} color={confInfo?.color} h={5}/>
-            <div style={{fontSize:11,color:T.ink3,marginTop:8,lineHeight:1.5}}>Review the wireframe below before saving. You can still adjust stitch counts after saving.</div>
+            <div style={{fontSize:11,color:T.ink3,marginTop:8,lineHeight:1.5}}>Review the wireframe. Stitch counts are estimated from photo — adjust after saving.</div>
           </div>
 
           {/* Side-by-side: photo vs wireframe */}
@@ -971,23 +1135,27 @@ const SnapToPatternForm = ({onSave}) => {
               <div style={{flex:1,fontSize:12,fontWeight:600,color:T.ink2,textAlign:"center"}}>3D Component Map</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {/* Photo panel */}
-              <div style={{position:"relative",borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`}}>
-                <img src={imgSrc} alt="source" style={{width:"100%",height:200,objectFit:"cover",display:"block"}}/>
-                <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(28,23,20,.7) 0%,transparent 100%)",padding:"10px 10px 8px"}}>
-                  <div style={{fontSize:10,color:"rgba(255,255,255,.7)"}}>Source image</div>
+              {/* Photo — square aspect ratio, always fits modal */}
+              <div style={{position:"relative",borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`,aspectRatio:"1/1",background:T.linen}}>
+                <img src={imgSrc} alt="source" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top",display:"block"}}/>
+                <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(28,23,20,.75) 0%,transparent 100%)",padding:"8px 10px 6px"}}>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.8)"}}>
+                    {analysis.object_name ? (analysis.object_name.charAt(0).toUpperCase() + analysis.object_name.slice(1)) : "Source"}
+                  </div>
                 </div>
               </div>
-              {/* Wireframe panel */}
-              <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`,background:T.linen,position:"relative"}}>
-                <WireframeViewer
-                  components={analysis.components}
-                  labeled={wireframeMode === "labeled"}
-                  height={200}
-                />
+              {/* Wireframe — same square aspect ratio */}
+              <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`,background:"#FAF7F3",position:"relative",aspectRatio:"1/1",minHeight:160}}>
+                <div style={{position:"absolute",inset:0}}>
+                  <WireframeViewer
+                    components={analysis.components}
+                    labeled={wireframeMode === "labeled"}
+                    height={-1}
+                  />
+                </div>
               </div>
             </div>
-            {/* Wireframe mode toggle */}
+            {/* Toggle */}
             <div style={{display:"flex",gap:6,marginTop:8,justifyContent:"center"}}>
               {[["labeled","Labeled"],["clean","Clean"]].map(([mode,label])=>(
                 <button key={mode} onClick={()=>setWireframeMode(mode)}
@@ -996,29 +1164,32 @@ const SnapToPatternForm = ({onSave}) => {
                 </button>
               ))}
             </div>
-            {/* Component legend */}
+            {/* Component legend — now shows construction notes */}
             <div style={{marginTop:10,background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,padding:"10px 12px"}}>
-              <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,fontWeight:600}}>Components Identified</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                {analysis.components?.map((c, i) => (
-                  <div key={i} style={{
-                    background:c.confidence >= 70 ? T.sageLt : T.terraLt,
-                    borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:500,
-                    color:c.confidence >= 70 ? T.sage : T.terra,
-                    display:"flex",alignItems:"center",gap:4
-                  }}>
-                    {c.count > 1 && <span style={{fontWeight:700}}>{c.count}×</span>}
-                    {c.role !== "unknown" ? c.role : c.primitive_type}
-                    <span style={{opacity:.6,fontWeight:400}}>({c.primitive_type})</span>
-                    {c.confidence < 70 && <span style={{color:T.gold}}>?</span>}
-                  </div>
-                ))}
-                {analysis.color_structure && (
-                  <div style={{background:T.linen,borderRadius:8,padding:"4px 10px",fontSize:11,color:T.ink2}}>
-                    {analysis.color_structure.primary_color}
-                    {analysis.color_structure.color_count > 1 && ` +${analysis.color_structure.color_count - 1} colors`}
-                  </div>
-                )}
+              <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,fontWeight:600}}>
+                {analysis.components?.length} Components · {(analysis.object_name || analysis.object_category || "").charAt(0).toUpperCase() + (analysis.object_name || analysis.object_category || "").slice(1)}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {analysis.components?.map((c, i) => {
+                  const conf = c.confidence >= 75;
+                  const label = c.label || c.role || c.primitive_type || "part";
+                  const notes = c.construction?.notes || [
+                    c.construction?.technique?.replace(/_/g," "),
+                    c.construction?.increase_to ? "~"+c.construction.increase_to+" sts" : null,
+                    c.construction?.even_rounds ? c.construction.even_rounds+" rnds" : null,
+                    c.color ? c.color : null,
+                  ].filter(Boolean).join(" · ");
+                  return (
+                    <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"6px 8px",background:conf?T.sageLt:T.terraLt,borderRadius:8}}>
+                      <div style={{flexShrink:0}}>
+                        <div style={{fontSize:10,fontWeight:700,color:conf?T.sage:T.terra,textTransform:"uppercase"}}>{label}</div>
+                        <div style={{fontSize:9,color:T.ink3}}>{c.primitive_type}</div>
+                      </div>
+                      <div style={{flex:1,fontSize:11,color:T.ink2,lineHeight:1.5}}>{notes || "—"}</div>
+                      <div style={{fontSize:10,color:T.ink3,flexShrink:0}}>{c.confidence}%</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
