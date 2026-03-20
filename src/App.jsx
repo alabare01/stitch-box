@@ -403,134 +403,165 @@ const WireframeViewer = ({ components, labeled = false, height = 220, fillContai
     if (!threeLoaded || !mountRef.current || !components?.length) return;
     const THREE = window.THREE;
     const el = mountRef.current;
-    const W = el.clientWidth || 300;
-    const H = fillContainer ? (el.clientHeight || el.clientWidth || 300) : height;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xFAF7F3);
+    // Use ResizeObserver to wait for actual DOM dimensions — fixes aspectRatio:1/1 height=0 bug
+    let initialized = false;
+    let animFrame;
+    let renderer;
 
-    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-    camera.position.set(0, 0, zoomRef.current);
-    cameraRef.current = camera;
+    const init = (W, H) => {
+      if (initialized || W < 10 || H < 10) return;
+      initialized = true;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(W, H);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    el.innerHTML = "";
-    el.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFAF7F3);
 
-    scene.add(new THREE.AmbientLight(0xfff5ee, 0.75));
-    const d = new THREE.DirectionalLight(0xffffff, 0.85); d.position.set(3, 5, 5); scene.add(d);
-    const f = new THREE.DirectionalLight(0xffe8d8, 0.35); f.position.set(-3, -2, -3); scene.add(f);
+      const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+      camera.position.set(0, 0, zoomRef.current);
+      cameraRef.current = camera;
 
-    const group = new THREE.Group();
-    groupRef.current = group;
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(W, H);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      el.innerHTML = "";
+      el.appendChild(renderer.domElement);
 
-    // Track which slots are already occupied so duplicates stack offset
-    const slotCount = {};
+      scene.add(new THREE.AmbientLight(0xfff5ee, 0.75));
+      const d = new THREE.DirectionalLight(0xffffff, 0.85); d.position.set(3, 5, 5); scene.add(d);
+      const f = new THREE.DirectionalLight(0xffe8d8, 0.35); f.position.set(-3, -2, -3); scene.add(f);
 
-    components.forEach((comp) => {
-      const rawRole   = comp.role || "unknown";
-      const primitive = comp.primitive_type || "sphere";
-      const ratio     = Math.max(0.15, comp.size_ratio_to_dominant || 0.5);
-      const count     = Math.min(comp.count || 1, 4);
+      const group = new THREE.Group();
+      groupRef.current = group;
 
-      const slot  = normalizeRole(rawRole, primitive);
-      const pos   = SLOT_POSITIONS[slot] || SLOT_POSITIONS.detail;
-      const color = ROLE_COLORS[slot] || ROLE_COLORS.unknown;
+      const slotCount = {};
 
-      // Stack duplicates of same slot vertically with small offset
-      const slotKey = slot;
-      const stackIdx = slotCount[slotKey] || 0;
-      slotCount[slotKey] = stackIdx + 1;
+      components.forEach((comp) => {
+        const rawRole   = comp.role || "unknown";
+        const primitive = comp.primitive_type || "sphere";
+        const ratio     = Math.max(0.15, comp.size_ratio_to_dominant || 0.5);
+        const count     = Math.min(comp.count || 1, 4);
 
-      const geo      = buildGeo(THREE, primitive, ratio * 0.75);
-      const wireMat  = new THREE.MeshPhongMaterial({ color, wireframe: true,  transparent: true, opacity: 0.82 });
-      const solidMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.1 });
+        const slot  = normalizeRole(rawRole, primitive);
+        const pos   = SLOT_POSITIONS[slot] || SLOT_POSITIONS.detail;
+        const color = ROLE_COLORS[slot] || ROLE_COLORS.unknown;
 
-      for (let i = 0; i < count; i++) {
-        const wm = new THREE.Mesh(geo, wireMat);
-        const sm = new THREE.Mesh(geo, solidMat);
+        const stackIdx = slotCount[slot] || 0;
+        slotCount[slot] = stackIdx + 1;
 
-        // Mirror symmetrical parts (arms, legs, ears, eyes, horns, wings)
-        let xPos = pos.x || 0;
-        const yPos = (pos.y || 0) + stackIdx * 0.45;
-        const zPos = pos.zOff || 0;
+        const geo = buildGeo(THREE, primitive, ratio * 0.75);
 
-        if (pos.mirror && count > 1) {
-          xPos = i === 0 ? Math.abs(pos.x) : -Math.abs(pos.x);
-        } else if (!pos.mirror && count > 1) {
-          // non-mirrored multiples (e.g. 3 buttons) spread horizontally
-          xPos = (i - (count - 1) / 2) * 0.5;
+        // High-segment geometry for stitch-level zoom — more faces = visible mesh detail
+        const stitchGeo = buildGeo(THREE, primitive, ratio * 0.75);
+
+        // Outer wireframe — coarse, shows shape
+        const wireMat = new THREE.MeshPhongMaterial({
+          color, wireframe: true, transparent: true, opacity: 0.7
+        });
+        // Inner solid with low opacity
+        const solidMat = new THREE.MeshPhongMaterial({
+          color, transparent: true, opacity: 0.08, side: THREE.FrontSide
+        });
+        // Stitch-density mesh — denser wireframe using EdgesGeometry for a grid-like crochet look
+        const edgesGeo = new THREE.EdgesGeometry(stitchGeo, 15); // 15deg threshold = more edges visible
+        const stitchMat = new THREE.LineBasicMaterial({
+          color: 0xC07040, transparent: true, opacity: 0.35
+        });
+        const stitchMesh = new THREE.LineSegments(edgesGeo, stitchMat);
+
+        for (let i = 0; i < count; i++) {
+          const wm = new THREE.Mesh(geo, wireMat);
+          const sm = new THREE.Mesh(geo, solidMat);
+          const st = stitchMesh.clone();
+
+          let xPos = pos.x || 0;
+          const yPos = (pos.y || 0) + stackIdx * 0.45;
+          const zPos = pos.zOff || 0;
+
+          if (pos.mirror && count > 1) {
+            xPos = i === 0 ? Math.abs(pos.x) : -Math.abs(pos.x);
+          } else if (!pos.mirror && count > 1) {
+            xPos = (i - (count - 1) / 2) * 0.5;
+          }
+
+          [wm, sm, st].forEach(m => {
+            m.position.set(xPos, yPos, zPos);
+            if (slot === "tail")  m.rotation.x = 0.5;
+            if (slot === "nose")  m.rotation.x = Math.PI / 2;
+            if ((slot === "arm" || slot === "leg") && count > 1) {
+              m.rotation.z = i === 0 ? -0.4 : 0.4;
+            }
+          });
+
+          group.add(sm); group.add(wm); group.add(st);
+
+          // Labels
+          if (labeled) {
+            const cv = document.createElement("canvas");
+            cv.width = 320; cv.height = 58;
+            const ctx = cv.getContext("2d");
+            ctx.clearRect(0, 0, 320, 58);
+            ctx.fillStyle = "#B85A3C";
+            ctx.font = "bold 22px Inter, sans-serif";
+            ctx.textAlign = "center";
+            const rawLabel = (comp.label || rawRole);
+            const displayLabel = (rawLabel !== "unknown" && rawLabel !== "detail")
+              ? rawLabel.toUpperCase()
+              : slot !== "detail" ? slot.toUpperCase() : primitive.toUpperCase();
+            ctx.fillText(displayLabel, 160, 40);
+            const tex = new THREE.CanvasTexture(cv);
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+            sprite.scale.set(1.6, 0.38, 1);
+            sprite.position.set(xPos, yPos + ratio * 0.85 + 0.5, zPos + 0.15);
+            group.add(sprite);
+          }
         }
+      });
 
-        wm.position.set(xPos, yPos, zPos);
-        sm.position.set(xPos, yPos, zPos);
+      // Scale anchored to body
+      const bodyComp = components.find(c => normalizeRole(c.role || "", c.primitive_type || "") === "body");
+      const bodyRatio = bodyComp ? Math.max(0.15, bodyComp.size_ratio_to_dominant || 1.0) : 0.75;
+      const sceneScale = 0.9 / (bodyRatio * 0.75);
+      group.scale.setScalar(Math.min(sceneScale, 1.4));
+      group.position.set(0, -SLOT_POSITIONS.body.y * group.scale.y * 0.5, 0);
+      group.rotation.x = rotRef.current.x;
+      group.rotation.y = rotRef.current.y;
+      scene.add(group);
 
-        // Role-specific rotations
-        if (slot === "tail")  { wm.rotation.x = 0.5;          sm.rotation.x = 0.5; }
-        if (slot === "nose")  { wm.rotation.x = Math.PI / 2;  sm.rotation.x = Math.PI / 2; }
-        if ((slot === "arm" || slot === "leg") && count > 1) {
-          const ang = i === 0 ? -0.4 : 0.4;
-          wm.rotation.z = ang; sm.rotation.z = ang;
-        }
+      const grid = new THREE.GridHelper(10, 14, 0xEAE0D5, 0xEAE0D5);
+      grid.position.y = -2.5;
+      grid.material.transparent = true;
+      grid.material.opacity = 0.3;
+      scene.add(grid);
 
-        group.add(sm); group.add(wm);
-
-        // Sprite labels — use original role name so user sees what Gemini found
-        if (labeled) {
-          const cv = document.createElement("canvas");
-          cv.width = 320; cv.height = 58;
-          const ctx = cv.getContext("2d");
-          ctx.clearRect(0, 0, 320, 58);
-          ctx.fillStyle = "#B85A3C";
-          ctx.font = "bold 22px Inter, sans-serif";
-          ctx.textAlign = "center";
-          // Show original role if informative, else show slot
-          const displayLabel = (rawRole !== "unknown" && rawRole !== "detail")
-            ? rawRole.toUpperCase()
-            : slot !== "detail" ? slot.toUpperCase() : primitive.toUpperCase();
-          ctx.fillText(displayLabel, 160, 40);
-          const tex = new THREE.CanvasTexture(cv);
-          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-          sprite.scale.set(1.6, 0.38, 1);
-          // Position label above the piece
-          sprite.position.set(xPos, yPos + ratio * 0.85 + 0.5, zPos + 0.15);
-          group.add(sprite);
-        }
-      }
-    });
-
-    // Scale based on body component only — prevents hat/limbs from crushing scene
-    const bodyComp = components.find(c => {
-      const s = normalizeRole(c.role || "", c.primitive_type || "");
-      return s === "body";
-    });
-    const bodyRatio = bodyComp ? Math.max(0.15, bodyComp.size_ratio_to_dominant || 1.0) : 0.75;
-    const sceneScale = 0.9 / (bodyRatio * 0.75);
-    group.scale.setScalar(Math.min(sceneScale, 1.4));
-
-    // Center vertically on body slot
-    group.position.set(0, -SLOT_POSITIONS.body.y * group.scale.y * 0.5, 0);
-
-    group.rotation.x = rotRef.current.x;
-    group.rotation.y = rotRef.current.y;
-    scene.add(group);
-
-    const grid = new THREE.GridHelper(10, 14, 0xEAE0D5, 0xEAE0D5);
-    grid.position.y = -2.5;
-    grid.material.transparent = true;
-    grid.material.opacity = 0.3;
-    scene.add(grid);
-
-    let af;
-    const animate = () => {
-      af = requestAnimationFrame(animate);
-      if (!isDragging.current && group) group.rotation.y += 0.003;
-      renderer.render(scene, camera);
+      const animate = () => {
+        animFrame = requestAnimationFrame(animate);
+        if (!isDragging.current && group) group.rotation.y += 0.003;
+        renderer.render(scene, camera);
+      };
+      animate();
     };
-    animate();
-    return () => { cancelAnimationFrame(af); renderer.dispose(); };
+
+    // Try immediate init — works if DOM is already painted
+    const W0 = el.clientWidth || 0;
+    const H0 = el.clientHeight || el.clientWidth || 0;
+    if (W0 > 10 && H0 > 10) {
+      init(W0, H0);
+    } else {
+      // Fall back to ResizeObserver for aspectRatio containers
+      const ro = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 10 && height > 10) {
+            init(width, height);
+            ro.disconnect();
+          }
+        }
+      });
+      ro.observe(el);
+      return () => { ro.disconnect(); cancelAnimationFrame(animFrame); renderer?.dispose(); };
+    }
+
+    return () => { cancelAnimationFrame(animFrame); renderer?.dispose(); };
   }, [threeLoaded, components, labeled, height, fillContainer, buildGeo]);
 
   const getXY = e => ({ x: e.clientX ?? e.touches?.[0]?.clientX, y: e.clientY ?? e.touches?.[0]?.clientY });
