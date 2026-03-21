@@ -9,6 +9,7 @@ if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
 
 const PHOTOS = {
   hero:     "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877266/Gemini_Generated_Image_u44qfru44qfru44q_2_rsk1rn.png",
+  world:    "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774112730/Gemini_Generated_Image_jek6phjek6phjek6_ntjdg9.png",
   blanket:  "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877265/Gemini_Generated_Image_u44qfru44qfru44q_fst0gr.png",
   cardigan: "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877263/Gemini_Generated_Image_u44qfru44qfru44q_3_sax38h.png",
   granny:   "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877260/Gemini_Generated_Image_u44qfru44qfru44q_6_yvirvu.png",
@@ -976,210 +977,141 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
 };
 
 const Auth = ({onEnter,onEnterAsPro}) => {
-  const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState(""),[mounted,setMounted]=useState(false);
+  const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState("");
   const{isDesktop}=useBreakpoint();
-  useEffect(()=>{ const t=setTimeout(()=>setMounted(true),60); return()=>clearTimeout(t); },[]);
 
-  const FEATURES=[
-    {icon:"🐝",label:"Hive Vision",sub:"Scan any crochet object"},
-    {icon:"🧶",label:"Pattern Library",sub:"Save & track everything"},
-    {icon:"⚖️",label:"Scale & Calculate",sub:"Gauge, yardage, resize"},
-    {icon:"🎀",label:"Yarn Stash",sub:"Know what you have"},
-  ];
-
-  const AppBadges = () => (
-    <div style={{marginTop:20}}>
-      <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".12em",marginBottom:10,fontWeight:600}}>Coming to Mobile</div>
-      <div style={{display:"flex",gap:8}}>
-        {[{icon:"🍎",line1:"Download on the",line2:"App Store"},{icon:"▶",line1:"Get it on",line2:"Google Play"}].map(b=>(
-          <div key={b.line2} style={{flex:1,background:"#0D0D0D",borderRadius:12,padding:"11px 14px",display:"flex",alignItems:"center",gap:10,border:"1px solid rgba(255,255,255,.06)"}}>
-            <span style={{fontSize:20,lineHeight:1}}>{b.icon}</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:8,color:"rgba(255,255,255,.4)",letterSpacing:".08em",marginBottom:1}}>{b.line1.toUpperCase()}</div>
-              <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.1}}>{b.line2}</div>
-            </div>
-            <div style={{fontSize:9,color:"rgba(255,255,255,.35)",fontWeight:500,border:"1px solid rgba(255,255,255,.12)",borderRadius:6,padding:"2px 8px"}}>Soon</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  /* ── DESKTOP ── */
-  if(isDesktop){
-    const showForm=screen==="signup"||screen==="signin";
-    const isSignup=screen==="signup";
-    return (
-      <div style={{minHeight:"100vh",display:"flex",fontFamily:T.sans,background:"#0E0A08"}}>
-        <CSS/>
-        <style>{`
-          @keyframes authFadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes authImgReveal { from{transform:scale(1.06)} to{transform:scale(1)} }
-          .auth-reveal { animation: authFadeUp .6s cubic-bezier(.22,.68,0,1.05) both; }
-          .auth-img { animation: authImgReveal 1.2s cubic-bezier(.22,.68,0,1.05) both; }
-          .auth-input:focus { border-color: #B85A3C !important; box-shadow: 0 0 0 3px rgba(184,90,60,.12) !important; }
-          .auth-pill { transition: all .2s; }
-          .auth-pill:hover { background: rgba(255,255,255,.06) !important; }
-        `}</style>
-
-        {/* LEFT: full-height editorial photo */}
-        <div style={{flex:"0 0 52%",position:"relative",overflow:"hidden"}}>
-          <div className="auth-img" style={{position:"absolute",inset:0}}>
-            <Photo src={PHOTOS.hero} alt="crochet" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 30%"}}/>
-          </div>
-          <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(10,6,4,.3) 0%,transparent 50%,rgba(10,6,4,.7) 100%)"}}/>
-          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,4,2,.95) 0%,rgba(8,4,2,.1) 45%,transparent 70%)"}}/>
-          {/* brand mark */}
-          <div className="auth-reveal" style={{position:"absolute",top:36,left:40,animationDelay:".1s"}}>
-            <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",letterSpacing:"-.01em",opacity:.95}}>YarnHive</div>
-          </div>
-          {/* bottom editorial copy */}
-          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 48px 52px"}}>
-            <div className="auth-reveal" style={{animationDelay:".2s"}}>
-              <div style={{fontFamily:T.serif,fontSize:50,fontWeight:700,color:"#fff",lineHeight:1.0,marginBottom:18,letterSpacing:"-.03em"}}>The pattern<br/><span style={{fontStyle:"italic",fontWeight:500,color:"rgba(255,255,255,.7)"}}>you've been</span><br/>looking for.</div>
-              <p style={{fontSize:15,color:"rgba(255,255,255,.55)",lineHeight:1.75,maxWidth:320,fontWeight:300}}>Save every pattern. Track every row. Scan any finished object with Hive Vision and recreate it from scratch.</p>
-            </div>
-            {/* feature grid */}
-            <div className="auth-reveal" style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:28,animationDelay:".35s"}}>
-              {FEATURES.map(f=>(
-                <div key={f.label} className="auth-pill" style={{background:"rgba(255,255,255,.07)",backdropFilter:"blur(12px)",borderRadius:10,padding:"9px 14px",display:"flex",alignItems:"center",gap:9,border:"1px solid rgba(255,255,255,.1)"}}>
-                  <span style={{fontSize:15}}>{f.icon}</span>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,.9)"}}>{f.label}</div><div style={{fontSize:10,color:"rgba(255,255,255,.45)"}}>{f.sub}</div></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT: auth panel */}
-        <div style={{flex:"0 0 48%",display:"flex",alignItems:"center",justifyContent:"center",background:"#FAF7F3",padding:"60px 56px",position:"relative"}}>
-          {/* subtle texture overlay */}
-          <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle at 80% 20%, rgba(184,90,60,.04) 0%, transparent 60%)",pointerEvents:"none"}}/>
-          <div style={{width:"100%",maxWidth:380,position:"relative"}}>
-            {!showForm ? (
-              <>
-                <div className="auth-reveal" style={{animationDelay:".15s"}}>
-                  <div style={{fontFamily:T.serif,fontSize:42,color:T.ink,lineHeight:1.05,marginBottom:10,letterSpacing:"-.02em"}}>Welcome.</div>
-                  <p style={{fontSize:15,color:T.ink3,marginBottom:36,lineHeight:1.65,fontWeight:300}}>The smart crochet platform<br/>for makers who mean it.</p>
-                </div>
-                <div className="auth-reveal" style={{display:"flex",flexDirection:"column",gap:10,animationDelay:".25s"}}>
-                  <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px 20px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.35)",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.target.style.transform="translateY(-1px)";e.target.style.boxShadow="0 12px 32px rgba(184,90,60,.45)";}} onMouseLeave={e=>{e.target.style.transform="none";e.target.style.boxShadow="0 8px 24px rgba(184,90,60,.35)";}}>Create free account</button>
-                  <button onClick={()=>setScreen("signin")} style={{width:"100%",background:T.surface,color:T.ink,border:`1.5px solid ${T.border}`,borderRadius:14,padding:"15px 20px",fontSize:15,fontWeight:500,cursor:"pointer",transition:"border-color .15s,background .15s"}} onMouseEnter={e=>{e.target.style.borderColor=T.terra;e.target.style.background=T.linen;}} onMouseLeave={e=>{e.target.style.borderColor=T.border;e.target.style.background=T.surface;}}>Sign in to your account</button>
-                  <button onClick={onEnter} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",padding:"8px 0",letterSpacing:".01em"}} onMouseEnter={e=>e.target.style.color=T.ink2} onMouseLeave={e=>e.target.style.color=T.ink3}>Continue without account →</button>
-                </div>
-                <div className="auth-reveal" style={{animationDelay:".35s"}}>
-                  {/* pricing strip */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:28}}>
-                    <div style={{background:T.linen,borderRadius:14,padding:"16px 18px",border:`1px solid ${T.border}`}}>
-                      <div style={{fontFamily:T.serif,fontSize:26,color:T.terra,fontWeight:700,lineHeight:1}}>Free</div>
-                      <div style={{fontSize:11,color:T.ink3,marginTop:5,lineHeight:1.5}}>5 patterns<br/>All core features</div>
-                    </div>
-                    <div style={{background:`linear-gradient(145deg,${T.terra},#7A2E14)`,borderRadius:14,padding:"16px 18px",position:"relative",overflow:"hidden"}}>
-                      <div style={{position:"absolute",top:-12,right:-12,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.06)"}}/>
-                      <div style={{fontFamily:T.serif,fontSize:26,color:"#fff",fontWeight:700,lineHeight:1}}>Pro</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:5,lineHeight:1.5}}>$9.99/mo<br/>Unlimited everything</div>
-                    </div>
-                  </div>
-                  <AppBadges/>
-                  <div style={{marginTop:20,paddingTop:16,borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:10,color:T.ink3,opacity:.5,letterSpacing:".06em"}}>{APP_VERSION}</span>
-                    <button onClick={onEnterAsPro} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",fontSize:11,color:T.ink3,cursor:"pointer"}}>🔑 Dev access</button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:32,display:"flex",alignItems:"center",gap:6,letterSpacing:".01em"}}>← Back</button>
-                <div style={{fontFamily:T.serif,fontSize:34,color:T.ink,marginBottom:6,letterSpacing:"-.02em"}}>{isSignup?"Create account":"Welcome back"}</div>
-                <p style={{fontSize:14,color:T.ink3,marginBottom:28,fontWeight:300}}>{isSignup?"Start your pattern collection today":"Your hive is waiting for you"}</p>
-                {isSignup&&<Field label="Your name" placeholder="e.g. Sarah" value={name} onChange={e=>setName(e.target.value)}/>}
-                <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
-                <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
-                {screen==="signin"&&<div style={{textAlign:"right",marginBottom:20}}><span style={{fontSize:13,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
-                <button onClick={onEnter} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.3)",marginTop:8}}>{isSignup?"Create my YarnHive":"Sign in"}</button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── MOBILE ── */
-  if(screen==="welcome") return (
-    <div style={{minHeight:"100vh",background:"#0E0A08",display:"flex",flexDirection:"column",fontFamily:T.sans}}>
-      <CSS/>
-      <style>{`
-        @keyframes mobileReveal { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        .mob-reveal { animation: mobileReveal .5s cubic-bezier(.22,.68,0,1.05) both; }
-      `}</style>
-      {/* hero image — takes most of screen */}
-      <div style={{flex:1,position:"relative",overflow:"hidden",minHeight:"55vh"}}>
-        <Photo src={PHOTOS.hero} alt="crochet" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 30%"}}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,4,2,.98) 0%,rgba(8,4,2,.4) 40%,transparent 70%)"}}/>
-        {/* brand */}
-        <div style={{position:"absolute",top:24,left:24}}><div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:"#fff",opacity:.9}}>YarnHive</div></div>
-        {/* hero copy */}
-        <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 24px 32px"}}>
-          <div className="mob-reveal" style={{fontFamily:T.serif,fontSize:38,fontWeight:700,color:"#fff",lineHeight:1.05,marginBottom:10,letterSpacing:"-.02em",animationDelay:".1s"}}>The pattern<br/><span style={{fontStyle:"italic",fontWeight:400,color:"rgba(255,255,255,.6)"}}>you've been</span><br/>looking for.</div>
-          <p className="mob-reveal" style={{fontSize:14,color:"rgba(255,255,255,.5)",lineHeight:1.65,fontWeight:300,animationDelay:".2s"}}>Save patterns. Track rows. Scan anything.</p>
-        </div>
-      </div>
-      {/* action panel */}
-      <div className="mob-reveal" style={{background:"#FAF7F3",borderRadius:"24px 24px 0 0",padding:"28px 22px 48px",animationDelay:".25s"}}>
-        <div style={{width:36,height:2,background:T.border,borderRadius:99,margin:"0 auto 24px"}}/>
-        <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.35)",marginBottom:10}}>Create free account</button>
-        <button onClick={()=>setScreen("signin")} style={{width:"100%",background:T.surface,color:T.ink,border:`1.5px solid ${T.border}`,borderRadius:14,padding:"15px",fontSize:15,fontWeight:500,cursor:"pointer",marginBottom:6}}>Sign in</button>
-        <button onClick={onEnter} style={{width:"100%",background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",padding:"10px 0"}}>Continue without account →</button>
-        {/* pricing strip */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8,marginBottom:4}}>
-          <div style={{background:T.linen,borderRadius:12,padding:"12px 14px",border:`1px solid ${T.border}`}}>
-            <div style={{fontFamily:T.serif,fontSize:20,color:T.terra,fontWeight:700}}>Free</div>
-            <div style={{fontSize:10,color:T.ink3,marginTop:3,lineHeight:1.5}}>5 patterns · all features</div>
-          </div>
-          <div style={{background:`linear-gradient(145deg,${T.terra},#7A2E14)`,borderRadius:12,padding:"12px 14px"}}>
-            <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700}}>Pro</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:3,lineHeight:1.5}}>$9.99/mo · unlimited</div>
-          </div>
-        </div>
-        {/* mobile app badges */}
-        <div style={{display:"flex",gap:8,marginTop:12}}>
-          {[{icon:"🍎",l1:"DOWNLOAD ON THE",l2:"App Store"},{icon:"▶",l1:"GET IT ON",l2:"Google Play"}].map(b=>(
-            <div key={b.l2} style={{flex:1,background:"#0D0D0D",borderRadius:10,padding:"9px 11px",display:"flex",alignItems:"center",gap:7}}>
-              <span style={{fontSize:16}}>{b.icon}</span>
-              <div><div style={{fontSize:7,color:"rgba(255,255,255,.4)",letterSpacing:".07em"}}>{b.l1}</div><div style={{fontSize:11,fontWeight:600,color:"#fff"}}>{b.l2}</div></div>
-              <div style={{marginLeft:"auto",fontSize:8,color:"rgba(255,255,255,.3)",border:"1px solid rgba(255,255,255,.1)",borderRadius:5,padding:"2px 6px"}}>Soon</div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14}}>
-          <span style={{fontSize:9,color:T.ink3,opacity:.4,letterSpacing:".06em"}}>{APP_VERSION}</span>
-          <button onClick={onEnterAsPro} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:7,padding:"4px 10px",fontSize:10,color:T.ink3,cursor:"pointer"}}>🔑 Dev access</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  /* ── MOBILE SIGN IN / SIGN UP ── */
   const isSignup=screen==="signup";
-  return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",fontFamily:T.sans}}>
-      <CSS/>
-      <div style={{height:180,position:"relative",overflow:"hidden"}}>
-        <Photo src={PHOTOS.auth} alt="yarn" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%"}}/>
-        <div style={{position:"absolute",inset:0,background:"rgba(10,6,4,.55)"}}/>
-        <div style={{position:"absolute",bottom:20,left:22}}>
-          <div style={{fontFamily:T.serif,fontSize:26,color:"#fff",fontWeight:700,letterSpacing:"-.01em"}}>{isSignup?"Create account":"Welcome back"}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:3,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</div>
+  const showForm=screen==="signup"||screen==="signin";
+
+  const BG = PHOTOS.world;
+  const CARD_STYLE = {
+    background:"rgba(250,247,243,0.92)",
+    backdropFilter:"blur(28px) saturate(1.4)",
+    WebkitBackdropFilter:"blur(28px) saturate(1.4)",
+    borderRadius:24,
+    boxShadow:"0 32px 80px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.6) inset",
+    border:"1px solid rgba(255,255,255,0.55)",
+    padding: isDesktop ? "44px 48px 40px" : "32px 28px 36px",
+    width: "100%",
+    maxWidth: isDesktop ? 420 : 380,
+  };
+
+  /* ─── SHARED: App Store badges ─── */
+  const Badges = () => (
+    <div style={{marginTop:20}}>
+      <div style={{fontSize:9,color:T.ink3,textTransform:"uppercase",letterSpacing:".12em",marginBottom:8,fontWeight:600,textAlign:"center"}}>Coming to mobile</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <div style={{background:"#000",borderRadius:11,padding:"9px 13px",display:"flex",alignItems:"center",gap:9,border:"1px solid rgba(255,255,255,0.07)"}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          <div style={{flex:1}}>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>DOWNLOAD ON THE</div>
+            <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2}}>App Store</div>
+          </div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.12)",borderRadius:5,padding:"2px 7px",whiteSpace:"nowrap"}}>Soon</div>
+        </div>
+        <div style={{background:"#000",borderRadius:11,padding:"9px 13px",display:"flex",alignItems:"center",gap:9,border:"1px solid rgba(255,255,255,0.07)"}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 20.5v-17L14.5 12 3 20.5z" fill="white" opacity=".5"/><path d="M3 3.5l11.5 8.5L21 8l-18-4.5z" fill="#00E676"/><path d="M3 20.5L14.5 12 21 16l-18 4.5z" fill="#FF3D5B"/><path d="M14.5 12L21 8v8l-6.5-4z" fill="#FFD600"/></svg>
+          <div style={{flex:1}}>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>GET IT ON</div>
+            <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2}}>Google Play</div>
+          </div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.12)",borderRadius:5,padding:"2px 7px",whiteSpace:"nowrap"}}>Soon</div>
         </div>
       </div>
-      <div style={{flex:1,padding:"28px 22px 40px"}}>
+    </div>
+  );
+
+  /* ─── WELCOME CARD ─── */
+  const WelcomeCard = () => (
+    <div style={CARD_STYLE}>
+      {/* Logo mark */}
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:10,background:"rgba(184,90,60,.08)",borderRadius:14,padding:"8px 18px",border:"1px solid rgba(184,90,60,.15)"}}>
+          <span style={{fontSize:20}}>🐝</span>
+          <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>YarnHive</div>
+        </div>
+      </div>
+
+      {/* Headline */}
+      <div style={{textAlign:"center",marginBottom:32}}>
+        <div style={{fontFamily:T.serif,fontSize:isDesktop?36:30,fontWeight:700,color:T.ink,lineHeight:1.05,letterSpacing:"-.025em",marginBottom:8}}>
+          The pattern<br/><span style={{fontStyle:"italic",fontWeight:400,color:T.terra}}>you've been</span><br/>looking for.
+        </div>
+        <p style={{fontSize:13,color:T.ink3,lineHeight:1.6,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Hive Vision.</p>
+      </div>
+
+      {/* CTAs */}
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+        <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra} 0%,#8B3A22 100%)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(184,90,60,.4)",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 14px 36px rgba(184,90,60,.5)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 28px rgba(184,90,60,.4)";}}>Create free account</button>
+        <button onClick={()=>setScreen("signin")} style={{width:"100%",background:"rgba(255,255,255,0.7)",color:T.ink,border:"1.5px solid rgba(28,23,20,.12)",borderRadius:14,padding:"14px",fontSize:15,fontWeight:500,cursor:"pointer",backdropFilter:"blur(8px)",transition:"background .15s,border-color .15s"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.95)";e.currentTarget.style.borderColor="rgba(184,90,60,.3)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.7)";e.currentTarget.style.borderColor="rgba(28,23,20,.12)";}}>Sign in</button>
+        <button onClick={onEnter} style={{background:"none",border:"none",color:T.ink3,fontSize:12,cursor:"pointer",padding:"4px 0",letterSpacing:".01em"}} onMouseEnter={e=>e.currentTarget.style.color=T.ink2} onMouseLeave={e=>e.currentTarget.style.color=T.ink3}>Continue without account →</button>
+      </div>
+
+      {/* Divider */}
+      <div style={{height:"1px",background:"rgba(28,23,20,.08)",margin:"4px 0 16px"}}/>
+
+      {/* Pricing pills */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+        <div style={{background:"rgba(244,237,227,0.8)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(184,90,60,.1)",textAlign:"center"}}>
+          <div style={{fontFamily:T.serif,fontSize:20,color:T.terra,fontWeight:700,lineHeight:1}}>Free</div>
+          <div style={{fontSize:10,color:T.ink3,marginTop:3,lineHeight:1.4}}>5 patterns<br/>All core features</div>
+        </div>
+        <div style={{background:`linear-gradient(145deg,${T.terra},#7A2E14)`,borderRadius:12,padding:"12px 14px",textAlign:"center",boxShadow:"0 4px 16px rgba(184,90,60,.35)"}}>
+          <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700,lineHeight:1}}>Pro</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:3,lineHeight:1.4}}>$9.99/mo<br/>Unlimited everything</div>
+        </div>
+      </div>
+
+      <Badges/>
+
+      {/* Footer */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,paddingTop:14,borderTop:"1px solid rgba(28,23,20,.07)"}}>
+        <span style={{fontSize:9,color:T.ink3,opacity:.45,letterSpacing:".06em"}}>{APP_VERSION}</span>
+        <button onClick={onEnterAsPro} style={{background:"rgba(92,122,94,.1)",border:"1px solid rgba(92,122,94,.2)",borderRadius:7,padding:"4px 11px",fontSize:10,color:T.sage,cursor:"pointer",fontWeight:500}}>🔑 Dev</button>
+      </div>
+    </div>
+  );
+
+  /* ─── SIGN IN / SIGN UP CARD ─── */
+  const FormCard = () => (
+    <div style={CARD_STYLE}>
+      <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:28,display:"flex",alignItems:"center",gap:6}}>← Back</button>
+      <div style={{textAlign:"center",marginBottom:8}}>
+        <div style={{fontFamily:T.serif,fontSize:28,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
+        <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting for you"}</p>
+      </div>
+      <div style={{marginTop:24}}>
         {isSignup&&<Field label="Your name" placeholder="e.g. Sarah" value={name} onChange={e=>setName(e.target.value)}/>}
         <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
         <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
-        {!isSignup&&<div style={{textAlign:"right",marginBottom:18}}><span style={{fontSize:13,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
-        <button onClick={onEnter} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.3)",marginTop:8,marginBottom:10}}>{isSignup?"Create my YarnHive":"Sign in"}</button>
-        <button onClick={()=>setScreen("welcome")} style={{width:"100%",background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",padding:"8px 0"}}>← Back</button>
+        {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
+        <button onClick={onEnter} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.35)",marginTop:8}}>{isSignup?"Create my YarnHive":"Sign in"}</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",fontFamily:T.sans,position:"relative",overflow:"hidden"}}>
+      <CSS/>
+      <style>{`
+        @keyframes worldPan { from{transform:scale(1.04)} to{transform:scale(1)} }
+        @keyframes cardRise { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        .world-bg { animation: worldPan 1.4s cubic-bezier(.22,.68,0,1.05) both; }
+        .card-rise { animation: cardRise .55s cubic-bezier(.22,.68,0,1.05) .15s both; }
+      `}</style>
+
+      {/* Full-screen illustration background */}
+      <div className="world-bg" style={{position:"fixed",inset:"-4%",zIndex:0}}>
+        <img src={BG} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
+        {/* Subtle darkening vignette so card pops */}
+        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at center, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.55) 100%)"}}/>
+      </div>
+
+      {/* Centered card */}
+      <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
+        <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:380}}>
+          {showForm ? <FormCard/> : <WelcomeCard/>}
+        </div>
       </div>
     </div>
   );
