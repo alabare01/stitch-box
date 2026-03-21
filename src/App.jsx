@@ -976,6 +976,183 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
   );
 };
 
+const BeeAnimator = ({show, cardWidth}) => {
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
+  const startRef = useRef(null);
+  const DURATION = 2600; // ms total flight
+  const BEE_SRC = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774114006/Gemini_Generated_Image_ek61x5ek61x5ek61_ukkaaa.png";
+  const [img, setImg] = useState(null);
+  const [particles, setParticles] = useState([]);
+  const particleRef = useRef([]);
+  const lastPosRef = useRef(null);
+
+  useEffect(() => {
+    const i = new window.Image();
+    i.onload = () => setImg(i);
+    i.src = BEE_SRC;
+  }, []);
+
+  useEffect(() => {
+    if (!show || !img || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // Bezier path: start upper-right, arc across, land center-right of card
+    const p0 = { x: W + 80, y: -60 };            // start off-screen right
+    const p1 = { x: W * 0.55, y: -40 };           // first control — pull left high
+    const p2 = { x: W * 0.62, y: H * 0.35 };     // second control — dip down
+    const p3 = { x: W * 0.72, y: H - 8 };        // land right side top of card
+
+    const bezier = (t) => {
+      const mt = 1 - t;
+      return {
+        x: mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x,
+        y: mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y,
+      };
+    };
+    // derivative for rotation
+    const bezierD = (t) => {
+      const mt = 1 - t;
+      return {
+        x: 3*(mt*mt*(p1.x-p0.x) + 2*mt*t*(p2.x-p1.x) + t*t*(p3.x-p2.x)),
+        y: 3*(mt*mt*(p1.y-p0.y) + 2*mt*t*(p2.y-p1.y) + t*t*(p3.y-p2.y)),
+      };
+    };
+
+    // Ease: fast approach, decelerate to land
+    const ease = (t) => t < 0.7
+      ? 1 - Math.pow(1 - t/0.7, 2.2)
+      : 0.88 + 0.12 * (1 - Math.pow(1 - (t - 0.7)/0.3, 3));
+
+    startRef.current = null;
+    particleRef.current = [];
+
+    const frame = (ts) => {
+      if (!startRef.current) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const raw = Math.min(elapsed / DURATION, 1);
+      const t = ease(raw);
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Update + draw particles
+      particleRef.current = particleRef.current
+        .filter(p => p.life > 0)
+        .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, life: p.life - 1, r: p.r * 0.92 }));
+
+      particleRef.current.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.life / p.maxLife * 0.75;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      const pos = bezier(t);
+      const d = bezierD(t);
+      const angle = Math.atan2(d.y, d.x) * 0.35; // gentle tilt
+
+      // Spawn particles from bee position every few frames while flying
+      if (raw < 0.92 && Math.random() < 0.55 && lastPosRef.current) {
+        const colors = ['rgba(184,144,44,0.8)','rgba(184,90,60,0.7)','rgba(255,210,80,0.8)','rgba(92,122,94,0.7)','rgba(255,255,220,0.9)'];
+        particleRef.current.push({
+          x: lastPosRef.current.x + (Math.random()-0.5)*10,
+          y: lastPosRef.current.y + (Math.random()-0.5)*10,
+          vx: (Math.random()-0.5)*1.8,
+          vy: Math.random()*-1.2 - 0.3,
+          r: Math.random()*4 + 2,
+          life: Math.floor(Math.random()*22 + 14),
+          maxLife: 36,
+          color: colors[Math.floor(Math.random()*colors.length)]
+        });
+      }
+      lastPosRef.current = pos;
+
+      const size = isDesktop ? 72 : 58;
+      const shadowScale = 0.2 + 0.8 * t; // shadow grows as bee descends
+      const shadowAlpha = 0.1 + 0.35 * t;
+
+      // Draw shadow on ground (flat ellipse)
+      if (t > 0.3) {
+        ctx.save();
+        ctx.globalAlpha = shadowAlpha * Math.min((t - 0.3)/0.5, 1);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(p3.x, p3.y + 4, size * 0.38 * shadowScale, size * 0.08 * shadowScale, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw bee drop shadow (blur via filter)
+      ctx.save();
+      ctx.globalAlpha = 0.3 * t;
+      ctx.filter = 'blur(6px)';
+      ctx.drawImage(img, pos.x - size/2 + 4, pos.y - size/2 + 10, size, size);
+      ctx.restore();
+
+      // Draw bee
+      ctx.save();
+      ctx.translate(pos.x, pos.y);
+      ctx.rotate(angle);
+      // Wing flutter: subtle vertical oscillation
+      const flutter = Math.sin(elapsed * 0.028) * (raw < 0.9 ? 2.5 : 0.6);
+      ctx.translate(0, flutter);
+      ctx.drawImage(img, -size/2, -size/2, size, size);
+      ctx.restore();
+
+      if (raw < 1) {
+        rafRef.current = requestAnimationFrame(frame);
+      } else {
+        // Final settled position with gentle bob
+        const bobFrame = (ts2) => {
+          ctx.clearRect(0, 0, W, H);
+          const bob = Math.sin(ts2 * 0.002) * 1.8;
+
+          // Ground shadow
+          ctx.save();
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = 'rgba(0,0,0,0.35)';
+          ctx.beginPath();
+          ctx.ellipse(p3.x, p3.y + 4, size*0.38, size*0.08, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+
+          // Bee shadow
+          ctx.save();
+          ctx.globalAlpha = 0.25;
+          ctx.filter = 'blur(5px)';
+          ctx.drawImage(img, p3.x - size/2 + 3, p3.y - size/2 + 8 + bob, size, size);
+          ctx.restore();
+
+          // Bee
+          ctx.drawImage(img, p3.x - size/2, p3.y - size/2 + bob, size, size);
+          rafRef.current = requestAnimationFrame(bobFrame);
+        };
+        rafRef.current = requestAnimationFrame(bobFrame);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(frame);
+    return () => rafRef.current && cancelAnimationFrame(rafRef.current);
+  }, [show, img, isDesktop]);
+
+  if (!show || !img) return null;
+  const W = isDesktop ? 420 : 360;
+  const H = 90;
+  return (
+    <canvas
+      ref={canvasRef}
+      width={W}
+      height={H}
+      style={{display:"block",width:W,height:H,marginBottom:-H+12,position:"relative",zIndex:2,pointerEvents:"none"}}
+    />
+  );
+};
+
 const Auth = ({onEnter,onEnterAsPro}) => {
   const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState("");
   const{isDesktop}=useBreakpoint();
@@ -984,7 +1161,6 @@ const Auth = ({onEnter,onEnterAsPro}) => {
   const showForm=screen==="signup"||screen==="signin";
   const BG = PHOTOS.world;
 
-  /* Glass card — less opaque on mobile so illustration shows through */
   const CARD_STYLE = {
     background: isDesktop ? "rgba(250,247,243,0.88)" : "rgba(250,247,243,0.78)",
     backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",
@@ -998,21 +1174,18 @@ const Auth = ({onEnter,onEnterAsPro}) => {
     position:"relative",
   };
 
-  /* ─── App Store badges ─── */
   const Badges = () => (
     <div style={{marginTop:18}}>
       <div style={{fontSize:9,color:T.ink3,textTransform:"uppercase",letterSpacing:".12em",marginBottom:8,fontWeight:600,textAlign:"center"}}>Coming to mobile</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {/* Apple App Store */}
         <div style={{background:"#000",borderRadius:12,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.08)"}}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1,whiteSpace:"nowrap"}}>DOWNLOAD ON THE</div>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>DOWNLOAD ON THE</div>
             <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.25}}>App Store</div>
           </div>
-          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px",flexShrink:0}}>Soon</div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px"}}>Soon</div>
         </div>
-        {/* Google Play */}
         <div style={{background:"#000",borderRadius:12,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.08)"}}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M4.5 21.5L13.5 12L4.5 2.5C4 2.8 3.5 3.4 3.5 4.2v15.6c0 .8.5 1.4 1 1.7z" fill="#4285F4"/>
@@ -1021,27 +1194,23 @@ const Auth = ({onEnter,onEnterAsPro}) => {
             <path d="M4.5 2.5L13.5 12 17 8.5 6.5 2.8c-.8-.4-1.6-.3-2 .3-.1.1-.1.2 0 .4z" fill="#34A853"/>
           </svg>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1,whiteSpace:"nowrap"}}>GET IT ON</div>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>GET IT ON</div>
             <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.25}}>Google Play</div>
           </div>
-          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px",flexShrink:0}}>Soon</div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px"}}>Soon</div>
         </div>
       </div>
     </div>
   );
 
-  /* ─── Welcome card ─── */
   const WelcomeCard = () => (
     <div style={CARD_STYLE}>
-      {/* Logo mark */}
       <div style={{textAlign:"center",marginBottom:24}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:9,background:"rgba(184,90,60,.09)",borderRadius:14,padding:"7px 16px",border:"1px solid rgba(184,90,60,.18)"}}>
           <span style={{fontSize:18}}>🐝</span>
           <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>YarnHive</div>
         </div>
       </div>
-
-      {/* Headline */}
       <div style={{textAlign:"center",marginBottom:28}}>
         <div style={{fontFamily:T.serif,fontSize:isDesktop?34:28,fontWeight:700,color:T.ink,lineHeight:1.05,letterSpacing:"-.025em",marginBottom:8}}>
           The pattern<br/>
@@ -1050,38 +1219,25 @@ const Auth = ({onEnter,onEnterAsPro}) => {
         </div>
         <p style={{fontSize:13,color:T.ink3,lineHeight:1.65,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Hive Vision.</p>
       </div>
-
-      {/* CTAs */}
       <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:14}}>
         <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra} 0%,#7A2E14 100%)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.2) inset",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 14px 36px rgba(184,90,60,.6), 0 1px 0 rgba(255,255,255,.2) inset";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 28px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.2) inset";}}>Create free account</button>
         <button onClick={()=>setScreen("signin")} style={{width:"100%",background:"rgba(255,255,255,0.55)",color:T.ink,border:"1px solid rgba(255,255,255,0.7)",borderRadius:14,padding:"14px",fontSize:14,fontWeight:500,cursor:"pointer",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",boxShadow:"0 2px 8px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,.6) inset",transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.82)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.55)";}}>Sign in</button>
-        <button onClick={onEnter} style={{background:"none",border:"none",color:"rgba(92,79,68,0.65)",fontSize:12,cursor:"pointer",padding:"2px 0",letterSpacing:".01em"}} onMouseEnter={e=>e.currentTarget.style.color=T.ink2} onMouseLeave={e=>e.currentTarget.style.color="rgba(92,79,68,0.65)"}>Continue without account →</button>
+        <button onClick={onEnter} style={{background:"none",border:"none",color:"rgba(92,79,68,0.6)",fontSize:12,cursor:"pointer",padding:"2px 0"}}>Continue without account →</button>
       </div>
-
-      {/* Divider */}
       <div style={{height:"1px",background:"rgba(28,23,20,.07)",margin:"2px 0 14px"}}/>
-
-      {/* Pricing */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:2}}>
-        {/* Free card */}
-        <div style={{background:"rgba(244,237,227,0.75)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",borderRadius:14,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"center"}}>
+        <div style={{background:"rgba(244,237,227,0.75)",backdropFilter:"blur(8px)",borderRadius:14,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.6)",textAlign:"center"}}>
           <div style={{fontFamily:T.serif,fontSize:20,color:T.terra,fontWeight:700,lineHeight:1}}>Free</div>
           <div style={{fontSize:10,color:T.ink3,marginTop:4,lineHeight:1.4}}>5 patterns<br/>All core features</div>
         </div>
-        {/* Pro card — with diagonal Hive Vision banner */}
-        <div style={{background:`linear-gradient(145deg,${T.terra},#6B2410)`,borderRadius:14,padding:"12px 14px",textAlign:"center",boxShadow:"0 6px 20px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.15) inset",position:"relative",overflow:"hidden"}}>
-          {/* Diagonal shimmer line */}
+        <div style={{background:`linear-gradient(145deg,${T.terra},#6B2410)`,borderRadius:14,padding:"12px 14px",textAlign:"center",boxShadow:"0 6px 20px rgba(184,90,60,.5)",position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(135deg,rgba(255,255,255,0) 30%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0) 70%)",pointerEvents:"none"}}/>
-          {/* Diagonal banner */}
-          <div style={{position:"absolute",top:10,right:-20,background:"rgba(255,255,255,0.18)",padding:"3px 28px",transform:"rotate(35deg)",fontSize:7,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",whiteSpace:"nowrap",backdropFilter:"blur(4px)"}}>HIVE VISION</div>
+          <div style={{position:"absolute",top:10,right:-20,background:"rgba(255,255,255,0.18)",padding:"3px 28px",transform:"rotate(35deg)",fontSize:7,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",whiteSpace:"nowrap"}}>HIVE VISION</div>
           <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700,lineHeight:1,position:"relative"}}>Pro</div>
           <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:4,lineHeight:1.4,position:"relative"}}>$9.99/mo<br/>Unlimited everything</div>
         </div>
       </div>
-
       <Badges/>
-
-      {/* Footer */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,paddingTop:12,borderTop:"1px solid rgba(28,23,20,.06)"}}>
         <span style={{fontSize:9,color:T.ink3,opacity:.4,letterSpacing:".06em"}}>{APP_VERSION}</span>
         <button onClick={onEnterAsPro} style={{background:"rgba(92,122,94,.12)",border:"1px solid rgba(92,122,94,.22)",borderRadius:7,padding:"4px 11px",fontSize:10,color:T.sage,cursor:"pointer",fontWeight:500}}>🔑 Dev</button>
@@ -1089,7 +1245,6 @@ const Auth = ({onEnter,onEnterAsPro}) => {
     </div>
   );
 
-  /* ─── Sign in / Sign up card ─── */
   const FormCard = () => (
     <div style={CARD_STYLE}>
       <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:24,display:"flex",alignItems:"center",gap:6}}>← Back</button>
@@ -1111,68 +1266,20 @@ const Auth = ({onEnter,onEnterAsPro}) => {
     <div style={{minHeight:"100vh",fontFamily:T.sans,position:"relative",overflow:"hidden",background:"#0A0804"}}>
       <CSS/>
       <style>{`
-        @keyframes worldPan  { from{transform:scale(1.06) translateY(-8px)} to{transform:scale(1) translateY(0)} }
-        @keyframes cardRise  { from{opacity:0;transform:translateY(28px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes beeFloat  {
-          0%   { transform: translate(140px, -60px) rotate(-12deg) scale(0.7); opacity:0; }
-          15%  { opacity:1; }
-          55%  { transform: translate(60px, 18px) rotate(5deg) scale(1.05); }
-          72%  { transform: translate(20px, -8px) rotate(-3deg) scale(1); }
-          85%  { transform: translate(6px, 4px) rotate(2deg) scale(1); }
-          100% { transform: translate(0px, 0px) rotate(0deg) scale(1); opacity:1; }
-        }
-        @keyframes beeDust {
-          0%   { opacity:0; transform: scale(0); }
-          40%  { opacity:0.7; transform: scale(1); }
-          100% { opacity:0; transform: scale(0) translateY(-10px); }
-        }
-        @keyframes dustTrail {
-          0%   { opacity:0.6; transform: translate(0,0) scale(1); }
-          100% { opacity:0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
-        }
+        @keyframes worldPan { from{transform:scale(1.06) translateY(-8px)} to{transform:scale(1) translateY(0)} }
+        @keyframes cardRise { from{opacity:0;transform:translateY(28px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
         .world-bg  { animation: worldPan 1.6s cubic-bezier(.22,.68,0,1.05) both; }
         .card-rise { animation: cardRise .6s cubic-bezier(.22,.68,0,1.05) .2s both; }
-        .bee-fly   { animation: beeFloat 2.2s cubic-bezier(.22,.68,0,1.05) .3s both; display:inline-block; }
-        .dust-1 { --dx:-12px; --dy:-8px;  animation: dustTrail .8s ease .9s both; }
-        .dust-2 { --dx: 10px; --dy:-12px; animation: dustTrail .8s ease 1.1s both; }
-        .dust-3 { --dx:-8px;  --dy: 6px;  animation: dustTrail .8s ease 1.0s both; }
-        .dust-4 { --dx: 14px; --dy: 4px;  animation: dustTrail .8s ease 1.3s both; }
-        .dust-5 { --dx:-6px;  --dy:-14px; animation: dustTrail .8s ease 1.2s both; }
       `}</style>
-
-      {/* Full-screen illustrated background — saturate boost for mobile */}
       <div className="world-bg" style={{position:"fixed",inset:"-5%",zIndex:0}}>
-        <img
-          src={BG}
-          alt="YarnHive world"
-          style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}
-        />
-        {/* Radial vignette — lighter on mobile so background shows through card */}
+        <img src={BG} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}/>
         <div style={{position:"absolute",inset:0,background:isDesktop
           ?"radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.58) 100%)"
           :"radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 100%)"
         }}/>
       </div>
-
-      {/* Centered card with animated bee perched on top */}
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
-
-        {/* Bee animation — flies in and lands above the card */}
-        {!showForm && (
-          <div style={{position:"relative",height:52,marginBottom:-12,zIndex:2,alignSelf:"center",width:isDesktop?420:360}}>
-            <div style={{position:"absolute",right:32,bottom:0,width:52,height:52}}>
-              {/* Dust particles trail */}
-              <div className="dust-1" style={{position:"absolute",right:28,top:18,width:6,height:6,borderRadius:"50%",background:"rgba(184,144,44,0.7)"}}/>
-              <div className="dust-2" style={{position:"absolute",right:12,top:8,width:4,height:4,borderRadius:"50%",background:"rgba(184,90,60,0.6)"}}/>
-              <div className="dust-3" style={{position:"absolute",right:36,top:28,width:5,height:5,borderRadius:"50%",background:"rgba(255,220,100,0.7)"}}/>
-              <div className="dust-4" style={{position:"absolute",right:6,top:24,width:4,height:4,borderRadius:"50%",background:"rgba(184,144,44,0.5)"}}/>
-              <div className="dust-5" style={{position:"absolute",right:20,top:6,width:5,height:5,borderRadius:"50%",background:"rgba(92,122,94,0.6)"}}/>
-              {/* The bee */}
-              <div className="bee-fly" style={{position:"absolute",right:0,bottom:4,fontSize:42,lineHeight:1,filter:"drop-shadow(0 4px 8px rgba(0,0,0,0.4))"}}>🐝</div>
-            </div>
-          </div>
-        )}
-
+        <BeeAnimator show={!showForm} cardWidth={isDesktop?420:360}/>
         <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
           {showForm ? <FormCard/> : <WelcomeCard/>}
         </div>
