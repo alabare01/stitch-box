@@ -979,183 +979,206 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
 const BeeAnimator = ({show, isDesktop}) => {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
-  const startRef = useRef(null);
-  const imgRef = useRef(null);
-  const particleRef = useRef([]);
-  const lastPosRef = useRef(null);
-  const imgLoadedRef = useRef(false);
-  const DURATION = 2600;
-  const BEE_SRC = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774114006/Gemini_Generated_Image_ek61x5ek61x5ek61_ukkaaa.png";
 
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => { imgRef.current = img; imgLoadedRef.current = true; };
-    img.src = BEE_SRC;
-  }, []);
-
-  useEffect(() => {
-    if (!show) { if(rafRef.current) cancelAnimationFrame(rafRef.current); return; }
-
-    const tryStart = () => {
-      if (!imgLoadedRef.current || !canvasRef.current) {
-        setTimeout(tryStart, 100);
-        return;
-      }
-      startAnimation();
-    };
-    tryStart();
-
-    return () => { if(rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [show, isDesktop]);
-
-  const startAnimation = () => {
+    if (!show) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
     const canvas = canvasRef.current;
-    if(!canvas) return;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    const img = imgRef.current;
 
-    const p0 = { x: W + 90, y: -70 };
-    const p1 = { x: W * 0.7, y: -50 };
-    const p2 = { x: W * 0.65, y: H * 0.3 };
-    const p3 = { x: W * 0.74, y: H - 6 };
+    // ── Bezier path: sweeping arc from upper-right, looping across, landing at card top-right ──
+    // The bee flies ONE smooth continuous path — no stops, no resets
+    const LAND = { x: W * 0.76, y: H - 10 }; // final resting spot
 
-    const bezier = t => {
+    // Control points for a wide sweeping S-curve
+    const segments = [
+      // Entry arc: comes in from far right, sweeps left and down
+      {
+        p0: { x: W + 100, y: -80 },
+        p1: { x: W * 0.9,  y: -60 },
+        p2: { x: W * 0.15, y: H * 0.2 },
+        p3: { x: W * 0.25, y: H * 0.65 },
+        dur: 1400,
+      },
+      // Recovery arc: swoops back right and down to land
+      {
+        p0: { x: W * 0.25, y: H * 0.65 },
+        p1: { x: W * 0.35, y: H * 0.9  },
+        p2: { x: W * 0.6,  y: H * 0.4  },
+        p3: LAND,
+        dur: 900,
+      },
+    ];
+    const TOTAL_DUR = segments.reduce((s, seg) => s + seg.dur, 0);
+
+    const bezierPt = (seg, t) => {
+      const { p0, p1, p2, p3 } = seg;
       const mt = 1 - t;
       return {
         x: mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x,
         y: mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y,
       };
     };
-    const bezierD = t => {
+    const bezierTangent = (seg, t) => {
+      const { p0, p1, p2, p3 } = seg;
       const mt = 1 - t;
       return {
-        x: 3*(mt*mt*(p1.x-p0.x)+2*mt*t*(p2.x-p1.x)+t*t*(p3.x-p2.x)),
-        y: 3*(mt*mt*(p1.y-p0.y)+2*mt*t*(p2.y-p1.y)+t*t*(p3.y-p2.y)),
+        x: 3*(mt*mt*(p1.x-p0.x) + 2*mt*t*(p2.x-p1.x) + t*t*(p3.x-p2.x)),
+        y: 3*(mt*mt*(p1.y-p0.y) + 2*mt*t*(p2.y-p1.y) + t*t*(p3.y-p2.y)),
       };
     };
-    const ease = t => t < 0.7
-      ? 1 - Math.pow(1 - t/0.7, 2.4)
-      : 0.88 + 0.12*(1 - Math.pow(1-(t-0.7)/0.3, 3));
 
-    const COLORS = ['rgba(184,144,44,.85)','rgba(184,90,60,.75)','rgba(255,210,80,.85)','rgba(92,122,94,.75)','rgba(255,240,180,.9)'];
-    startRef.current = null;
-    particleRef.current = [];
+    // Ease: smooth in-out for each segment
+    const easeInOut = t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    // Landing deceleration — ease in only
+    const easeLand = t => 1 - Math.pow(1 - t, 3);
 
-    const frame = ts => {
-      if (!startRef.current) startRef.current = ts;
-      const elapsed = ts - startRef.current;
-      const raw = Math.min(elapsed / DURATION, 1);
-      const t = ease(raw);
+    // Trail: array of {x, y, age, maxAge, r, color}
+    const trail = [];
+    const TRAIL_COLORS = [
+      'rgba(255,210,60,',   // gold
+      'rgba(184,90,60,',    // terra
+      'rgba(255,255,180,',  // cream
+      'rgba(92,122,94,',    // sage
+      'rgba(255,160,80,',   // amber
+    ];
+    let trailTimer = 0;
+    const TRAIL_INTERVAL = 28; // ms between trail drops
 
+    let startTs = null;
+    let landed = false;
+    let landedPos = null;
+    let bobOffset = 0;
+
+    const frame = (ts) => {
+      if (!startTs) startTs = ts;
+      const elapsed = ts - startTs;
       ctx.clearRect(0, 0, W, H);
 
-      // Age + draw particles
-      particleRef.current = particleRef.current
-        .filter(p => p.life > 0)
-        .map(p => ({...p, x:p.x+p.vx, y:p.y+p.vy, life:p.life-1, r:p.r*0.93}));
-
-      for(const p of particleRef.current) {
-        ctx.save();
-        ctx.globalAlpha = (p.life/p.maxLife)*0.8;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(0,p.r), 0, Math.PI*2);
-        ctx.fill();
-        ctx.restore();
+      // ── Determine current bee position ──
+      let pos = null, angle = 0;
+      if (!landed) {
+        let cumDur = 0;
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          if (elapsed <= cumDur + seg.dur || i === segments.length - 1) {
+            const rawT = Math.min((elapsed - cumDur) / seg.dur, 1);
+            const t = i === segments.length - 1 ? easeLand(rawT) : easeInOut(rawT);
+            pos = bezierPt(seg, t);
+            const tang = bezierTangent(seg, t);
+            angle = Math.atan2(tang.y, tang.x) * 0.28;
+            break;
+          }
+          cumDur += seg.dur;
+        }
+        if (elapsed >= TOTAL_DUR) {
+          landed = true;
+          landedPos = { ...LAND };
+        }
+      } else {
+        bobOffset = Math.sin(ts * 0.0022) * 2.4;
+        pos = { x: LAND.x, y: LAND.y + bobOffset };
+        angle = 0;
       }
 
-      const pos = bezier(t);
-      const d = bezierD(t);
-      const angle = Math.atan2(d.y, d.x) * 0.3;
-      const size = isDesktop ? 70 : 56;
-
-      // Emit particles from current bee pos while flying
-      if (raw < 0.9 && lastPosRef.current && Math.random() < 0.6) {
-        particleRef.current.push({
-          x: lastPosRef.current.x + (Math.random()-0.5)*8,
-          y: lastPosRef.current.y + (Math.random()-0.5)*8,
-          vx: (Math.random()-0.5)*2,
-          vy: Math.random()*-1.5 - 0.2,
-          r: Math.random()*4+2,
-          life: Math.floor(Math.random()*20+12),
-          maxLife: 32,
-          color: COLORS[Math.floor(Math.random()*COLORS.length)]
+      // ── Emit trail dots from current bee position ──
+      trailTimer += 16; // approximate frame time
+      if (!landed && pos && trailTimer >= TRAIL_INTERVAL) {
+        trailTimer = 0;
+        const color = TRAIL_COLORS[Math.floor(Math.random() * TRAIL_COLORS.length)];
+        trail.push({
+          x: pos.x + (Math.random() - 0.5) * 6,
+          y: pos.y + (Math.random() - 0.5) * 6,
+          age: 0,
+          maxAge: 380 + Math.random() * 200,
+          r: 2.5 + Math.random() * 3,
+          color,
         });
       }
-      lastPosRef.current = {x:pos.x, y:pos.y};
 
-      // Ground shadow grows as bee descends
-      if (t > 0.25) {
-        const shadowProgress = Math.min((t-0.25)/0.6, 1);
+      // ── Draw + age trail ──
+      for (let i = trail.length - 1; i >= 0; i--) {
+        const dot = trail[i];
+        dot.age += 16;
+        if (dot.age > dot.maxAge) { trail.splice(i, 1); continue; }
+        const progress = dot.age / dot.maxAge;
+        const alpha = (1 - progress) * 0.75;
+        const r = dot.r * (1 - progress * 0.5);
         ctx.save();
-        ctx.globalAlpha = 0.28 * shadowProgress;
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        // Outer glow
+        ctx.shadowColor = dot.color + '0.9)';
+        ctx.shadowBlur = 6;
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.fillStyle = dot.color + '1)';
         ctx.beginPath();
-        ctx.ellipse(p3.x, p3.y+5, size*0.4*shadowProgress, size*0.09*shadowProgress, 0, 0, Math.PI*2);
+        ctx.arc(dot.x, dot.y, r * 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        // Core dot
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = dot.color + '1)';
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
 
-      // Bee blur shadow
-      ctx.save();
-      ctx.globalAlpha = 0.25 * t;
-      ctx.filter = 'blur(6px)';
-      ctx.drawImage(img, pos.x-size/2+5, pos.y-size/2+12, size, size);
-      ctx.restore();
+      // ── Draw bee ──
+      if (pos) {
+        const SIZE = 28;
+        const flutter = !landed ? Math.sin(ts * 0.032) * 2.2 : Math.sin(ts * 0.008) * 0.8;
 
-      // Bee body with rotation + wing flutter
-      ctx.save();
-      ctx.translate(pos.x, pos.y);
-      ctx.rotate(angle);
-      const flutter = Math.sin(elapsed*0.03) * (raw < 0.88 ? 2.8 : 0.5);
-      ctx.translate(0, flutter);
-      ctx.drawImage(img, -size/2, -size/2, size, size);
-      ctx.restore();
-
-      if (raw < 1) {
-        rafRef.current = requestAnimationFrame(frame);
-      } else {
-        // Landed: continuous gentle bob
-        const bob = ts2 => {
-          if(!canvasRef.current) return;
-          ctx.clearRect(0, 0, W, H);
-          const b = Math.sin(ts2*0.0018)*2.2;
-
+        // Shadow on the card surface
+        if (landed || elapsed > TOTAL_DUR * 0.7) {
+          const shadowAlpha = landed ? 0.28 : Math.min((elapsed - TOTAL_DUR * 0.7) / (TOTAL_DUR * 0.3), 1) * 0.25;
           ctx.save();
-          ctx.globalAlpha = 0.3;
+          ctx.globalAlpha = shadowAlpha;
           ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.filter = 'blur(4px)';
           ctx.beginPath();
-          ctx.ellipse(p3.x, p3.y+5, size*0.4, size*0.09, 0, 0, Math.PI*2);
+          ctx.ellipse(LAND.x, LAND.y + 6, SIZE * 0.55, SIZE * 0.12, 0, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
+        }
 
-          ctx.save();
-          ctx.globalAlpha = 0.22;
-          ctx.filter = 'blur(5px)';
-          ctx.drawImage(img, p3.x-size/2+4, p3.y-size/2+10+b, size, size);
-          ctx.restore();
-
-          ctx.drawImage(img, p3.x-size/2, p3.y-size/2+b, size, size);
-          rafRef.current = requestAnimationFrame(bob);
-        };
-        rafRef.current = requestAnimationFrame(bob);
+        ctx.save();
+        ctx.translate(pos.x, pos.y + flutter);
+        ctx.rotate(angle);
+        ctx.font = `${SIZE * 2}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🐝', 0, 0);
+        ctx.restore();
       }
+
+      rafRef.current = requestAnimationFrame(frame);
     };
 
     rafRef.current = requestAnimationFrame(frame);
-  };
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [show, isDesktop]);
 
   if (!show) return null;
   const W = isDesktop ? 420 : 360;
-  const H = 88;
+  const H = 80;
   return (
     <canvas
       ref={canvasRef}
       width={W}
       height={H}
-      style={{display:"block",width:W,height:H,marginBottom:-H+14,position:"relative",zIndex:2,pointerEvents:"none"}}
+      style={{
+        display: 'block',
+        width: W,
+        height: H,
+        marginBottom: -H + 16,
+        position: 'relative',
+        zIndex: 2,
+        pointerEvents: 'none',
+      }}
     />
   );
 };
