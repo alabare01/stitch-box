@@ -976,23 +976,28 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
   );
 };
 
-const BeeAnimator = ({show, isDesktop}) => {
-  const canvasRef = useRef(null);
+const BeeAnimator = ({show, isDesktop, cardRef}) => {
+  const backCanvasRef = useRef(null);  // renders BEHIND card (bee emerging from behind)
+  const frontCanvasRef = useRef(null); // renders IN FRONT of card (bee after emergence)
   const rafRef = useRef(null);
   const imgRef = useRef(null);
   const readyRef = useRef(false);
+
+  const BEE_SRC = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
 
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => { imgRef.current = img; readyRef.current = true; };
-    img.src = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117344/yarnhive_bee_clean.png";
+    img.src = BEE_SRC;
   }, []);
 
   useEffect(() => {
     if (!show) { if (rafRef.current) cancelAnimationFrame(rafRef.current); return; }
     const tryStart = () => {
-      if (!readyRef.current || !canvasRef.current) { setTimeout(tryStart, 80); return; }
+      if (!readyRef.current || !backCanvasRef.current || !frontCanvasRef.current) {
+        setTimeout(tryStart, 80); return;
+      }
       startAnim();
     };
     tryStart();
@@ -1000,31 +1005,45 @@ const BeeAnimator = ({show, isDesktop}) => {
   }, [show, isDesktop]);
 
   const startAnim = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
+    const back = backCanvasRef.current;
+    const front = frontCanvasRef.current;
+    const bCtx = back.getContext('2d');
+    const fCtx = front.getContext('2d');
+    const W = front.width, H = front.height;
     const img = imgRef.current;
 
-    // Bee size — consistent regardless of device
-    const BEE_W = isDesktop ? 90 : 74;
-    const BEE_H = BEE_W * (img.height / img.width);
+    // Bee rendered at good size
+    const BEE_W = isDesktop ? 120 : 96;
+    const BEE_H = Math.round(BEE_W * (img.height / img.width));
 
-    // Landing spot: right-center of canvas bottom
-    const LX = W * 0.73, LY = H - BEE_H * 0.5;
+    // Landing spot: right side of card top
+    const LX = W * 0.74;
+    const LY = H - BEE_H * 0.45;
 
-    // Bezier: enter from LEFT off-screen, wide arc up and across, descend to land
-    const p0 = { x: -BEE_W,   y: H * 0.6   };   // start: left off-screen
-    const p1 = { x: W * 0.08, y: -H * 0.5  };   // CP1: swoop up
-    const p2 = { x: W * 0.92, y: -H * 0.05 };   // CP2: across the top
-    const p3 = { x: LX,       y: LY         };   // land
+    // Phase 1: bee starts BEHIND card (left side), travels across hidden
+    // Phase 2: bee emerges from behind right edge of card, flies to landing
+    // 
+    // Full bezier path — same as before but we track when bee crosses
+    // the card's right edge to switch from back to front canvas
 
-    const FLIGHT_MS = 3000;
+    const p0 = { x: W * 0.08,  y: H * 0.82 }; // starts behind card, low left
+    const p1 = { x: W * 0.02,  y: -H * 0.6 }; // swoops up high
+    const p2 = { x: W * 0.88,  y: -H * 0.05}; // arcs across top
+    const p3 = { x: LX,        y: LY        }; // lands right side
 
-    // Ease: cubic — fast in middle, slow at start and very slow at end
+    // Card approximate bounds (the glass card is centered, maxWidth 420/360)
+    const cardW = isDesktop ? 420 : 360;
+    const cardLeft = (W - cardW) / 2;
+    const cardRight = cardLeft + cardW;
+    // Emergence point: when bee x > cardRight * 0.85 AND coming down
+    const EMERGENCE_X = cardRight * 0.82;
+
+    const FLIGHT_MS = 3400;
+
     const ease = t => {
-      if (t < 0.1) return t * 0.5; // slow start
-      if (t < 0.8) return 0.05 + 0.85 * ((t-0.1)/0.7);
-      return 0.9 + 0.1 * (1 - Math.pow(1-(t-0.8)/0.2, 3)); // decelerate to land
+      if (t < 0.08) return t * 0.6;
+      if (t < 0.82) return 0.048 + 0.852 * ((t - 0.08) / 0.74);
+      return 0.9 + 0.1 * (1 - Math.pow(1 - (t - 0.82) / 0.18, 3));
     };
 
     const bez = t => {
@@ -1042,88 +1061,116 @@ const BeeAnimator = ({show, isDesktop}) => {
       };
     };
 
-    const COLORS = ['rgba(255,210,60,','rgba(184,90,60,','rgba(255,245,140,','rgba(92,122,94,','rgba(255,170,60,'];
+    const COLORS = [
+      'rgba(255,210,60,',
+      'rgba(184,90,60,',
+      'rgba(255,245,140,',
+      'rgba(92,122,94,',
+      'rgba(255,170,60,',
+    ];
     const trail = [];
     let lastTrail = 0;
-
+    let emerged = false;  // has bee emerged from behind card yet?
     let startTs = null, landed = false;
+
+    const drawBee = (ctx, px, py, angle, alpha, size_w, size_h, ts) => {
+      const bob = Math.sin(ts * (landed ? 0.0015 : 0.022)) * (landed ? 1.5 : 2.2);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(px, py);
+      ctx.rotate(angle * 0.35);
+      ctx.translate(0, bob);
+      // shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 6;
+      ctx.drawImage(img, -size_w/2, -size_h/2, size_w, size_h);
+      ctx.restore();
+    };
 
     const frame = ts => {
       if (!startTs) startTs = ts;
       const elapsed = ts - startTs;
-      ctx.clearRect(0, 0, W, H);
 
-      let pos, angle;
+      bCtx.clearRect(0, 0, W, H);
+      fCtx.clearRect(0, 0, W, H);
+
+      let pos, angle = 0;
+
       if (!landed) {
         const rawT = Math.min(elapsed / FLIGHT_MS, 1);
         const t = ease(rawT);
         pos = bez(t);
         const d = bezD(t);
-        // Angle faces direction of travel
         angle = Math.atan2(d.y, d.x);
-        if (rawT >= 1) landed = true;
 
-        // Emit trail
-        if (ts - lastTrail > 32) {
+        // Has bee emerged from behind the card?
+        if (!emerged && pos.x > EMERGENCE_X) emerged = true;
+
+        // Emit trail only when emerged (in front)
+        if (emerged && ts - lastTrail > 30) {
           lastTrail = ts;
           trail.push({
             x: pos.x, y: pos.y,
-            born: ts, life: 650 + Math.random()*250,
-            r: 2.5 + Math.random()*3,
+            born: ts, life: 600 + Math.random()*280,
+            r: 2.5 + Math.random()*3.2,
             color: COLORS[Math.floor(Math.random()*COLORS.length)],
           });
         }
+
+        if (rawT >= 1) { landed = true; emerged = true; }
       } else {
-        pos = { x: LX, y: LY + Math.sin(ts*0.0016)*2 };
+        pos = { x: LX, y: LY + Math.sin(ts * 0.0016) * 2.2 };
         angle = 0;
       }
 
-      // Draw trail
+      // ── Draw trail on FRONT canvas ──
       for (let i = trail.length-1; i >= 0; i--) {
         const dot = trail[i];
         const age = ts - dot.born;
         if (age > dot.life) { trail.splice(i,1); continue; }
         const p = age / dot.life;
         const a = Math.pow(1-p, 1.3);
-        const r = dot.r * (1 - p*0.4);
-        ctx.save();
-        ctx.globalAlpha = a * 0.25;
-        ctx.shadowColor = dot.color+'1)'; ctx.shadowBlur = 10;
-        ctx.fillStyle = dot.color+'1)';
-        ctx.beginPath(); ctx.arc(dot.x, dot.y, r*2.2, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = a * 0.88;
-        ctx.fillStyle = dot.color+'1)';
-        ctx.beginPath(); ctx.arc(dot.x, dot.y, r, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
+        const r = Math.max(0.4, dot.r * (1 - p*0.45));
+
+        fCtx.save();
+        fCtx.globalAlpha = a * 0.22;
+        fCtx.shadowColor = dot.color+'1)'; fCtx.shadowBlur = 12;
+        fCtx.fillStyle = dot.color+'1)';
+        fCtx.beginPath(); fCtx.arc(dot.x, dot.y, r*2.4, 0, Math.PI*2); fCtx.fill();
+        fCtx.restore();
+
+        fCtx.save();
+        fCtx.globalAlpha = a * 0.9;
+        fCtx.fillStyle = dot.color+'1)';
+        fCtx.beginPath(); fCtx.arc(dot.x, dot.y, r, 0, Math.PI*2); fCtx.fill();
+        fCtx.restore();
       }
 
-      // Shadow on landing
+      // ── Landing shadow on FRONT canvas ──
       const rawProgress = Math.min(elapsed/FLIGHT_MS, 1);
-      if (rawProgress > 0.78 || landed) {
-        const fade = landed ? 1 : (rawProgress-0.78)/0.22;
-        ctx.save();
-        ctx.globalAlpha = 0.2 * fade;
-        ctx.filter = 'blur(5px)';
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.beginPath();
-        ctx.ellipse(LX + BEE_W*0.05, LY + BEE_H*0.55, BEE_W*0.38, BEE_H*0.1, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.restore();
+      if ((rawProgress > 0.8 || landed) && emerged) {
+        const fade = landed ? 1 : (rawProgress-0.8)/0.2;
+        fCtx.save();
+        fCtx.globalAlpha = 0.18 * fade;
+        fCtx.filter = 'blur(6px)';
+        fCtx.fillStyle = 'rgba(0,0,0,0.55)';
+        fCtx.beginPath();
+        fCtx.ellipse(LX+4, LY + BEE_H*0.52, BEE_W*0.38, BEE_H*0.09, 0, 0, Math.PI*2);
+        fCtx.fill();
+        fCtx.restore();
       }
 
-      // Draw bee PNG — rotated to face direction of travel
-      ctx.save();
-      ctx.translate(pos.x, pos.y);
-      // Only tilt during flight, snap to level on land
-      const tilt = landed ? 0 : angle * 0.4;
-      ctx.rotate(tilt);
-      // Subtle wing bob — very small, vertical only, slow
-      const bob = landed ? Math.sin(ts*0.0016)*1.5 : Math.sin(ts*0.022)*1.8;
-      ctx.translate(0, bob);
-      ctx.drawImage(img, -BEE_W/2, -BEE_H/2, BEE_W, BEE_H);
-      ctx.restore();
+      if (!emerged) {
+        // Draw bee on BACK canvas — dimmed, slightly blurred = behind glass effect
+        bCtx.save();
+        bCtx.filter = 'blur(1.5px)';
+        drawBee(bCtx, pos.x, pos.y, angle, 0.38, BEE_W, BEE_H, ts);
+        bCtx.restore();
+      } else {
+        // Draw bee on FRONT canvas — full opacity, in front of everything
+        drawBee(fCtx, pos.x, pos.y, angle, 1.0, BEE_W, BEE_H, ts);
+      }
 
       rafRef.current = requestAnimationFrame(frame);
     };
@@ -1132,19 +1179,23 @@ const BeeAnimator = ({show, isDesktop}) => {
   };
 
   if (!show) return null;
-  const W = isDesktop ? 440 : 370;
-  const H = isDesktop ? 180 : 150;
+  const W = isDesktop ? 440 : 374;
+  const H = isDesktop ? 200 : 170;
+  const canvasStyle = {
+    position: 'absolute',
+    top: 0, left: 0,
+    width: W, height: H,
+    pointerEvents: 'none',
+  };
+
   return (
-    <canvas
-      ref={canvasRef}
-      width={W} height={H}
-      style={{
-        display:'block', width:W, height:H,
-        marginBottom:-(H-22),
-        position:'relative', zIndex:2,
-        pointerEvents:'none',
-      }}
-    />
+    <div style={{ position:'relative', width:W, height:H, marginBottom:-(H-24), zIndex:0, alignSelf:'center' }}>
+      {/* Back canvas — renders BEHIND the glass card */}
+      <canvas ref={backCanvasRef} width={W} height={H} style={{...canvasStyle, zIndex:0}}/>
+      {/* Spacer — this is where the card renders, between the two canvases */}
+      {/* Front canvas — renders IN FRONT of everything */}
+      <canvas ref={frontCanvasRef} width={W} height={H} style={{...canvasStyle, zIndex:4}}/>
+    </div>
   );
 };
 
@@ -1274,7 +1325,7 @@ const Auth = ({onEnter,onEnterAsPro}) => {
         }}/>
       </div>
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
-        <BeeAnimator show={!showForm} cardWidth={isDesktop?420:360}/>
+        <BeeAnimator show={!showForm} isDesktop={isDesktop}/>
         <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
           {showForm ? <FormCard/> : <WelcomeCard/>}
         </div>
