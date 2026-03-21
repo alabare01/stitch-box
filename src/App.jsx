@@ -982,134 +982,198 @@ const Auth = ({onEnter,onEnterAsPro}) => {
 
   const isSignup=screen==="signup";
   const showForm=screen==="signup"||screen==="signin";
-
   const BG = PHOTOS.world;
+
+  /* Glass card — less opaque on mobile so illustration shows through */
   const CARD_STYLE = {
-    background:"rgba(250,247,243,0.92)",
-    backdropFilter:"blur(28px) saturate(1.4)",
-    WebkitBackdropFilter:"blur(28px) saturate(1.4)",
-    borderRadius:24,
-    boxShadow:"0 32px 80px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.6) inset",
-    border:"1px solid rgba(255,255,255,0.55)",
-    padding: isDesktop ? "44px 48px 40px" : "32px 28px 36px",
-    width: "100%",
-    maxWidth: isDesktop ? 420 : 380,
+    background: isDesktop ? "rgba(250,247,243,0.88)" : "rgba(250,247,243,0.78)",
+    backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",
+    WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",
+    borderRadius:28,
+    boxShadow:"0 40px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",
+    border:"1px solid rgba(255,255,255,0.38)",
+    padding: isDesktop ? "44px 48px 40px" : "28px 24px 32px",
+    width:"100%",
+    maxWidth: isDesktop ? 420 : 360,
+    position:"relative",
   };
 
-  /* ─── SHARED: App Store badges ─── */
+  /* ─── App Store badges ─── */
   const Badges = () => (
-    <div style={{marginTop:20}}>
+    <div style={{marginTop:18}}>
       <div style={{fontSize:9,color:T.ink3,textTransform:"uppercase",letterSpacing:".12em",marginBottom:8,fontWeight:600,textAlign:"center"}}>Coming to mobile</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <div style={{background:"#000",borderRadius:11,padding:"9px 13px",display:"flex",alignItems:"center",gap:9,border:"1px solid rgba(255,255,255,0.07)"}}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          <div style={{flex:1}}>
-            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>DOWNLOAD ON THE</div>
-            <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2}}>App Store</div>
+        {/* Apple App Store */}
+        <div style={{background:"#000",borderRadius:12,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.08)"}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1,whiteSpace:"nowrap"}}>DOWNLOAD ON THE</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.25}}>App Store</div>
           </div>
-          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.12)",borderRadius:5,padding:"2px 7px",whiteSpace:"nowrap"}}>Soon</div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px",flexShrink:0}}>Soon</div>
         </div>
-        <div style={{background:"#000",borderRadius:11,padding:"9px 13px",display:"flex",alignItems:"center",gap:9,border:"1px solid rgba(255,255,255,0.07)"}}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 20.5v-17L14.5 12 3 20.5z" fill="white" opacity=".5"/><path d="M3 3.5l11.5 8.5L21 8l-18-4.5z" fill="#00E676"/><path d="M3 20.5L14.5 12 21 16l-18 4.5z" fill="#FF3D5B"/><path d="M14.5 12L21 8v8l-6.5-4z" fill="#FFD600"/></svg>
-          <div style={{flex:1}}>
-            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1}}>GET IT ON</div>
-            <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2}}>Google Play</div>
+        {/* Google Play */}
+        <div style={{background:"#000",borderRadius:12,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 12px rgba(0,0,0,0.4)",border:"1px solid rgba(255,255,255,0.08)"}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M4.5 21.5L13.5 12L4.5 2.5C4 2.8 3.5 3.4 3.5 4.2v15.6c0 .8.5 1.4 1 1.7z" fill="#4285F4"/>
+            <path d="M17 15.5L14 13.8 13.5 12 14 10.2 17 8.5 20.5 10.5c1 .6 1 1.4 0 2L17 15.5z" fill="#FBBC05"/>
+            <path d="M4.5 21.5L13.5 12 17 15.5 6.5 21.2c-.8.4-1.6.3-2-.3z" fill="#EA4335"/>
+            <path d="M4.5 2.5L13.5 12 17 8.5 6.5 2.8c-.8-.4-1.6-.3-2 .3-.1.1-.1.2 0 .4z" fill="#34A853"/>
+          </svg>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:7,color:"rgba(255,255,255,.45)",letterSpacing:".07em",lineHeight:1,whiteSpace:"nowrap"}}>GET IT ON</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.25}}>Google Play</div>
           </div>
-          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.12)",borderRadius:5,padding:"2px 7px",whiteSpace:"nowrap"}}>Soon</div>
+          <div style={{fontSize:8,color:"rgba(255,255,255,.35)",border:"1px solid rgba(255,255,255,.15)",borderRadius:5,padding:"2px 6px",flexShrink:0}}>Soon</div>
         </div>
       </div>
     </div>
   );
 
-  /* ─── WELCOME CARD ─── */
+  /* ─── Welcome card ─── */
   const WelcomeCard = () => (
     <div style={CARD_STYLE}>
       {/* Logo mark */}
-      <div style={{textAlign:"center",marginBottom:28}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:10,background:"rgba(184,90,60,.08)",borderRadius:14,padding:"8px 18px",border:"1px solid rgba(184,90,60,.15)"}}>
-          <span style={{fontSize:20}}>🐝</span>
-          <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>YarnHive</div>
+      <div style={{textAlign:"center",marginBottom:24}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:9,background:"rgba(184,90,60,.09)",borderRadius:14,padding:"7px 16px",border:"1px solid rgba(184,90,60,.18)"}}>
+          <span style={{fontSize:18}}>🐝</span>
+          <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>YarnHive</div>
         </div>
       </div>
 
       {/* Headline */}
-      <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{fontFamily:T.serif,fontSize:isDesktop?36:30,fontWeight:700,color:T.ink,lineHeight:1.05,letterSpacing:"-.025em",marginBottom:8}}>
-          The pattern<br/><span style={{fontStyle:"italic",fontWeight:400,color:T.terra}}>you've been</span><br/>looking for.
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{fontFamily:T.serif,fontSize:isDesktop?34:28,fontWeight:700,color:T.ink,lineHeight:1.05,letterSpacing:"-.025em",marginBottom:8}}>
+          The pattern<br/>
+          <span style={{fontStyle:"italic",fontWeight:400,color:T.terra}}>you've been</span><br/>
+          looking for.
         </div>
-        <p style={{fontSize:13,color:T.ink3,lineHeight:1.6,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Hive Vision.</p>
+        <p style={{fontSize:13,color:T.ink3,lineHeight:1.65,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Hive Vision.</p>
       </div>
 
       {/* CTAs */}
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
-        <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra} 0%,#8B3A22 100%)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(184,90,60,.4)",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 14px 36px rgba(184,90,60,.5)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 28px rgba(184,90,60,.4)";}}>Create free account</button>
-        <button onClick={()=>setScreen("signin")} style={{width:"100%",background:"rgba(255,255,255,0.7)",color:T.ink,border:"1.5px solid rgba(28,23,20,.12)",borderRadius:14,padding:"14px",fontSize:15,fontWeight:500,cursor:"pointer",backdropFilter:"blur(8px)",transition:"background .15s,border-color .15s"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.95)";e.currentTarget.style.borderColor="rgba(184,90,60,.3)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.7)";e.currentTarget.style.borderColor="rgba(28,23,20,.12)";}}>Sign in</button>
-        <button onClick={onEnter} style={{background:"none",border:"none",color:T.ink3,fontSize:12,cursor:"pointer",padding:"4px 0",letterSpacing:".01em"}} onMouseEnter={e=>e.currentTarget.style.color=T.ink2} onMouseLeave={e=>e.currentTarget.style.color=T.ink3}>Continue without account →</button>
+      <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:14}}>
+        <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra} 0%,#7A2E14 100%)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.2) inset",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 14px 36px rgba(184,90,60,.6), 0 1px 0 rgba(255,255,255,.2) inset";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 28px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.2) inset";}}>Create free account</button>
+        <button onClick={()=>setScreen("signin")} style={{width:"100%",background:"rgba(255,255,255,0.55)",color:T.ink,border:"1px solid rgba(255,255,255,0.7)",borderRadius:14,padding:"14px",fontSize:14,fontWeight:500,cursor:"pointer",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",boxShadow:"0 2px 8px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,.6) inset",transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.82)";}} onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.55)";}}>Sign in</button>
+        <button onClick={onEnter} style={{background:"none",border:"none",color:"rgba(92,79,68,0.65)",fontSize:12,cursor:"pointer",padding:"2px 0",letterSpacing:".01em"}} onMouseEnter={e=>e.currentTarget.style.color=T.ink2} onMouseLeave={e=>e.currentTarget.style.color="rgba(92,79,68,0.65)"}>Continue without account →</button>
       </div>
 
       {/* Divider */}
-      <div style={{height:"1px",background:"rgba(28,23,20,.08)",margin:"4px 0 16px"}}/>
+      <div style={{height:"1px",background:"rgba(28,23,20,.07)",margin:"2px 0 14px"}}/>
 
-      {/* Pricing pills */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
-        <div style={{background:"rgba(244,237,227,0.8)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(184,90,60,.1)",textAlign:"center"}}>
+      {/* Pricing */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:2}}>
+        {/* Free card */}
+        <div style={{background:"rgba(244,237,227,0.75)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",borderRadius:14,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"center"}}>
           <div style={{fontFamily:T.serif,fontSize:20,color:T.terra,fontWeight:700,lineHeight:1}}>Free</div>
-          <div style={{fontSize:10,color:T.ink3,marginTop:3,lineHeight:1.4}}>5 patterns<br/>All core features</div>
+          <div style={{fontSize:10,color:T.ink3,marginTop:4,lineHeight:1.4}}>5 patterns<br/>All core features</div>
         </div>
-        <div style={{background:`linear-gradient(145deg,${T.terra},#7A2E14)`,borderRadius:12,padding:"12px 14px",textAlign:"center",boxShadow:"0 4px 16px rgba(184,90,60,.35)"}}>
-          <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700,lineHeight:1}}>Pro</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:3,lineHeight:1.4}}>$9.99/mo<br/>Unlimited everything</div>
+        {/* Pro card — with diagonal Hive Vision banner */}
+        <div style={{background:`linear-gradient(145deg,${T.terra},#6B2410)`,borderRadius:14,padding:"12px 14px",textAlign:"center",boxShadow:"0 6px 20px rgba(184,90,60,.5), 0 1px 0 rgba(255,255,255,.15) inset",position:"relative",overflow:"hidden"}}>
+          {/* Diagonal shimmer line */}
+          <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(135deg,rgba(255,255,255,0) 30%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0) 70%)",pointerEvents:"none"}}/>
+          {/* Diagonal banner */}
+          <div style={{position:"absolute",top:10,right:-20,background:"rgba(255,255,255,0.18)",padding:"3px 28px",transform:"rotate(35deg)",fontSize:7,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",whiteSpace:"nowrap",backdropFilter:"blur(4px)"}}>HIVE VISION</div>
+          <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700,lineHeight:1,position:"relative"}}>Pro</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:4,lineHeight:1.4,position:"relative"}}>$9.99/mo<br/>Unlimited everything</div>
         </div>
       </div>
 
       <Badges/>
 
       {/* Footer */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,paddingTop:14,borderTop:"1px solid rgba(28,23,20,.07)"}}>
-        <span style={{fontSize:9,color:T.ink3,opacity:.45,letterSpacing:".06em"}}>{APP_VERSION}</span>
-        <button onClick={onEnterAsPro} style={{background:"rgba(92,122,94,.1)",border:"1px solid rgba(92,122,94,.2)",borderRadius:7,padding:"4px 11px",fontSize:10,color:T.sage,cursor:"pointer",fontWeight:500}}>🔑 Dev</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,paddingTop:12,borderTop:"1px solid rgba(28,23,20,.06)"}}>
+        <span style={{fontSize:9,color:T.ink3,opacity:.4,letterSpacing:".06em"}}>{APP_VERSION}</span>
+        <button onClick={onEnterAsPro} style={{background:"rgba(92,122,94,.12)",border:"1px solid rgba(92,122,94,.22)",borderRadius:7,padding:"4px 11px",fontSize:10,color:T.sage,cursor:"pointer",fontWeight:500}}>🔑 Dev</button>
       </div>
     </div>
   );
 
-  /* ─── SIGN IN / SIGN UP CARD ─── */
+  /* ─── Sign in / Sign up card ─── */
   const FormCard = () => (
     <div style={CARD_STYLE}>
-      <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:28,display:"flex",alignItems:"center",gap:6}}>← Back</button>
+      <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:24,display:"flex",alignItems:"center",gap:6}}>← Back</button>
       <div style={{textAlign:"center",marginBottom:8}}>
-        <div style={{fontFamily:T.serif,fontSize:28,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
-        <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting for you"}</p>
+        <div style={{fontFamily:T.serif,fontSize:26,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
+        <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</p>
       </div>
-      <div style={{marginTop:24}}>
+      <div style={{marginTop:20}}>
         {isSignup&&<Field label="Your name" placeholder="e.g. Sarah" value={name} onChange={e=>setName(e.target.value)}/>}
         <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
         <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
         {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
-        <button onClick={onEnter} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:14,padding:"16px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.35)",marginTop:8}}>{isSignup?"Create my YarnHive":"Sign in"}</button>
+        <button onClick={onEnter} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8}}>{isSignup?"Create my YarnHive":"Sign in"}</button>
       </div>
     </div>
   );
 
   return (
-    <div style={{minHeight:"100vh",fontFamily:T.sans,position:"relative",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",fontFamily:T.sans,position:"relative",overflow:"hidden",background:"#0A0804"}}>
       <CSS/>
       <style>{`
-        @keyframes worldPan { from{transform:scale(1.04)} to{transform:scale(1)} }
-        @keyframes cardRise { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-        .world-bg { animation: worldPan 1.4s cubic-bezier(.22,.68,0,1.05) both; }
-        .card-rise { animation: cardRise .55s cubic-bezier(.22,.68,0,1.05) .15s both; }
+        @keyframes worldPan  { from{transform:scale(1.06) translateY(-8px)} to{transform:scale(1) translateY(0)} }
+        @keyframes cardRise  { from{opacity:0;transform:translateY(28px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes beeFloat  {
+          0%   { transform: translate(140px, -60px) rotate(-12deg) scale(0.7); opacity:0; }
+          15%  { opacity:1; }
+          55%  { transform: translate(60px, 18px) rotate(5deg) scale(1.05); }
+          72%  { transform: translate(20px, -8px) rotate(-3deg) scale(1); }
+          85%  { transform: translate(6px, 4px) rotate(2deg) scale(1); }
+          100% { transform: translate(0px, 0px) rotate(0deg) scale(1); opacity:1; }
+        }
+        @keyframes beeDust {
+          0%   { opacity:0; transform: scale(0); }
+          40%  { opacity:0.7; transform: scale(1); }
+          100% { opacity:0; transform: scale(0) translateY(-10px); }
+        }
+        @keyframes dustTrail {
+          0%   { opacity:0.6; transform: translate(0,0) scale(1); }
+          100% { opacity:0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+        }
+        .world-bg  { animation: worldPan 1.6s cubic-bezier(.22,.68,0,1.05) both; }
+        .card-rise { animation: cardRise .6s cubic-bezier(.22,.68,0,1.05) .2s both; }
+        .bee-fly   { animation: beeFloat 2.2s cubic-bezier(.22,.68,0,1.05) .3s both; display:inline-block; }
+        .dust-1 { --dx:-12px; --dy:-8px;  animation: dustTrail .8s ease .9s both; }
+        .dust-2 { --dx: 10px; --dy:-12px; animation: dustTrail .8s ease 1.1s both; }
+        .dust-3 { --dx:-8px;  --dy: 6px;  animation: dustTrail .8s ease 1.0s both; }
+        .dust-4 { --dx: 14px; --dy: 4px;  animation: dustTrail .8s ease 1.3s both; }
+        .dust-5 { --dx:-6px;  --dy:-14px; animation: dustTrail .8s ease 1.2s both; }
       `}</style>
 
-      {/* Full-screen illustration background */}
-      <div className="world-bg" style={{position:"fixed",inset:"-4%",zIndex:0}}>
-        <img src={BG} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}/>
-        {/* Subtle darkening vignette so card pops */}
-        <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at center, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.55) 100%)"}}/>
+      {/* Full-screen illustrated background — saturate boost for mobile */}
+      <div className="world-bg" style={{position:"fixed",inset:"-5%",zIndex:0}}>
+        <img
+          src={BG}
+          alt="YarnHive world"
+          style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}
+        />
+        {/* Radial vignette — lighter on mobile so background shows through card */}
+        <div style={{position:"absolute",inset:0,background:isDesktop
+          ?"radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.58) 100%)"
+          :"radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 100%)"
+        }}/>
       </div>
 
-      {/* Centered card */}
-      <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
-        <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:380}}>
+      {/* Centered card with animated bee perched on top */}
+      <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
+
+        {/* Bee animation — flies in and lands above the card */}
+        {!showForm && (
+          <div style={{position:"relative",height:52,marginBottom:-12,zIndex:2,alignSelf:"center",width:isDesktop?420:360}}>
+            <div style={{position:"absolute",right:32,bottom:0,width:52,height:52}}>
+              {/* Dust particles trail */}
+              <div className="dust-1" style={{position:"absolute",right:28,top:18,width:6,height:6,borderRadius:"50%",background:"rgba(184,144,44,0.7)"}}/>
+              <div className="dust-2" style={{position:"absolute",right:12,top:8,width:4,height:4,borderRadius:"50%",background:"rgba(184,90,60,0.6)"}}/>
+              <div className="dust-3" style={{position:"absolute",right:36,top:28,width:5,height:5,borderRadius:"50%",background:"rgba(255,220,100,0.7)"}}/>
+              <div className="dust-4" style={{position:"absolute",right:6,top:24,width:4,height:4,borderRadius:"50%",background:"rgba(184,144,44,0.5)"}}/>
+              <div className="dust-5" style={{position:"absolute",right:20,top:6,width:5,height:5,borderRadius:"50%",background:"rgba(92,122,94,0.6)"}}/>
+              {/* The bee */}
+              <div className="bee-fly" style={{position:"absolute",right:0,bottom:4,fontSize:42,lineHeight:1,filter:"drop-shadow(0 4px 8px rgba(0,0,0,0.4))"}}>🐝</div>
+            </div>
+          </div>
+        )}
+
+        <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
           {showForm ? <FormCard/> : <WelcomeCard/>}
         </div>
       </div>
