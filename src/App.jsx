@@ -9,7 +9,7 @@ if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
 
 const PHOTOS = {
   hero:     "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877266/Gemini_Generated_Image_u44qfru44qfru44q_2_rsk1rn.png",
-  world:    "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774112730/Gemini_Generated_Image_jek6phjek6phjek6_ntjdg9.png",
+  world:    "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774116735/yarnhive_bg_v2.jpg",
   blanket:  "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877265/Gemini_Generated_Image_u44qfru44qfru44q_fst0gr.png",
   cardigan: "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877263/Gemini_Generated_Image_u44qfru44qfru44q_3_sax38h.png",
   granny:   "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877260/Gemini_Generated_Image_u44qfru44qfru44q_6_yvirvu.png",
