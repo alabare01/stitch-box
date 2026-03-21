@@ -976,167 +976,113 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
   );
 };
 
-const BeeAnimator = ({show, hide, isDesktop}) => {
+const BeeAnimator = ({visible, isDesktop}) => {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
-  const imgRef = useRef(null);
-  const hasRunRef = useRef(false); // never re-animate once played
 
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
-    img.onload = () => { imgRef.current = img; };
-  }, []);
 
-  useEffect(() => {
-    // Only ever run once — if already ran, do nothing
-    if (!show || hasRunRef.current) return;
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const BEE_W = isDesktop ? 110 : 88;
+      const BEE_H = Math.round(BEE_W * img.height / img.width);
+      const LX = W * 0.76, LY = H - BEE_H * 0.5 - 8;
 
-    let waitRaf;
-    const waitForReady = () => {
-      if (canvasRef.current && imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
-        hasRunRef.current = true;
-        requestAnimationFrame(() => startAnim());
-      } else {
-        waitRaf = requestAnimationFrame(waitForReady);
-      }
-    };
-    waitRaf = requestAnimationFrame(waitForReady);
+      const p0 = {x:-BEE_W,   y:H*0.7 };
+      const p1 = {x:W*0.12,   y:H*0.04};
+      const p2 = {x:W*0.76,   y:H*0.02};
+      const p3 = {x:LX,       y:LY    };
 
-    return () => {
-      cancelAnimationFrame(waitRaf);
-    };
-  }, [show]);
-
-  // Cleanup only on unmount
-  useEffect(() => {
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-
-  const startAnim = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    const img = imgRef.current;
-
-    const BEE_W = isDesktop ? 110 : 88;
-    const BEE_H = Math.round(BEE_W * img.height / img.width);
-    const LX = W * 0.76, LY = H - BEE_H * 0.5 - 8;
-
-    const p0 = { x: -BEE_W,   y: H * 0.7  };
-    const p1 = { x: W * 0.12, y: H * 0.04 };
-    const p2 = { x: W * 0.76, y: H * 0.02 };
-    const p3 = { x: LX,       y: LY       };
-
-    const FLIGHT_MS = 3200;
-    const ease = t => {
-      if (t < 0.1) return 0.5 * Math.pow(t / 0.1, 2);
-      if (t < 0.8) return 0.05 + 0.85 * ((t - 0.1) / 0.7);
-      return 0.9 + 0.1 * (1 - Math.pow(1 - (t - 0.8) / 0.2, 3));
-    };
-    const bez = t => {
-      const u = 1-t;
-      return {
-        x: u*u*u*p0.x + 3*u*u*t*p1.x + 3*u*t*t*p2.x + t*t*t*p3.x,
-        y: u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y,
+      const FLIGHT_MS = 3200;
+      const ease = t => {
+        if (t < 0.1) return 0.5*Math.pow(t/0.1,2);
+        if (t < 0.8) return 0.05+0.85*((t-0.1)/0.7);
+        return 0.9+0.1*(1-Math.pow(1-(t-0.8)/0.2,3));
       };
-    };
-    const bezD = t => {
-      const u = 1-t;
-      return {
-        x: 3*(u*u*(p1.x-p0.x)+2*u*t*(p2.x-p1.x)+t*t*(p3.x-p2.x)),
-        y: 3*(u*u*(p1.y-p0.y)+2*u*t*(p2.y-p1.y)+t*t*(p3.y-p2.y)),
+      const bez = t => {
+        const u=1-t;
+        return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+                y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y};
       };
-    };
+      const bezD = t => {
+        const u=1-t;
+        return {x:3*(u*u*(p1.x-p0.x)+2*u*t*(p2.x-p1.x)+t*t*(p3.x-p2.x)),
+                y:3*(u*u*(p1.y-p0.y)+2*u*t*(p2.y-p1.y)+t*t*(p3.y-p2.y))};
+      };
 
-    const COLORS = ['rgba(255,210,60,','rgba(184,90,60,','rgba(255,245,140,','rgba(92,122,94,','rgba(255,170,60,'];
-    const trail = [];
-    let lastTrail = 0;
-    let startTs = null, landed = false;
+      const COLORS = ['rgba(255,210,60,','rgba(184,90,60,','rgba(255,245,140,','rgba(92,122,94,','rgba(255,170,60,'];
+      const trail = []; let lastTrail = 0;
+      let startTs = null, landed = false;
 
-    const frame = ts => {
-      if (!startTs) startTs = ts;
-      const elapsed = ts - startTs;
-      ctx.clearRect(0, 0, W, H);
+      const frame = ts => {
+        if (!startTs) startTs = ts;
+        const elapsed = ts - startTs;
+        ctx.clearRect(0,0,W,H);
 
-      let pos, angle = 0;
-      if (!landed) {
-        const rawT = Math.min(elapsed / FLIGHT_MS, 1);
-        const t = ease(rawT);
-        pos = bez(t);
-        const d = bezD(t);
-        angle = Math.atan2(d.y, d.x);
-        if (rawT >= 1) landed = true;
-
-        if (pos.x > 0 && ts - lastTrail > 32) {
-          lastTrail = ts;
-          trail.push({
-            x: pos.x + (Math.random()-0.5)*4,
-            y: pos.y + (Math.random()-0.5)*4,
-            born: ts,
-            life: 600 + Math.random()*280,
-            r: 2.5 + Math.random()*3,
-            color: COLORS[Math.floor(Math.random()*COLORS.length)],
-          });
+        let pos, angle=0;
+        if (!landed) {
+          const rawT = Math.min(elapsed/FLIGHT_MS,1);
+          const t = ease(rawT);
+          pos = bez(t);
+          const d = bezD(t);
+          angle = Math.atan2(d.y,d.x);
+          if (rawT>=1) landed=true;
+          if (pos.x>0 && ts-lastTrail>32) {
+            lastTrail=ts;
+            trail.push({x:pos.x+(Math.random()-.5)*4,y:pos.y+(Math.random()-.5)*4,
+              born:ts,life:600+Math.random()*280,r:2.5+Math.random()*3,
+              color:COLORS[Math.floor(Math.random()*COLORS.length)]});
+          }
+        } else {
+          pos={x:LX,y:LY+Math.sin(ts*0.0016)*2};
         }
-      } else {
-        pos = { x: LX, y: LY + Math.sin(ts*0.0016)*2 };
-        angle = 0;
-      }
 
-      for (let i = trail.length-1; i >= 0; i--) {
-        const dot = trail[i];
-        const age = ts - dot.born;
-        if (age > dot.life) { trail.splice(i,1); continue; }
-        const p = age / dot.life;
-        const a = Math.pow(1-p, 1.3);
-        const r = Math.max(0.4, dot.r*(1-p*0.4));
-        ctx.save();
-        ctx.globalAlpha = a*0.22;
-        ctx.fillStyle = dot.color+'1)';
-        ctx.beginPath(); ctx.arc(dot.x, dot.y, r*2.2, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = a*0.88;
-        ctx.fillStyle = dot.color+'1)';
-        ctx.beginPath(); ctx.arc(dot.x, dot.y, r, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-      }
+        for (let i=trail.length-1;i>=0;i--) {
+          const dot=trail[i]; const age=ts-dot.born;
+          if (age>dot.life){trail.splice(i,1);continue;}
+          const p=age/dot.life; const a=Math.pow(1-p,1.3); const r=Math.max(.4,dot.r*(1-p*.4));
+          ctx.save(); ctx.globalAlpha=a*.22; ctx.fillStyle=dot.color+'1)';
+          ctx.beginPath(); ctx.arc(dot.x,dot.y,r*2.2,0,Math.PI*2); ctx.fill(); ctx.restore();
+          ctx.save(); ctx.globalAlpha=a*.88; ctx.fillStyle=dot.color+'1)';
+          ctx.beginPath(); ctx.arc(dot.x,dot.y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
+        }
 
-      if (pos.x > -BEE_W * 0.3) {
-        const bob = Math.sin(ts*(landed?0.0016:0.024)) * (landed?1.5:2.0);
-        const rawP = Math.min(elapsed/FLIGHT_MS, 1);
-        const tiltDamp = landed ? 0 : Math.max(0, 1 - rawP*1.8);
-        ctx.save();
-        ctx.translate(pos.x, pos.y+bob);
-        ctx.rotate(angle * 0.3 * tiltDamp);
-        ctx.drawImage(img, -BEE_W/2, -BEE_H/2, BEE_W, BEE_H);
-        ctx.restore();
-      }
-
+        if (pos.x > -BEE_W*.3) {
+          const bob = Math.sin(ts*(landed?.0016:.024))*(landed?1.5:2.0);
+          const rawP = Math.min(elapsed/FLIGHT_MS,1);
+          const tilt = landed ? 0 : angle*.3*Math.max(0,1-rawP*1.8);
+          ctx.save();
+          ctx.translate(pos.x, pos.y+bob);
+          ctx.rotate(tilt);
+          ctx.drawImage(img,-BEE_W/2,-BEE_H/2,BEE_W,BEE_H);
+          ctx.restore();
+        }
+        rafRef.current = requestAnimationFrame(frame);
+      };
       rafRef.current = requestAnimationFrame(frame);
     };
 
-    rafRef.current = requestAnimationFrame(frame);
-  };
+    img.src = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []); // run ONCE on mount, never again
 
-  if (!show && !hasRunRef.current) return null;
   const W = isDesktop ? 440 : 370;
   const H = isDesktop ? 180 : 155;
   return (
-    <canvas
-      ref={canvasRef} width={W} height={H}
+    <canvas ref={canvasRef} width={W} height={H}
       style={{
-        display: hasRunRef.current ? 'block' : 'none',
-        opacity: hide ? 0 : 1,
-        width:W, height:H,
+        display:'block', width:W, height:H,
         marginBottom:-(H-26),
         position:'relative', zIndex:2,
         pointerEvents:'none',
         background:'transparent',
-        transition:'opacity .2s ease',
+        opacity: visible ? 1 : 0,
+        transition:'opacity .25s ease',
       }}
     />
   );
@@ -1388,6 +1334,7 @@ const Auth = ({onEnter,onEnterAsPro}) => {
       <CSS/>
       <style>{`
         @keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes modalPop { from{opacity:0;transform:scale(.95) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes worldPan { from{transform:scale(1.06) translateY(-8px)} to{transform:scale(1) translateY(0)} }
         @keyframes cardRise { from{opacity:0;transform:translateY(28px) scale(.98)} to{opacity:1;transform:translateY(0) scale(1)} }
         .world-bg  { animation: worldPan 1.6s cubic-bezier(.22,.68,0,1.05) both; }
@@ -1401,14 +1348,14 @@ const Auth = ({onEnter,onEnterAsPro}) => {
         }}/>
       </div>
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
-        <BeeAnimator show={!showForm} hide={!!activeModal || showForm} isDesktop={isDesktop}/>
+        <BeeAnimator visible={!showForm && !activeModal} isDesktop={isDesktop}/>
         <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
           {showForm ? <FormCard/> : <WelcomeCard/>}
         </div>
       </div>
-      {/* Modal rendered HERE — outside card stacking context, true viewport fixed */}
+      {/* Modal — true viewport fixed, outside all card stacking contexts */}
       {modal && (
-        <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"flex-end"}} onClick={closeModal}>
+        <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}} onClick={closeModal}>
           <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",backdropFilter:"blur(10px)"}}/>
           <div
             ref={sheetRef}
@@ -1419,15 +1366,15 @@ const Auth = ({onEnter,onEnterAsPro}) => {
             style={{
               position:"relative",
               background:"#FDFAF7",
-              borderRadius:"24px 24px 0 0",
-              width:"100%",
-              maxHeight:"88vh",
+              borderRadius: isDesktop ? 20 : "22px 22px 0 0",
+              width: isDesktop ? "min(480px, 90vw)" : "100%",
+              maxHeight: isDesktop ? "min(640px, 85vh)" : "88vh",
               display:"flex",
               flexDirection:"column",
               zIndex:1,
-              boxShadow:"0 -12px 48px rgba(0,0,0,0.28)",
+              boxShadow: isDesktop ? "0 24px 80px rgba(0,0,0,0.4)" : "0 -12px 48px rgba(0,0,0,0.28)",
               overflow:"hidden",
-              animation:"sheetUp .3s cubic-bezier(.22,.68,0,1.05) both",
+              animation: isDesktop ? "modalPop .25s cubic-bezier(.22,.68,0,1.05) both" : "sheetUp .3s cubic-bezier(.22,.68,0,1.05) both",
             }}
           >
             {/* Handle row */}
