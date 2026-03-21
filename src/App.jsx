@@ -921,7 +921,7 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern}) => {
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{position:"relative",height:160,overflow:"hidden",flexShrink:0}}>
-        <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 75%",objectFit:"contain",background:"#1a1a0a"}}/>
+        <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
         <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
       </div>
@@ -954,7 +954,7 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
       <div className={closing?"dim-out":"dim-in"} onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.52)",backdropFilter:"blur(3px)"}}/>
       <div className={closing?"nav-close":"nav-open"} style={{position:"absolute",top:0,left:0,bottom:0,width:"80%",maxWidth:320,background:T.surface,display:"flex",flexDirection:"column",boxShadow:"6px 0 40px rgba(28,23,20,.2)"}}>
         <div style={{position:"relative",height:130,overflow:"hidden",flexShrink:0}}>
-          <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 75%",objectFit:"contain",background:"#1a1a0a"}}/>
+          <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.8) 0%,rgba(20,14,10,.2) 100%)"}}/>
           <div style={{position:"absolute",bottom:16,left:18}}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
         </div>
@@ -993,16 +993,16 @@ const BeeAnimator = ({visible, isDesktop}) => {
     }}>
       <style>{`
         @keyframes beefly {
-          0%   { transform: translate(${-size}px, ${isDesktop ? 130 : 108}px) rotate(-8deg); opacity: 0; }
+          0%   { transform: translate(${W+size}px, ${isDesktop ? 130 : 108}px) rotate(8deg); opacity: 0; }
           4%   { opacity: 1; }
-          30%  { transform: translate(${Math.round(W*0.18)}px, ${Math.round(H*0.08)}px) rotate(-22deg); }
-          65%  { transform: translate(${Math.round(W*0.58)}px, ${Math.round(H*0.06)}px) rotate(-10deg); }
-          88%  { transform: translate(${Math.round(W*0.72)}px, ${Math.round(H*0.52)}px) rotate(4deg); }
-          100% { transform: translate(${Math.round(W*0.72)}px, ${Math.round(H*0.64)}px) rotate(0deg); opacity: 1; }
+          30%  { transform: translate(${Math.round(W*0.82)}px, ${Math.round(H*0.08)}px) rotate(22deg); }
+          65%  { transform: translate(${Math.round(W*0.42)}px, ${Math.round(H*0.06)}px) rotate(10deg); }
+          88%  { transform: translate(${Math.round(W*0.22)}px, ${Math.round(H*0.52)}px) rotate(-4deg); }
+          100% { transform: translate(${Math.round(W*0.22)}px, ${Math.round(H*0.64)}px) rotate(0deg); opacity: 1; }
         }
         @keyframes beebob {
-          0%, 100% { transform: translate(${Math.round(W*0.72)}px, ${Math.round(H*0.64)}px) rotate(0deg); }
-          50%       { transform: translate(${Math.round(W*0.72)}px, ${Math.round(H*0.64) - 4}px) rotate(0deg); }
+          0%, 100% { transform: translate(${Math.round(W*0.22)}px, ${Math.round(H*0.64)}px) rotate(0deg); }
+          50%       { transform: translate(${Math.round(W*0.22)}px, ${Math.round(H*0.64) - 4}px) rotate(0deg); }
         }
         @keyframes trailFade {
           0%   { opacity: 0.7; transform: scale(1); }
