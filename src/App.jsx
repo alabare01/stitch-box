@@ -1008,27 +1008,21 @@ const BeeAnimator = ({show, isDesktop}) => {
     const BEE_W = isDesktop ? 110 : 88;
     const BEE_H = Math.round(BEE_W * img.height / img.width);
 
-    // Landing spot — bottom right of canvas, sits visually on card top edge
+    // Landing: right side, bee sits fully within canvas
     const LX = W * 0.76, LY = H - BEE_H * 0.5 - 8;
 
-    // Simple clear path: enter from left off-screen at mid-height,
-    // arc UP across the top of the canvas, curve down to land
-    // Key: all y coords stay WITHIN canvas bounds so nothing clips
-    const p0 = { x: -BEE_W,      y: H * 0.7   }; // start left, below center
-    const p1 = { x: W * 0.15,    y: H * 0.05  }; // pull high left
-    const p2 = { x: W * 0.75,    y: H * 0.02  }; // arc across near top
-    const p3 = { x: LX,          y: LY         }; // land
+    // Path: left off-screen -> arc high -> land
+    const p0 = { x: -BEE_W,   y: H * 0.7  };
+    const p1 = { x: W * 0.12, y: H * 0.04 };
+    const p2 = { x: W * 0.76, y: H * 0.02 };
+    const p3 = { x: LX,       y: LY       };
 
     const FLIGHT_MS = 3200;
-
-    // Smooth ease: gentle start, cruise, slow landing
+    // Smooth ease: slow start, cruise, long decel into landing
     const ease = t => {
-      if (t < 0.12) return t * t * (3 - 2*t) * 0.12 / 0.12; // slow start
-      const s = (t - 0.12) / 0.88;
-      return 0.12 + 0.88 * (s < 0.5
-        ? 2*s*s
-        : 1 - Math.pow(-2*s + 2, 3) / 2
-      );
+      if (t < 0.1) return 0.5 * Math.pow(t / 0.1, 2);
+      if (t < 0.8) return 0.05 + 0.85 * ((t - 0.1) / 0.7);
+      return 0.9 + 0.1 * (1 - Math.pow(1 - (t - 0.8) / 0.2, 3));
     };
 
     const bez = t => {
@@ -1041,8 +1035,8 @@ const BeeAnimator = ({show, isDesktop}) => {
     const bezD = t => {
       const u = 1-t;
       return {
-        x: 3*(u*u*(p1.x-p0.x) + 2*u*t*(p2.x-p1.x) + t*t*(p3.x-p2.x)),
-        y: 3*(u*u*(p1.y-p0.y) + 2*u*t*(p2.y-p1.y) + t*t*(p3.y-p2.y)),
+        x: 3*(u*u*(p1.x-p0.x)+2*u*t*(p2.x-p1.x)+t*t*(p3.x-p2.x)),
+        y: 3*(u*u*(p1.y-p0.y)+2*u*t*(p2.y-p1.y)+t*t*(p3.y-p2.y)),
       };
     };
 
@@ -1065,8 +1059,8 @@ const BeeAnimator = ({show, isDesktop}) => {
         angle = Math.atan2(d.y, d.x);
         if (rawT >= 1) landed = true;
 
-        // Trail dots from current position
-        if (ts - lastTrail > 32) {
+        // FIX: only emit trail when bee is actually ON screen (x > 0)
+        if (pos.x > 0 && ts - lastTrail > 32) {
           lastTrail = ts;
           trail.push({
             x: pos.x + (Math.random()-0.5)*4,
@@ -1089,7 +1083,7 @@ const BeeAnimator = ({show, isDesktop}) => {
         if (age > dot.life) { trail.splice(i,1); continue; }
         const p = age / dot.life;
         const a = Math.pow(1-p, 1.3);
-        const r = Math.max(0.4, dot.r * (1-p*0.4));
+        const r = Math.max(0.4, dot.r*(1-p*0.4));
         ctx.save();
         ctx.globalAlpha = a*0.22;
         ctx.shadowColor = dot.color+'1)'; ctx.shadowBlur = 10;
@@ -1103,32 +1097,36 @@ const BeeAnimator = ({show, isDesktop}) => {
         ctx.restore();
       }
 
-      // Ground shadow near landing
+      // FIX: soft radial shadow under bee only — no ellipse that outlines the card border
       const rawProgress = Math.min(elapsed/FLIGHT_MS, 1);
-      if (rawProgress > 0.8 || landed) {
-        const fade = landed ? 1 : (rawProgress-0.8)/0.2;
+      if ((rawProgress > 0.82 || landed) && pos.x > 0) {
+        const fade = landed ? 1 : (rawProgress-0.82)/0.18;
         ctx.save();
-        ctx.globalAlpha = 0.18*fade;
-        ctx.filter = 'blur(5px)';
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.globalAlpha = 0.14 * fade;
+        // Radial gradient shadow — soft, no hard edge that reveals card shape
+        const grad = ctx.createRadialGradient(LX, LY+BEE_H*0.48, 0, LX, LY+BEE_H*0.48, BEE_W*0.5);
+        grad.addColorStop(0, 'rgba(0,0,0,0.5)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.ellipse(LX+3, LY+BEE_H*0.52, BEE_W*0.36, BEE_H*0.09, 0, 0, Math.PI*2);
+        ctx.ellipse(LX, LY+BEE_H*0.48, BEE_W*0.5, BEE_H*0.18, 0, 0, Math.PI*2);
         ctx.fill();
         ctx.restore();
       }
 
-      // Draw bee — faces direction of travel, subtle wing bob
-      const bob = Math.sin(ts*(landed?0.0016:0.024)) * (landed?1.5:2.0);
-      ctx.save();
-      ctx.translate(pos.x, pos.y+bob);
-      // Tilt to face flight direction, but keep upright when near landing
-      const rawP = Math.min(elapsed/FLIGHT_MS, 1);
-      const tiltDamp = landed ? 0 : Math.max(0, 1 - rawP*1.8); // fades out as approaches land
-      ctx.rotate(angle * 0.3 * tiltDamp);
-      ctx.shadowColor = 'rgba(0,0,0,0.3)';
-      ctx.shadowBlur = 10; ctx.shadowOffsetY = 5;
-      ctx.drawImage(img, -BEE_W/2, -BEE_H/2, BEE_W, BEE_H);
-      ctx.restore();
+      // Draw bee
+      if (pos.x > -BEE_W*0.3) { // only draw when mostly on screen
+        const bob = Math.sin(ts*(landed?0.0016:0.024)) * (landed?1.5:2.0);
+        const rawP = Math.min(elapsed/FLIGHT_MS, 1);
+        const tiltDamp = landed ? 0 : Math.max(0, 1 - rawP*1.8);
+        ctx.save();
+        ctx.translate(pos.x, pos.y+bob);
+        ctx.rotate(angle * 0.3 * tiltDamp);
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 8; ctx.shadowOffsetY = 4;
+        ctx.drawImage(img, -BEE_W/2, -BEE_H/2, BEE_W, BEE_H);
+        ctx.restore();
+      }
 
       rafRef.current = requestAnimationFrame(frame);
     };
@@ -1139,17 +1137,9 @@ const BeeAnimator = ({show, isDesktop}) => {
   if (!show) return null;
   const W = isDesktop ? 440 : 370;
   const H = isDesktop ? 180 : 155;
-
   return (
-    <canvas
-      ref={canvasRef}
-      width={W} height={H}
-      style={{
-        display:'block', width:W, height:H,
-        marginBottom: -(H-26),
-        position:'relative', zIndex:2,
-        pointerEvents:'none',
-      }}
+    <canvas ref={canvasRef} width={W} height={H}
+      style={{display:'block',width:W,height:H,marginBottom:-(H-26),position:'relative',zIndex:2,pointerEvents:'none'}}
     />
   );
 };
