@@ -980,28 +980,45 @@ const BeeAnimator = ({show, isDesktop}) => {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const imgRef = useRef(null);
-  const readyRef = useRef(false);
 
+  // Preload image eagerly on mount — not tied to show state
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => { imgRef.current = img; readyRef.current = true; };
     img.src = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
+    // Store immediately — onload fires when ready
+    img.onload = () => { imgRef.current = img; };
   }, []);
 
   useEffect(() => {
-    if (!show) { if (rafRef.current) cancelAnimationFrame(rafRef.current); return; }
-    const tryStart = () => {
-      if (!readyRef.current || !canvasRef.current) { setTimeout(tryStart, 80); return; }
-      startAnim();
+    if (!show) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+
+    // Wait until BOTH canvas exists AND image is loaded
+    // Use rAF polling so we sync to the browser paint cycle — no setTimeout jitter
+    let waitRaf;
+    const waitForReady = () => {
+      if (canvasRef.current && imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+        // Image fully loaded and canvas mounted — start on NEXT paint
+        // This guarantees no flash from mid-frame starts
+        requestAnimationFrame(() => startAnim());
+      } else {
+        waitRaf = requestAnimationFrame(waitForReady);
+      }
     };
-    // Delay start slightly so card has rendered and canvas has real dimensions
-    const t = setTimeout(tryStart, 120);
-    return () => { clearTimeout(t); if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    waitRaf = requestAnimationFrame(waitForReady);
+
+    return () => {
+      cancelAnimationFrame(waitRaf);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [show, isDesktop]);
 
   const startAnim = () => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const img = imgRef.current;
@@ -1038,12 +1055,19 @@ const BeeAnimator = ({show, isDesktop}) => {
       };
     };
 
-    const COLORS = ['rgba(255,210,60,','rgba(184,90,60,','rgba(255,245,140,','rgba(92,122,94,','rgba(255,170,60,'];
+    const COLORS = [
+      'rgba(255,210,60,',
+      'rgba(184,90,60,',
+      'rgba(255,245,140,',
+      'rgba(92,122,94,',
+      'rgba(255,170,60,',
+    ];
     const trail = [];
     let lastTrail = 0;
     let startTs = null, landed = false;
 
     const frame = ts => {
+      // Anchor start timestamp to first actual paint frame
       if (!startTs) startTs = ts;
       const elapsed = ts - startTs;
       ctx.clearRect(0, 0, W, H);
@@ -1094,7 +1118,7 @@ const BeeAnimator = ({show, isDesktop}) => {
         ctx.restore();
       }
 
-      // Draw bee — only when on screen, no shadow effects
+      // Draw bee — only when entering from left
       if (pos.x > -BEE_W * 0.3) {
         const bob = Math.sin(ts*(landed?0.0016:0.024)) * (landed?1.5:2.0);
         const rawP = Math.min(elapsed/FLIGHT_MS, 1);
