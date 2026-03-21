@@ -921,7 +921,7 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern}) => {
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{position:"relative",height:160,overflow:"hidden",flexShrink:0}}>
-        <Photo src={PHOTOS.hero} alt="crochet" style={{width:"100%",height:"100%"}}/>
+        <Photo src={PHOTOS.world} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
         <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
       </div>
@@ -954,7 +954,7 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
       <div className={closing?"dim-out":"dim-in"} onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.52)",backdropFilter:"blur(3px)"}}/>
       <div className={closing?"nav-close":"nav-open"} style={{position:"absolute",top:0,left:0,bottom:0,width:"80%",maxWidth:320,background:T.surface,display:"flex",flexDirection:"column",boxShadow:"6px 0 40px rgba(28,23,20,.2)"}}>
         <div style={{position:"relative",height:130,overflow:"hidden",flexShrink:0}}>
-          <Photo src={PHOTOS.hero} alt="crochet" style={{width:"100%",height:"100%"}}/>
+          <Photo src={PHOTOS.world} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.8) 0%,rgba(20,14,10,.2) 100%)"}}/>
           <div style={{position:"absolute",bottom:16,left:18}}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
         </div>
@@ -976,28 +976,23 @@ const NavPanel = ({open,onClose,view,setView,count,isPro}) => {
   );
 };
 
-const BeeAnimator = ({show, isDesktop, cardRef}) => {
-  const backCanvasRef = useRef(null);  // renders BEHIND card (bee emerging from behind)
-  const frontCanvasRef = useRef(null); // renders IN FRONT of card (bee after emergence)
+const BeeAnimator = ({show, isDesktop}) => {
+  const canvasRef = useRef(null);
   const rafRef = useRef(null);
   const imgRef = useRef(null);
   const readyRef = useRef(false);
-
-  const BEE_SRC = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
 
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => { imgRef.current = img; readyRef.current = true; };
-    img.src = BEE_SRC;
+    img.src = "https://res.cloudinary.com/dmaupzhcx/image/upload/v1774117620/yarnhive_bee_large.png";
   }, []);
 
   useEffect(() => {
     if (!show) { if (rafRef.current) cancelAnimationFrame(rafRef.current); return; }
     const tryStart = () => {
-      if (!readyRef.current || !backCanvasRef.current || !frontCanvasRef.current) {
-        setTimeout(tryStart, 80); return;
-      }
+      if (!readyRef.current || !canvasRef.current) { setTimeout(tryStart, 80); return; }
       startAnim();
     };
     tryStart();
@@ -1005,45 +1000,35 @@ const BeeAnimator = ({show, isDesktop, cardRef}) => {
   }, [show, isDesktop]);
 
   const startAnim = () => {
-    const back = backCanvasRef.current;
-    const front = frontCanvasRef.current;
-    const bCtx = back.getContext('2d');
-    const fCtx = front.getContext('2d');
-    const W = front.width, H = front.height;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
     const img = imgRef.current;
 
-    // Bee rendered at good size
-    const BEE_W = isDesktop ? 120 : 96;
-    const BEE_H = Math.round(BEE_W * (img.height / img.width));
+    const BEE_W = isDesktop ? 110 : 88;
+    const BEE_H = Math.round(BEE_W * img.height / img.width);
 
-    // Landing spot: right side of card top
-    const LX = W * 0.74;
-    const LY = H - BEE_H * 0.45;
+    // Landing spot — bottom right of canvas, sits visually on card top edge
+    const LX = W * 0.76, LY = H - BEE_H * 0.5 - 8;
 
-    // Phase 1: bee starts BEHIND card (left side), travels across hidden
-    // Phase 2: bee emerges from behind right edge of card, flies to landing
-    // 
-    // Full bezier path — same as before but we track when bee crosses
-    // the card's right edge to switch from back to front canvas
+    // Simple clear path: enter from left off-screen at mid-height,
+    // arc UP across the top of the canvas, curve down to land
+    // Key: all y coords stay WITHIN canvas bounds so nothing clips
+    const p0 = { x: -BEE_W,      y: H * 0.7   }; // start left, below center
+    const p1 = { x: W * 0.15,    y: H * 0.05  }; // pull high left
+    const p2 = { x: W * 0.75,    y: H * 0.02  }; // arc across near top
+    const p3 = { x: LX,          y: LY         }; // land
 
-    const p0 = { x: W * 0.08,  y: H * 0.82 }; // starts behind card, low left
-    const p1 = { x: W * 0.02,  y: -H * 0.6 }; // swoops up high
-    const p2 = { x: W * 0.88,  y: -H * 0.05}; // arcs across top
-    const p3 = { x: LX,        y: LY        }; // lands right side
+    const FLIGHT_MS = 3200;
 
-    // Card approximate bounds (the glass card is centered, maxWidth 420/360)
-    const cardW = isDesktop ? 420 : 360;
-    const cardLeft = (W - cardW) / 2;
-    const cardRight = cardLeft + cardW;
-    // Emergence point: when bee x > cardRight * 0.85 AND coming down
-    const EMERGENCE_X = cardRight * 0.82;
-
-    const FLIGHT_MS = 3400;
-
+    // Smooth ease: gentle start, cruise, slow landing
     const ease = t => {
-      if (t < 0.08) return t * 0.6;
-      if (t < 0.82) return 0.048 + 0.852 * ((t - 0.08) / 0.74);
-      return 0.9 + 0.1 * (1 - Math.pow(1 - (t - 0.82) / 0.18, 3));
+      if (t < 0.12) return t * t * (3 - 2*t) * 0.12 / 0.12; // slow start
+      const s = (t - 0.12) / 0.88;
+      return 0.12 + 0.88 * (s < 0.5
+        ? 2*s*s
+        : 1 - Math.pow(-2*s + 2, 3) / 2
+      );
     };
 
     const bez = t => {
@@ -1056,121 +1041,94 @@ const BeeAnimator = ({show, isDesktop, cardRef}) => {
     const bezD = t => {
       const u = 1-t;
       return {
-        x: 3*(u*u*(p1.x-p0.x)+2*u*t*(p2.x-p1.x)+t*t*(p3.x-p2.x)),
-        y: 3*(u*u*(p1.y-p0.y)+2*u*t*(p2.y-p1.y)+t*t*(p3.y-p2.y)),
+        x: 3*(u*u*(p1.x-p0.x) + 2*u*t*(p2.x-p1.x) + t*t*(p3.x-p2.x)),
+        y: 3*(u*u*(p1.y-p0.y) + 2*u*t*(p2.y-p1.y) + t*t*(p3.y-p2.y)),
       };
     };
 
-    const COLORS = [
-      'rgba(255,210,60,',
-      'rgba(184,90,60,',
-      'rgba(255,245,140,',
-      'rgba(92,122,94,',
-      'rgba(255,170,60,',
-    ];
+    const COLORS = ['rgba(255,210,60,','rgba(184,90,60,','rgba(255,245,140,','rgba(92,122,94,','rgba(255,170,60,'];
     const trail = [];
     let lastTrail = 0;
-    let emerged = false;  // has bee emerged from behind card yet?
     let startTs = null, landed = false;
-
-    const drawBee = (ctx, px, py, angle, alpha, size_w, size_h, ts) => {
-      const bob = Math.sin(ts * (landed ? 0.0015 : 0.022)) * (landed ? 1.5 : 2.2);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(px, py);
-      ctx.rotate(angle * 0.35);
-      ctx.translate(0, bob);
-      // shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetY = 6;
-      ctx.drawImage(img, -size_w/2, -size_h/2, size_w, size_h);
-      ctx.restore();
-    };
 
     const frame = ts => {
       if (!startTs) startTs = ts;
       const elapsed = ts - startTs;
-
-      bCtx.clearRect(0, 0, W, H);
-      fCtx.clearRect(0, 0, W, H);
+      ctx.clearRect(0, 0, W, H);
 
       let pos, angle = 0;
-
       if (!landed) {
         const rawT = Math.min(elapsed / FLIGHT_MS, 1);
         const t = ease(rawT);
         pos = bez(t);
         const d = bezD(t);
         angle = Math.atan2(d.y, d.x);
+        if (rawT >= 1) landed = true;
 
-        // Has bee emerged from behind the card?
-        if (!emerged && pos.x > EMERGENCE_X) emerged = true;
-
-        // Emit trail only when emerged (in front)
-        if (emerged && ts - lastTrail > 30) {
+        // Trail dots from current position
+        if (ts - lastTrail > 32) {
           lastTrail = ts;
           trail.push({
-            x: pos.x, y: pos.y,
-            born: ts, life: 600 + Math.random()*280,
-            r: 2.5 + Math.random()*3.2,
+            x: pos.x + (Math.random()-0.5)*4,
+            y: pos.y + (Math.random()-0.5)*4,
+            born: ts,
+            life: 600 + Math.random()*280,
+            r: 2.5 + Math.random()*3,
             color: COLORS[Math.floor(Math.random()*COLORS.length)],
           });
         }
-
-        if (rawT >= 1) { landed = true; emerged = true; }
       } else {
-        pos = { x: LX, y: LY + Math.sin(ts * 0.0016) * 2.2 };
+        pos = { x: LX, y: LY + Math.sin(ts*0.0016)*2 };
         angle = 0;
       }
 
-      // ── Draw trail on FRONT canvas ──
+      // Draw trail
       for (let i = trail.length-1; i >= 0; i--) {
         const dot = trail[i];
         const age = ts - dot.born;
         if (age > dot.life) { trail.splice(i,1); continue; }
         const p = age / dot.life;
         const a = Math.pow(1-p, 1.3);
-        const r = Math.max(0.4, dot.r * (1 - p*0.45));
-
-        fCtx.save();
-        fCtx.globalAlpha = a * 0.22;
-        fCtx.shadowColor = dot.color+'1)'; fCtx.shadowBlur = 12;
-        fCtx.fillStyle = dot.color+'1)';
-        fCtx.beginPath(); fCtx.arc(dot.x, dot.y, r*2.4, 0, Math.PI*2); fCtx.fill();
-        fCtx.restore();
-
-        fCtx.save();
-        fCtx.globalAlpha = a * 0.9;
-        fCtx.fillStyle = dot.color+'1)';
-        fCtx.beginPath(); fCtx.arc(dot.x, dot.y, r, 0, Math.PI*2); fCtx.fill();
-        fCtx.restore();
+        const r = Math.max(0.4, dot.r * (1-p*0.4));
+        ctx.save();
+        ctx.globalAlpha = a*0.22;
+        ctx.shadowColor = dot.color+'1)'; ctx.shadowBlur = 10;
+        ctx.fillStyle = dot.color+'1)';
+        ctx.beginPath(); ctx.arc(dot.x, dot.y, r*2.2, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = a*0.88;
+        ctx.fillStyle = dot.color+'1)';
+        ctx.beginPath(); ctx.arc(dot.x, dot.y, r, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
       }
 
-      // ── Landing shadow on FRONT canvas ──
+      // Ground shadow near landing
       const rawProgress = Math.min(elapsed/FLIGHT_MS, 1);
-      if ((rawProgress > 0.8 || landed) && emerged) {
+      if (rawProgress > 0.8 || landed) {
         const fade = landed ? 1 : (rawProgress-0.8)/0.2;
-        fCtx.save();
-        fCtx.globalAlpha = 0.18 * fade;
-        fCtx.filter = 'blur(6px)';
-        fCtx.fillStyle = 'rgba(0,0,0,0.55)';
-        fCtx.beginPath();
-        fCtx.ellipse(LX+4, LY + BEE_H*0.52, BEE_W*0.38, BEE_H*0.09, 0, 0, Math.PI*2);
-        fCtx.fill();
-        fCtx.restore();
+        ctx.save();
+        ctx.globalAlpha = 0.18*fade;
+        ctx.filter = 'blur(5px)';
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(LX+3, LY+BEE_H*0.52, BEE_W*0.36, BEE_H*0.09, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
       }
 
-      if (!emerged) {
-        // Draw bee on BACK canvas — dimmed, slightly blurred = behind glass effect
-        bCtx.save();
-        bCtx.filter = 'blur(1.5px)';
-        drawBee(bCtx, pos.x, pos.y, angle, 0.38, BEE_W, BEE_H, ts);
-        bCtx.restore();
-      } else {
-        // Draw bee on FRONT canvas — full opacity, in front of everything
-        drawBee(fCtx, pos.x, pos.y, angle, 1.0, BEE_W, BEE_H, ts);
-      }
+      // Draw bee — faces direction of travel, subtle wing bob
+      const bob = Math.sin(ts*(landed?0.0016:0.024)) * (landed?1.5:2.0);
+      ctx.save();
+      ctx.translate(pos.x, pos.y+bob);
+      // Tilt to face flight direction, but keep upright when near landing
+      const rawP = Math.min(elapsed/FLIGHT_MS, 1);
+      const tiltDamp = landed ? 0 : Math.max(0, 1 - rawP*1.8); // fades out as approaches land
+      ctx.rotate(angle * 0.3 * tiltDamp);
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 10; ctx.shadowOffsetY = 5;
+      ctx.drawImage(img, -BEE_W/2, -BEE_H/2, BEE_W, BEE_H);
+      ctx.restore();
 
       rafRef.current = requestAnimationFrame(frame);
     };
@@ -1179,23 +1137,20 @@ const BeeAnimator = ({show, isDesktop, cardRef}) => {
   };
 
   if (!show) return null;
-  const W = isDesktop ? 440 : 374;
-  const H = isDesktop ? 200 : 170;
-  const canvasStyle = {
-    position: 'absolute',
-    top: 0, left: 0,
-    width: W, height: H,
-    pointerEvents: 'none',
-  };
+  const W = isDesktop ? 440 : 370;
+  const H = isDesktop ? 180 : 155;
 
   return (
-    <div style={{ position:'relative', width:W, height:H, marginBottom:-(H-24), zIndex:0, alignSelf:'center' }}>
-      {/* Back canvas — renders BEHIND the glass card */}
-      <canvas ref={backCanvasRef} width={W} height={H} style={{...canvasStyle, zIndex:0}}/>
-      {/* Spacer — this is where the card renders, between the two canvases */}
-      {/* Front canvas — renders IN FRONT of everything */}
-      <canvas ref={frontCanvasRef} width={W} height={H} style={{...canvasStyle, zIndex:4}}/>
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={W} height={H}
+      style={{
+        display:'block', width:W, height:H,
+        marginBottom: -(H-26),
+        position:'relative', zIndex:2,
+        pointerEvents:'none',
+      }}
+    />
   );
 };
 
@@ -1846,8 +1801,6 @@ export default function YarnHive() {
 
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
-      {/* Subtle world bg tint behind entire app */}
-      <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:`url(${PHOTOS.world})`,backgroundSize:"cover",backgroundPosition:"center",opacity:0.04,filter:"saturate(1.2)"}}/>  
       <CSS/>
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
@@ -1874,7 +1827,6 @@ export default function YarnHive() {
 
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
-      <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:`url(${PHOTOS.world})`,backgroundSize:"cover",backgroundPosition:"center",opacity:0.045,filter:"saturate(1.2)"}}/>  
       <CSS/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={patterns.length} isPro={isPro}/>
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
