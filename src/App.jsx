@@ -84,7 +84,7 @@ const useTier = (isPro, patternCount) => {
 };
 
 const T = {
-  bg:"#FAF7F3", surface:"#FFFFFF", linen:"#F4EDE3", ink:"#1C1714", ink2:"#5C4F44", ink3:"#9E8E82",
+  bg:"#FAF7F3", surface:"#FDFAF7", linen:"#F4EDE3", ink:"#1C1714", ink2:"#5C4F44", ink3:"#9E8E82",
   border:"#EAE0D5", terra:"#B85A3C", terraLt:"#F5E2DA", sage:"#5C7A5E", sageLt:"#D8EAD8", gold:"#B8902C",
   serif:'"Playfair Display", Georgia, serif', sans:'"DM Sans", -apple-system, sans-serif',
 };
@@ -968,16 +968,16 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut}) => {
   const ITEMS=[{key:"collection",label:"Your Hive",sub:count+" saved",icon:"🧶"},{key:"wip",label:"In Progress",sub:"Currently making",icon:"🪡"},{key:"browse",label:"Browse Sites",sub:"Find free patterns",icon:"🌐"},{key:"stash",label:"Yarn Stash",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"Calculators",sub:"Gauge, yardage & more",icon:"🧮"},{key:"shopping",label:"Shopping List",sub:"Auto-generated",icon:"🛒"}];
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
-      <div style={{position:"relative",height:160,overflow:"hidden",flexShrink:0}}>
+      <div onClick={()=>setView("collection")} style={{position:"relative",height:160,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
         <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
-        <div onClick={()=>setView("collection")} style={{position:"absolute",bottom:18,left:20,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
+        <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
       </div>
       <div style={{padding:"16px 16px 8px"}}><button onClick={onAddPattern} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.4)",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>+</span> Add Pattern</button></div>
       <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
         {ITEMS.map(item=>{const active=view===item.key;return(
-          <div key={item.key} className="nav-item" onClick={()=>setView(item.key)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
-            <span style={{fontSize:18,width:24,textAlign:"center"}}>{item.icon}</span>
+          <div key={item.key} className="nav-item" onClick={()=>setView(item.key)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+            <div style={{width:32,height:32,borderRadius:8,background:active?T.terraLt:T.linen,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .12s"}}><span style={{fontSize:16}}>{item.icon}</span></div>
             <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>{item.label}</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>{item.sub}</div></div>
             {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
           </div>
@@ -985,8 +985,8 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut}) => {
       </div>
       <div style={{padding:"0 0 8px"}}>
         {(()=>{const active=view==="profile";return(
-          <div className="nav-item" onClick={()=>setView("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
-            <span style={{fontSize:18,width:24,textAlign:"center"}}>👤</span>
+          <div className="nav-item" onClick={()=>setView("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+            <div style={{width:32,height:32,borderRadius:8,background:active?T.terraLt:T.linen,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .12s"}}><span style={{fontSize:16}}>👤</span></div>
             <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>Profile & Settings</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>Your account</div></div>
             {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
           </div>
@@ -1011,15 +1011,15 @@ const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut}) => {
     <div style={{position:"fixed",inset:0,zIndex:100}}>
       <div className={closing?"dim-out":"dim-in"} onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.52)",backdropFilter:"blur(3px)"}}/>
       <div className={closing?"nav-close":"nav-open"} style={{position:"absolute",top:0,left:0,bottom:0,width:"80%",maxWidth:320,background:T.surface,display:"flex",flexDirection:"column",boxShadow:"6px 0 40px rgba(28,23,20,.2)"}}>
-        <div style={{position:"relative",height:130,overflow:"hidden",flexShrink:0}}>
+        <div onClick={()=>go("collection")} style={{position:"relative",height:130,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
           <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.8) 0%,rgba(20,14,10,.2) 100%)"}}/>
-          <div onClick={()=>go("collection")} style={{position:"absolute",bottom:16,left:18,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
+          <div style={{position:"absolute",bottom:16,left:18}}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
         </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:6}}>
           {ITEMS.map(item=>{const active=view===item.key;return(
-            <div key={item.key} className="nav-item" onClick={()=>go(item.key)} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
-              <span style={{fontSize:20,width:26,textAlign:"center"}}>{item.icon}</span>
+            <div key={item.key} className="nav-item" onClick={()=>go(item.key)} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+              <div style={{width:32,height:32,borderRadius:8,background:active?T.terraLt:T.linen,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .12s"}}><span style={{fontSize:16}}>{item.icon}</span></div>
               <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>{item.label}</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>{item.sub}</div></div>
               {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
             </div>
@@ -1027,8 +1027,8 @@ const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut}) => {
         </div>
         <div style={{padding:"0 0 8px"}}>
           {(()=>{const active=view==="profile";return(
-            <div className="nav-item" onClick={()=>go("profile")} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
-              <span style={{fontSize:20,width:26,textAlign:"center"}}>👤</span>
+            <div className="nav-item" onClick={()=>go("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+              <div style={{width:32,height:32,borderRadius:8,background:active?T.terraLt:T.linen,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .12s"}}><span style={{fontSize:16}}>👤</span></div>
               <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>Profile & Settings</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>Your account</div></div>
               {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
             </div>
@@ -1116,6 +1116,61 @@ const EmailConfirmBanner = ({onDismiss}) => (
     <button onClick={onDismiss} style={{background:"none",border:"none",cursor:"pointer",color:"#fff",fontSize:18,lineHeight:1,padding:"0 2px",flexShrink:0,opacity:.75}}>×</button>
   </div>
 );
+
+const PRO_FEATURES = [
+  {label:"Unlimited patterns",sub:"No cap. Save every pattern you'll ever make"},
+  {label:"Unlimited Hive Vision",sub:"Scan as many finished objects as you want"},
+  {label:"Cloud sync",sub:"Access your hive on every device, always in sync"},
+  {label:"Pattern Help AI",sub:"Get AI-powered help for any row you're stuck on"},
+  {label:"Advanced analytics",sub:"Track your making history and stash usage"},
+  {label:"Early access",sub:"First to get every new feature we ship"},
+];
+
+const ProInfoModal = ({onClose}) => {
+  const{isDesktop}=useBreakpoint();
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}} onClick={onClose}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",backdropFilter:"blur(10px)"}}/>
+      <div onClick={e=>e.stopPropagation()} style={{
+        position:"relative",background:"#FDFAF7",
+        borderRadius:isDesktop?20:"22px 22px 0 0",
+        width:isDesktop?"min(480px, 90vw)":"100%",
+        maxHeight:isDesktop?"min(640px, 85vh)":"88vh",
+        display:"flex",flexDirection:"column",zIndex:1,
+        boxShadow:isDesktop?"0 24px 80px rgba(0,0,0,0.4)":"0 -12px 48px rgba(0,0,0,0.28)",
+        overflow:"hidden",
+        animation:isDesktop?"modalPop .25s cubic-bezier(.22,.68,0,1.05) both":"sheetUp .3s cubic-bezier(.22,.68,0,1.05) both",
+      }}>
+        <div style={{flexShrink:0,height:44,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",borderBottom:"1px solid rgba(28,23,20,0.06)"}}>
+          <div style={{width:36,height:4,background:"rgba(28,23,20,0.15)",borderRadius:99}}/>
+          <button onClick={onClose} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",width:30,height:30,borderRadius:"50%",background:"rgba(28,23,20,0.07)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:"rgba(28,23,20,0.45)",lineHeight:1}}>×</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"20px 20px 48px"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:22}}>
+            <div style={{width:56,height:56,borderRadius:16,flexShrink:0,background:`linear-gradient(145deg,${T.terra},#6B2410)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:"0 6px 20px rgba(184,90,60,0.25)"}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            </div>
+            <div style={{flex:1,minWidth:0,paddingTop:2}}>
+              <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,lineHeight:1.15,marginBottom:4}}>YarnHive Pro</div>
+              <div style={{fontSize:13,color:T.ink3,lineHeight:1.55,fontWeight:300}}>Unlimited everything. Built for makers who are serious about their craft.</div>
+            </div>
+          </div>
+          <div style={{background:T.linen,borderRadius:14,overflow:"hidden",border:`1px solid ${T.border}`,marginBottom:20}}>
+            {PRO_FEATURES.map((f,i)=>(
+              <div key={i} style={{padding:"12px 16px",borderBottom:i<PRO_FEATURES.length-1?`1px solid ${T.border}`:"none"}}>
+                <div style={{fontSize:14,fontWeight:600,color:T.ink,lineHeight:1.2,marginBottom:2}}>{f.label}</div>
+                <div style={{fontSize:12,color:T.ink3,lineHeight:1.5}}>{f.sub}</div>
+              </div>
+            ))}
+          </div>
+          <button style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginBottom:6}}>Get Pro — $9.99/mo</button>
+          <div style={{textAlign:"center",fontSize:12,color:T.ink3,marginBottom:12}}>$74.99/yr — save 37%</div>
+          <div style={{textAlign:"center",fontSize:11,color:T.ink3,opacity:.6}}>Cancel anytime. No questions asked.</div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome}) => {
   const [username,setUsername]=useState(""),[displayName,setDisplayName]=useState(""),[bio,setBio]=useState("");
@@ -1831,7 +1886,7 @@ const ScaleModal = ({pattern,onClose}) => {
           <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:12}}>Gauge (per 4 inches)</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             {[["Stitches",gSt,setGSt],["Rows",gRo,setGRo]].map(([label,val,set])=>(
-              <div key={label}><div style={{fontSize:11,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>
+              <div key={label}><div style={{fontSize:11,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>
             ))}
           </div>
         </div>
@@ -2063,7 +2118,7 @@ const YarnStash = () => {
           <Field label="Brand" placeholder="e.g. Lion Brand" value={brand} onChange={e=>setBrand(e.target.value)}/>
           <Field label="Yarn Name" placeholder="e.g. Pound of Love" value={name} onChange={e=>setName(e.target.value)}/>
           <div style={{display:"flex",gap:10,marginBottom:14}}>
-            <div style={{flex:1}}><div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Weight</div><select value={weight} onChange={e=>setWeight(e.target.value)} style={{width:"100%",padding:"12px",background:"#fff",border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:14}}>{["Lace","Fingering","Sport","DK","Worsted","Bulky","Super Bulky"].map(w=><option key={w}>{w}</option>)}</select></div>
+            <div style={{flex:1}}><div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Weight</div><select value={weight} onChange={e=>setWeight(e.target.value)} style={{width:"100%",padding:"12px",background:"rgba(250,247,243,0.96)",border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:14}}>{["Lace","Fingering","Sport","DK","Worsted","Bulky","Super Bulky"].map(w=><option key={w}>{w}</option>)}</select></div>
             <div style={{flex:1}}><Field label="Color Name" placeholder="Antique White" value={color} onChange={e=>setColor(e.target.value)}/></div>
           </div>
           <div style={{display:"flex",gap:10,marginBottom:14}}>
@@ -2101,9 +2156,9 @@ const Calculators = () => {
           <button key={key} onClick={()=>setActive(key)} style={{flex:1,padding:"10px",border:"1.5px solid "+(active===key?T.terra:T.border),background:active===key?T.terraLt:T.surface,color:active===key?T.terra:T.ink3,borderRadius:10,cursor:"pointer",fontSize:12,fontWeight:active===key?600:400}}>{label}</button>
         ))}
       </div>
-      {active==="gauge"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Gauge Swatch</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>{[["Stitches",stitches,setStitches],["Rows",rows,setRows],["Swatch (in)",swatchSize,setSwatchSize]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Target Dimensions</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",targetW,setTargetW],["Height (in)",targetH,setTargetH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Results</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Cast on (sts)",castOn],["Total rows",totalRows],["Stitches/inch",stPerInch.toFixed(1)],["Rows/inch",roPerInch.toFixed(1)]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:22,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
-      {active==="yardage"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Project Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",projW,setProjW],["Height (in)",projH,setProjH],["Sts per 4in",stPer4,setStPer4],["Yds per stitch",ydsPerSt,setYdsPerSt]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Estimated Yardage</div><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontFamily:T.serif,fontSize:48,fontWeight:700,color:T.terra}}>{yardage.toLocaleString()}</div><div style={{fontSize:14,color:T.ink3,marginTop:4}}>yards needed</div><div style={{fontSize:13,color:T.ink2,marginTop:8}}>approx. {Math.ceil(yardage/200)} skeins at 200 yds each</div></div></div></>}
-      {active==="resize"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Original Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",origW,setOrigW],["Height (in)",origH,setOrigH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>New Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",newW,setNewW],["Height (in)",newH,setNewH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Scale Factors</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width scale","x"+scaleW.toFixed(2)],["Height scale","x"+scaleH.toFixed(2)],["Stitch mult.",(scaleW*100).toFixed(0)+"%"],["Yardage mult.",(scaleW*scaleH*100).toFixed(0)+"%"]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:22,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
+      {active==="gauge"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Gauge Swatch</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>{[["Stitches",stitches,setStitches],["Rows",rows,setRows],["Swatch (in)",swatchSize,setSwatchSize]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Target Dimensions</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",targetW,setTargetW],["Height (in)",targetH,setTargetH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Results</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Cast on (sts)",castOn],["Total rows",totalRows],["Stitches/inch",stPerInch.toFixed(1)],["Rows/inch",roPerInch.toFixed(1)]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:22,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
+      {active==="yardage"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Project Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",projW,setProjW],["Height (in)",projH,setProjH],["Sts per 4in",stPer4,setStPer4],["Yds per stitch",ydsPerSt,setYdsPerSt]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Estimated Yardage</div><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontFamily:T.serif,fontSize:48,fontWeight:700,color:T.terra}}>{yardage.toLocaleString()}</div><div style={{fontSize:14,color:T.ink3,marginTop:4}}>yards needed</div><div style={{fontSize:13,color:T.ink2,marginTop:8}}>approx. {Math.ceil(yardage/200)} skeins at 200 yds each</div></div></div></>}
+      {active==="resize"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Original Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",origW,setOrigW],["Height (in)",origH,setOrigH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>New Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",newW,setNewW],["Height (in)",newH,setNewH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},#fff)`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Scale Factors</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width scale","x"+scaleW.toFixed(2)],["Height scale","x"+scaleH.toFixed(2)],["Stitch mult.",(scaleW*100).toFixed(0)+"%"],["Yardage mult.",(scaleW*scaleH*100).toFixed(0)+"%"]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:22,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
     </div>
   );
 };
@@ -2172,6 +2227,7 @@ const CollectionView = ({patterns,cat,setCat,search,setSearch,openDetail,onAddPa
 export default function YarnHive() {
   const [authed,setAuthed]=useState(()=>!!supabaseAuth.getUser()),[isPro,setIsPro]=useState(false),[patterns,setPatterns]=useState(SEED_PATTERNS),[view,setView]=useState("collection"),[selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
   const [showEmailBanner,setShowEmailBanner]=useState(false);
+  const [showProModal,setShowProModal]=useState(false);
   const{isTablet,isDesktop}=useBreakpoint();
   const tier=useTier(isPro,patterns.length);
 
@@ -2192,6 +2248,7 @@ export default function YarnHive() {
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
+      {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
       <SidebarNav view={view} setView={setView} count={patterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
@@ -2210,7 +2267,7 @@ export default function YarnHive() {
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList patterns={patterns}/></div>}
-          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowPaywall(true)} onGoHome={()=>setView("collection")}/>}
+          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
         </div>
       </div>
     </div>
@@ -2221,6 +2278,7 @@ export default function YarnHive() {
       <CSS/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={patterns.length} isPro={isPro} onSignOut={handleSignOut}/>
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
+      {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
       {showEmailBanner&&<EmailConfirmBanner onDismiss={()=>setShowEmailBanner(false)}/>}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 18px",height:56,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
@@ -2235,7 +2293,7 @@ export default function YarnHive() {
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList patterns={patterns}/></div>}
-        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowPaywall(true)} onGoHome={()=>setView("collection")}/>}
+        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
         <button onClick={openAddModal} style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:99,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(184,90,60,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
