@@ -1179,7 +1179,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed,sho
   const [socialInstagram,setSocialInstagram]=useState(""),[socialPinterest,setSocialPinterest]=useState(""),[socialRavelry,setSocialRavelry]=useState("");
   const [profileSaving,setProfileSaving]=useState(false),[profileMsg,setProfileMsg]=useState(null),[profileLoaded,setProfileLoaded]=useState(false);
   const [saveBtnText,setSaveBtnText]=useState("Save Profile");
-  const [welcomeDismissed,setWelcomeDismissed]=useState(()=>!!localStorage.getItem("yh_welcome_banner_dismissed"));
+  const [welcomeDismissed,setWelcomeDismissed]=useState(()=>!!localStorage.getItem("yh_welcome_dismissed"));
   const [curPass,setCurPass]=useState(""),[newPass,setNewPass]=useState(""),[passSaving,setPassSaving]=useState(false),[passMsg,setPassMsg]=useState(null);
   const [resending,setResending]=useState(false),[resendMsg,setResendMsg]=useState(null);
   const [emailConfirmed,setEmailConfirmed]=useState(false);
@@ -1313,10 +1313,10 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed,sho
 
       {showNewUserBanner&&!welcomeDismissed&&(
         <div style={{background:`linear-gradient(135deg,${T.terra},#C97A5E)`,borderRadius:16,padding:isDesktop?"20px 24px":"16px 18px",marginBottom:20,position:"relative"}}>
-          <button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_banner_dismissed","1");}} style={{position:"absolute",top:12,right:14,background:"none",border:"none",color:"rgba(255,255,255,.6)",fontSize:18,cursor:"pointer",lineHeight:1}}>×</button>
+          <button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_dismissed","1");}} style={{position:"absolute",top:12,right:14,background:"none",border:"none",color:"rgba(255,255,255,.6)",fontSize:18,cursor:"pointer",lineHeight:1}}>×</button>
           <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:"#fff",marginBottom:4}}>Your hive is ready! 🐝</div>
           <div style={{fontSize:13,color:"rgba(255,255,255,.85)",marginBottom:14,lineHeight:1.5}}>Start building your pattern collection.</div>
-          <button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_banner_dismissed","1");onGoHome();}} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",borderRadius:12,padding:"10px 20px",fontSize:14,fontWeight:600,color:"#fff",cursor:"pointer"}}>Go to Your Hive →</button>
+          <button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_dismissed","1");onGoHome();}} style={{background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",borderRadius:12,padding:"10px 20px",fontSize:14,fontWeight:600,color:"#fff",cursor:"pointer"}}>Go to Your Hive →</button>
         </div>
       )}
 
@@ -2366,11 +2366,13 @@ const InfoTooltip = ({text}) => {
   );
 };
 
-const OnboardingScreen = ({onComplete,onSkip}) => {
+const OnboardingScreen = ({onComplete,onSkip,onBackToAuth}) => {
   const user = supabaseAuth.getUser();
   const session = getSession();
   const emailPrefix = (user?.email||"").split("@")[0].replace(/[^a-zA-Z0-9_]/g,"").slice(0,20);
-  const [step,setStep]=useState(2);
+  const stepRef = useRef(2);
+  const [step,setStepRaw]=useState(2);
+  const setStep = (s) => { stepRef.current=s; setStepRaw(s); };
   const [firstName,setFirstName]=useState(""),[lastName,setLastName]=useState("");
   const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(emailPrefix);
   const [cellPhone,setCellPhone]=useState(""),[smsOptIn,setSmsOptIn]=useState(true);
@@ -2381,17 +2383,23 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
   // Browser history management for back button
   useEffect(()=>{
     history.pushState({onboardingStep:2},"","");
-    const handlePop = (e) => {
-      if (step===3) { setStep(2); history.pushState({onboardingStep:2},"",""); }
+    const handlePop = () => {
+      if (stepRef.current===3) { setStep(2); history.pushState({onboardingStep:2},"",""); }
+      else if (stepRef.current===2) { onBackToAuth(); }
     };
     window.addEventListener("popstate",handlePop);
     return ()=>window.removeEventListener("popstate",handlePop);
-  },[step]);
+  },[]);
 
   const goToStep3 = () => {
     history.pushState({onboardingStep:3},"","");
     setError(null);
     setStep(3);
+  };
+
+  const goBackToStep2 = () => {
+    setError(null);
+    setStep(2);
   };
 
   // Step 2 save — saves to DB then advances to Step 3
@@ -2465,12 +2473,16 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
     <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5,display:"flex",alignItems:"center"}}>{label}<InfoTooltip text={tip}/></div>
   );
 
+  const MODAL_STYLE = {position:"relative",zIndex:1,width:"100%",maxWidth:480,maxHeight:"80vh",display:"flex",flexDirection:"column",background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)"};
+  const BACK_BTN = (onClick) => <button onClick={onClick} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>;
+
   return (
     <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans}}>
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
-      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:480,maxHeight:"80vh",display:"flex",flexDirection:"column",background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)"}}>
+      <div style={MODAL_STYLE}>
         <div style={{overflowY:"auto",padding:isDesktop?"44px 48px 40px":"28px 24px 32px"}}>
           {step===2 ? <>
+            {BACK_BTN(onBackToAuth)}
             <div style={{textAlign:"center",marginBottom:28}}>
               <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 2 of 3</div>
               <div style={{fontSize:48,marginBottom:12}}>🐝</div>
@@ -2509,11 +2521,12 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
             <button onClick={handleStep2Save} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Setting up…":"Set up my profile"}</button>
             <div style={{textAlign:"center",marginTop:12}}><button onClick={handleStep2Skip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>I'll do this later</button></div>
           </> : <>
+            {BACK_BTN(goBackToStep2)}
             <div style={{textAlign:"center",marginBottom:20}}>
               <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 3 of 3</div>
               <div style={{fontSize:48,marginBottom:12}}>🐝</div>
-              <div style={{fontFamily:T.serif,fontSize:isDesktop?28:22,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Complete your profile</div>
-              <p style={{fontSize:13,color:T.ink3,marginTop:8,lineHeight:1.6}}>All fields are optional — fill in what you'd like.</p>
+              <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Complete your profile</div>
+              <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>All fields are optional — fill in what you'd like.</p>
             </div>
             {/* Progress bar */}
             <div style={{marginBottom:20}}>
@@ -2525,23 +2538,20 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
                 <div style={{height:"100%",width:`${progress}%`,background:progress===100?T.sage:`linear-gradient(90deg,${T.terra},#C97A5E)`,borderRadius:99,transition:"width .4s ease"}}/>
               </div>
             </div>
-            {/* Personal Info */}
-            <div style={{background:"rgba(253,250,247,0.6)",borderRadius:14,border:`1px solid ${T.border}`,padding:"16px 18px",marginBottom:14}}>
-              <div style={{fontFamily:T.serif,fontSize:15,fontWeight:700,color:T.ink,marginBottom:12}}>Personal Info</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-                <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
-                <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
-              </div>
-              <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
-              <div style={{marginBottom:14}}>
-                <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
-                <div style={{position:"relative"}}>
-                  <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
-                  <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
-                </div>
-              </div>
-              <Field label="Bio" placeholder="Tell us about your craft..." value={bio} onChange={e=>setBio(e.target.value)} rows={3}/>
+            {/* Personal Info only */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+              <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
+              <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
             </div>
+            <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
+              <div style={{position:"relative"}}>
+                <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
+                <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+              </div>
+            </div>
+            <Field label="Bio" placeholder="Tell us about your craft..." value={bio} onChange={e=>setBio(e.target.value)} rows={3}/>
             {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
             <button onClick={handleStep3Save} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Saving…":"Complete my profile"}</button>
             <div style={{textAlign:"center",marginTop:12}}><button onClick={handleStep3Done} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Looks good, let's go →</button></div>
@@ -2712,7 +2722,7 @@ export default function YarnHive() {
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onSkip={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onSkip={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);setStarterPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
@@ -2744,7 +2754,7 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onSkip={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onSkip={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);setView("profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);setStarterPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
