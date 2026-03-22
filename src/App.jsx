@@ -1075,6 +1075,24 @@ const BeeAnimator = ({visible, isDesktop}) => {
   );
 };
 
+const FormCard = ({cardStyle,isSignup,name,setName,email,setEmail,pass,setPass,authError,handleAuth,loading,onBack}) => (
+  <div style={cardStyle}>
+    <button onClick={onBack} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:24,display:"flex",alignItems:"center",gap:6}}>← Back</button>
+    <div style={{textAlign:"center",marginBottom:8}}>
+      <div style={{fontFamily:T.serif,fontSize:26,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
+      <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</p>
+    </div>
+    <div style={{marginTop:20}}>
+      {isSignup&&<Field label="Your name" placeholder="e.g. Sarah" value={name} onChange={e=>setName(e.target.value)}/>}
+      <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
+      <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
+      {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
+      {authError&&<div style={{background:"rgba(200,50,50,.08)",border:"1px solid rgba(200,50,50,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#993333",lineHeight:1.5,marginBottom:8}}>{authError}</div>}
+      <button onClick={handleAuth} disabled={loading} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8,opacity:loading?.6:1}}>{loading?"Please wait…":isSignup?"Create my YarnHive":"Sign in"}</button>
+    </div>
+  </div>
+);
+
 const Auth = ({onEnter,onEnterAsPro}) => {
   const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState("");
   const [loading,setLoading]=useState(false),[authError,setAuthError]=useState(null);
@@ -1321,24 +1339,6 @@ const Auth = ({onEnter,onEnterAsPro}) => {
     </div>
   );
 
-  const FormCard = () => (
-    <div style={CARD_STYLE}>
-      <button onClick={()=>setScreen("welcome")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:24,display:"flex",alignItems:"center",gap:6}}>← Back</button>
-      <div style={{textAlign:"center",marginBottom:8}}>
-        <div style={{fontFamily:T.serif,fontSize:26,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
-        <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</p>
-      </div>
-      <div style={{marginTop:20}}>
-        {isSignup&&<Field label="Your name" placeholder="e.g. Sarah" value={name} onChange={e=>setName(e.target.value)}/>}
-        <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
-        <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
-        {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
-        {authError&&<div style={{background:"rgba(200,50,50,.08)",border:"1px solid rgba(200,50,50,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#993333",lineHeight:1.5,marginBottom:8}}>{authError}</div>}
-        <button onClick={handleAuth} disabled={loading} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8,opacity:loading?.6:1}}>{loading?"Please wait…":isSignup?"Create my YarnHive":"Sign in"}</button>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{minHeight:"100vh",fontFamily:T.sans,position:"relative",overflow:"hidden",background:"#0A0804"}}>
       <CSS/>
@@ -1360,7 +1360,7 @@ const Auth = ({onEnter,onEnterAsPro}) => {
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
         <BeeAnimator visible={!showForm && !activeModal} isDesktop={isDesktop}/>
         <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
-          {showForm ? <FormCard/> : <WelcomeCard/>}
+          {showForm ? <FormCard cardStyle={CARD_STYLE} isSignup={isSignup} name={name} setName={setName} email={email} setEmail={setEmail} pass={pass} setPass={setPass} authError={authError} handleAuth={handleAuth} loading={loading} onBack={()=>setScreen("welcome")}/> : <WelcomeCard/>}
         </div>
       </div>
       {/* Modal — true viewport fixed, outside all card stacking contexts */}
