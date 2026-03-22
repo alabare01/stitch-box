@@ -24,6 +24,7 @@ const PILL = [PHOTOS.blanket, PHOTOS.cardigan, PHOTOS.granny, PHOTOS.tote, PHOTO
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+const APP_ORIGIN = typeof window !== "undefined" ? window.location.origin : "https://yarnhive.app";
 const saveSession = (s) => { try { if(s) localStorage.setItem("yh_session",JSON.stringify(s)); else localStorage.removeItem("yh_session"); } catch{} };
 const getSession = () => { try { const r=localStorage.getItem("yh_session"); return r?JSON.parse(r):null; } catch{return null;} };
 
@@ -31,7 +32,7 @@ const supabaseAuth = {
   signUp: async (email, password) => {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method:"POST", headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-      body: JSON.stringify({email, password, options:{emailRedirectTo:"https://yarnhive.app"}}),
+      body: JSON.stringify({email, password, options:{emailRedirectTo:APP_ORIGIN}}),
     });
     const data = await res.json();
     if(!res.ok) return {error: data};
@@ -1279,7 +1280,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
       const res = await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
         method:"POST",
         headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-        body:JSON.stringify({type:"signup",email:user.email,options:{emailRedirectTo:"https://yarnhive.app"}}),
+        body:JSON.stringify({type:"signup",email:user.email,options:{emailRedirectTo:APP_ORIGIN}}),
       });
       setResendMsg(res.ok ? {type:"ok",text:"Confirmation email sent."} : {type:"error",text:"Failed to send."});
     } catch { setResendMsg({type:"error",text:"Network error."}); }
