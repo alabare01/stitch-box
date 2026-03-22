@@ -31,7 +31,7 @@ const supabaseAuth = {
   signUp: async (email, password, displayName) => {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method:"POST", headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-      body: JSON.stringify({email, password, data:{display_name:displayName}}),
+      body: JSON.stringify({email, password, data:{display_name:displayName}, gotrue_meta_security:{captcha_token:null}, redirect_to:"https://yarnhive.app"}),
     });
     const data = await res.json();
     if(!res.ok) return {error: data};
@@ -1106,8 +1106,11 @@ const Auth = ({onEnter,onEnterAsPro}) => {
       if (screen === "signup") {
         const {data, error} = await supabaseAuth.signUp(email.trim(), pass, name.trim());
         if (error) { setAuthError(error.msg || error.error_description || error.message || "Sign-up failed."); setLoading(false); return; }
-        // Some Supabase projects require email confirmation
-        if (data && !data.session) { setAuthError("Check your email to confirm your account, then sign in."); setLoading(false); return; }
+        // If email confirmation is required, sign in immediately anyway
+        if (data && !data.session) {
+          const {error: signInErr} = await supabaseAuth.signIn(email.trim(), pass);
+          if (signInErr) { setAuthError(signInErr.error_description || signInErr.msg || signInErr.message || "Sign-up succeeded but sign-in failed."); setLoading(false); return; }
+        }
       } else {
         const {data, error} = await supabaseAuth.signIn(email.trim(), pass);
         if (error) { setAuthError(error.error_description || error.msg || error.message || "Invalid email or password."); setLoading(false); return; }
