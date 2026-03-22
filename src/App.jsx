@@ -2331,20 +2331,25 @@ const WelcomeBanner = ({visible}) => (
 
 const OnboardingScreen = ({onComplete,onSkip}) => {
   const user = supabaseAuth.getUser();
+  const session = getSession();
   const emailPrefix = (user?.email||"").split("@")[0].replace(/[^a-zA-Z0-9_]/g,"").slice(0,20);
+  const [step,setStep]=useState(2);
   const [firstName,setFirstName]=useState(""),[lastName,setLastName]=useState("");
   const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(emailPrefix);
-  const [cellPhone,setCellPhone]=useState(""),[smsOptIn,setSmsOptIn]=useState(false);
+  const [cellPhone,setCellPhone]=useState(""),[smsOptIn,setSmsOptIn]=useState(true);
+  const [bio,setBio]=useState("");
+  const [street,setStreet]=useState(""),[city,setCity]=useState(""),[state,setState]=useState(""),[zip,setZip]=useState("");
+  const [instagram,setInstagram]=useState(""),[pinterest,setPinterest]=useState(""),[ravelry,setRavelry]=useState("");
   const [saving,setSaving]=useState(false),[error,setError]=useState(null);
   const{isDesktop}=useBreakpoint();
 
-  const handleSave = async () => {
+  // Step 2 save — saves to DB then advances to Step 3
+  const handleStep2Save = async () => {
     if (!displayName.trim()) { setError("Display name is required."); return; }
     const handle = username.trim().replace(/^@/,"");
     if (!handle) { setError("Username is required."); return; }
     if (!/^[a-zA-Z0-9_]{2,30}$/.test(handle)) { setError("Username: 2-30 chars, letters/numbers/underscores only."); return; }
     setSaving(true); setError(null);
-    const session = getSession();
     if (user && session) {
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}`, {
@@ -2356,91 +2361,12 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
     }
     localStorage.setItem("yh_profile_setup_shown","1");
     setSaving(false);
-    onComplete();
+    setError(null);
+    setStep(3);
   };
 
-  const handleSkip = () => { localStorage.setItem("yh_onboarding_complete","1"); onSkip(); };
-
-  return (
-    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans,overflowY:"auto"}}>
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
-      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:480,background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)",padding:isDesktop?"44px 48px 40px":"28px 24px 32px",margin:"auto 0"}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 2 of 3</div>
-          <div style={{fontSize:48,marginBottom:12}}>🐝</div>
-          <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
-          <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>Let the hive know who you are.</p>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-          <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
-          <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
-        </div>
-        <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
-        <div style={{marginBottom:14}}>
-          <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
-          <div style={{position:"relative"}}>
-            <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
-            <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
-          </div>
-        </div>
-        <Field label="Cell phone" placeholder="e.g. (555) 123-4567" value={cellPhone} onChange={e=>setCellPhone(e.target.value)} type="tel"/>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0 14px"}}>
-          <div>
-            <div style={{fontSize:13,color:T.ink2,fontWeight:500}}>Text me updates from YarnHive</div>
-            <div style={{fontSize:11,color:T.ink3,marginTop:2}}>Pattern drops, community updates, and more.</div>
-          </div>
-          <button onClick={()=>setSmsOptIn(!smsOptIn)} style={{width:44,height:26,borderRadius:13,background:smsOptIn?T.sage:T.border,border:"none",position:"relative",cursor:"pointer",transition:"background .2s ease",flexShrink:0}}>
-            <div style={{width:22,height:22,borderRadius:11,background:"#fff",position:"absolute",top:2,left:smsOptIn?20:2,boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"left .2s ease"}}/>
-          </button>
-        </div>
-        {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
-        <button onClick={handleSave} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Setting up…":"Set up my profile"}</button>
-        <div style={{textAlign:"center",marginTop:12}}><button onClick={handleSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Skip for now</button></div>
-      </div>
-    </div>
-  );
-};
-
-const ProfileCompletionPage = ({onComplete,onSkip}) => {
-  const user = supabaseAuth.getUser();
-  const session = getSession();
-  const{isDesktop}=useBreakpoint();
-  const [firstName,setFirstName]=useState(""),[lastName,setLastName]=useState("");
-  const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(""),[bio,setBio]=useState("");
-  const [cellPhone,setCellPhone]=useState("");
-  const [street,setStreet]=useState(""),[city,setCity]=useState(""),[state,setState]=useState(""),[zip,setZip]=useState("");
-  const [instagram,setInstagram]=useState(""),[pinterest,setPinterest]=useState(""),[ravelry,setRavelry]=useState("");
-  const [saving,setSaving]=useState(false),[error,setError]=useState(null),[loaded,setLoaded]=useState(false);
-
-  // Pre-populate from DB (picks up anything saved in Step 2)
-  useEffect(()=>{
-    if (!user || loaded) return;
-    (async ()=>{
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}&select=first_name,last_name,display_name,username,bio,cell_phone,address_street,address_city,address_state,address_zip,social_instagram,social_pinterest,social_ravelry`, {
-          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`},
-        });
-        if (res.ok) {
-          const rows = await res.json();
-          if (rows[0]) {
-            const r=rows[0];
-            setFirstName(r.first_name||""); setLastName(r.last_name||"");
-            setDisplayName(r.display_name||""); setUsername(r.username||""); setBio(r.bio||"");
-            setCellPhone(r.cell_phone||"");
-            setStreet(r.address_street||""); setCity(r.address_city||""); setState(r.address_state||""); setZip(r.address_zip||"");
-            setInstagram(r.social_instagram||""); setPinterest(r.social_pinterest||""); setRavelry(r.social_ravelry||"");
-          }
-        }
-      } catch {}
-      setLoaded(true);
-    })();
-  },[user?.id]);
-
-  const trackable = [firstName,lastName,displayName,username,cellPhone,street,city,state,zip];
-  const filled = trackable.filter(f=>f.trim()).length;
-  const progress = Math.round((filled/trackable.length)*100);
-
-  const handleSave = async () => {
+  // Step 3 save — saves everything to DB then closes modal
+  const handleStep3Save = async () => {
     const handle = username.trim().replace(/^@/,"");
     if (handle && !/^[a-zA-Z0-9_]{2,30}$/.test(handle)) { setError("Username: 2-30 chars, letters/numbers/underscores only."); return; }
     setSaving(true); setError(null);
@@ -2458,41 +2384,33 @@ const ProfileCompletionPage = ({onComplete,onSkip}) => {
         }
       } catch { setError("Network error."); setSaving(false); return; }
     }
-    localStorage.setItem("yh_profile_complete_shown","1");
     setSaving(false);
     onComplete();
   };
 
-  const SECTION = {background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"24px 28px":"20px 18px",marginBottom:16};
-  const SECTION_TITLE = {fontFamily:T.serif,fontSize:17,fontWeight:700,color:T.ink,marginBottom:14};
+  const handleSkip = () => { localStorage.setItem("yh_onboarding_complete","1"); onSkip(); };
+  const handleStep3Skip = () => { onSkip(); };
+
+  const trackable = [firstName,lastName,displayName,username,cellPhone,street,city,state,zip];
+  const filled = trackable.filter(f=>f.trim()).length;
+  const progress = Math.round((filled/trackable.length)*100);
+
+  const SECTION = {background:"rgba(253,250,247,0.6)",borderRadius:14,border:`1px solid ${T.border}`,padding:"16px 18px",marginBottom:14};
+  const SECTION_TITLE = {fontFamily:T.serif,fontSize:15,fontWeight:700,color:T.ink,marginBottom:12};
 
   return (
-    <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.sans,display:"flex",flexDirection:"column"}}>
-      <div style={{padding:isDesktop?"20px 40px":"16px 18px"}}>
-        <button onClick={onSkip} style={{background:"none",border:"none",color:T.ink3,cursor:"pointer",fontSize:13,fontWeight:500,padding:0,display:"flex",alignItems:"center",gap:4}}>← Go to Your Hive</button>
-      </div>
-      <div style={{flex:1,display:"flex",justifyContent:"center",padding:isDesktop?"0 40px 60px":"0 18px 60px"}}>
-        <div style={{width:"100%",maxWidth:560}}>
-          <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 3 of 3</div>
-            <div style={{fontSize:48,marginBottom:12}}>🐝</div>
-            <div style={{fontFamily:T.serif,fontSize:isDesktop?30:24,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Complete your profile</div>
-            <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>All fields are optional — fill in what you'd like.</p>
-          </div>
-          {/* Progress bar */}
-          <div style={{marginBottom:24}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <span style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em"}}>Profile completion</span>
-              <span style={{fontSize:12,fontWeight:600,color:progress===100?T.sage:T.terra}}>{progress}%</span>
+    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans}}>
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:step===3?540:480,maxHeight:"80vh",display:"flex",flexDirection:"column",background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)"}}>
+        <div style={{overflowY:"auto",padding:isDesktop?"44px 48px 40px":"28px 24px 32px"}}>
+          {step===2 ? <>
+            <div style={{textAlign:"center",marginBottom:28}}>
+              <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 2 of 3</div>
+              <div style={{fontSize:48,marginBottom:12}}>🐝</div>
+              <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
+              <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>Let the hive know who you are.</p>
             </div>
-            <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${progress}%`,background:progress===100?T.sage:`linear-gradient(90deg,${T.terra},#C97A5E)`,borderRadius:99,transition:"width .4s ease"}}/>
-            </div>
-          </div>
-          {/* Personal Info */}
-          <div style={SECTION}>
-            <div style={SECTION_TITLE}>Personal Info</div>
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:isDesktop?"0 16px":0}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
               <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
               <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
             </div>
@@ -2504,39 +2422,85 @@ const ProfileCompletionPage = ({onComplete,onSkip}) => {
                 <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
               </div>
             </div>
-            <Field label="Bio" placeholder="Tell us about your craft..." value={bio} onChange={e=>setBio(e.target.value)} rows={3}/>
-          </div>
-          {/* Contact */}
-          <div style={SECTION}>
-            <div style={SECTION_TITLE}>Contact</div>
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Email</div>
-              <div style={{padding:"13px 16px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink3,fontSize:15}}>{user?.email||"—"}</div>
-            </div>
             <Field label="Cell phone" placeholder="e.g. (555) 123-4567" value={cellPhone} onChange={e=>setCellPhone(e.target.value)} type="tel"/>
-            <div style={{height:1,background:T.border,margin:"4px 0 14px"}}/>
-            <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:10,fontWeight:600}}>Address</div>
-            <Field label="Street" placeholder="e.g. 123 Main St" value={street} onChange={e=>setStreet(e.target.value)}/>
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"2fr 1fr 1fr":"1fr",gap:isDesktop?"0 12px":0}}>
-              <Field label="City" placeholder="e.g. Portland" value={city} onChange={e=>setCity(e.target.value)}/>
-              <Field label="State" placeholder="e.g. OR" value={state} onChange={e=>setState(e.target.value)}/>
-              <Field label="Zip" placeholder="e.g. 97201" value={zip} onChange={e=>setZip(e.target.value)}/>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0 14px"}}>
+              <div>
+                <div style={{fontSize:13,color:T.ink2,fontWeight:500}}>Text me updates from YarnHive</div>
+                <div style={{fontSize:11,color:T.ink3,marginTop:2}}>Pattern drops, community updates, and more.</div>
+              </div>
+              <button onClick={()=>setSmsOptIn(!smsOptIn)} style={{width:44,height:26,borderRadius:13,background:smsOptIn?T.sage:T.border,border:"none",position:"relative",cursor:"pointer",transition:"background .2s ease",flexShrink:0}}>
+                <div style={{width:22,height:22,borderRadius:11,background:"#fff",position:"absolute",top:2,left:smsOptIn?20:2,boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"left .2s ease"}}/>
+              </button>
             </div>
-          </div>
-          {/* Social Connections */}
-          <div style={{...SECTION,opacity:.7}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-              <div style={SECTION_TITLE}>Social Connections</div>
-              <div style={{fontSize:16,marginTop:-14}}>🔒</div>
+            {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
+            <button onClick={handleStep2Save} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Setting up…":"Set up my profile"}</button>
+            <div style={{textAlign:"center",marginTop:12}}><button onClick={handleSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Skip for now</button></div>
+          </> : <>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 3 of 3</div>
+              <div style={{fontSize:48,marginBottom:12}}>🐝</div>
+              <div style={{fontFamily:T.serif,fontSize:isDesktop?28:22,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Complete your profile</div>
+              <p style={{fontSize:13,color:T.ink3,marginTop:8,lineHeight:1.6}}>All fields are optional — fill in what you'd like.</p>
             </div>
-            <div style={{background:T.linen,borderRadius:10,padding:"10px 14px",fontSize:12,color:T.ink3,lineHeight:1.5,marginBottom:14}}>Coming soon — connect your accounts</div>
-            <Field label="Instagram handle" placeholder="@yourhandle" value={instagram} onChange={e=>setInstagram(e.target.value)}/>
-            <Field label="Pinterest handle" placeholder="@yourhandle" value={pinterest} onChange={e=>setPinterest(e.target.value)}/>
-            <Field label="Ravelry username" placeholder="yourhandle" value={ravelry} onChange={e=>setRavelry(e.target.value)}/>
-          </div>
-          {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:12}}>{error}</div>}
-          <button onClick={handleSave} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Saving…":"Save and go to my Hive"}</button>
-          <div style={{textAlign:"center",marginTop:12}}><button onClick={onSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Go to my Hive</button></div>
+            {/* Progress bar */}
+            <div style={{marginBottom:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                <span style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em"}}>Profile completion</span>
+                <span style={{fontSize:11,fontWeight:600,color:progress===100?T.sage:T.terra}}>{progress}%</span>
+              </div>
+              <div style={{height:6,background:T.linen,borderRadius:99,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${progress}%`,background:progress===100?T.sage:`linear-gradient(90deg,${T.terra},#C97A5E)`,borderRadius:99,transition:"width .4s ease"}}/>
+              </div>
+            </div>
+            {/* Personal Info */}
+            <div style={SECTION}>
+              <div style={SECTION_TITLE}>Personal Info</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+                <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
+                <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
+              </div>
+              <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
+                <div style={{position:"relative"}}>
+                  <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
+                  <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+                </div>
+              </div>
+              <Field label="Bio" placeholder="Tell us about your craft..." value={bio} onChange={e=>setBio(e.target.value)} rows={3}/>
+            </div>
+            {/* Contact */}
+            <div style={SECTION}>
+              <div style={SECTION_TITLE}>Contact</div>
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Email</div>
+                <div style={{padding:"13px 16px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink3,fontSize:14}}>{user?.email||"—"}</div>
+              </div>
+              <Field label="Cell phone" placeholder="e.g. (555) 123-4567" value={cellPhone} onChange={e=>setCellPhone(e.target.value)} type="tel"/>
+              <div style={{height:1,background:T.border,margin:"4px 0 14px"}}/>
+              <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:10,fontWeight:600}}>Address</div>
+              <Field label="Street" placeholder="e.g. 123 Main St" value={street} onChange={e=>setStreet(e.target.value)}/>
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:"0 10px"}}>
+                <Field label="City" placeholder="e.g. Portland" value={city} onChange={e=>setCity(e.target.value)}/>
+                <Field label="State" placeholder="e.g. OR" value={state} onChange={e=>setState(e.target.value)}/>
+                <Field label="Zip" placeholder="e.g. 97201" value={zip} onChange={e=>setZip(e.target.value)}/>
+              </div>
+            </div>
+            {/* Social Connections */}
+            <div style={{...SECTION,opacity:.7}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={SECTION_TITLE}>Social Connections</div>
+                <div style={{fontSize:14,marginTop:-12}}>🔒</div>
+              </div>
+              <div style={{background:T.linen,borderRadius:10,padding:"8px 12px",fontSize:11,color:T.ink3,lineHeight:1.5,marginBottom:12}}>Coming soon — connect your accounts</div>
+              <Field label="Instagram handle" placeholder="@yourhandle" value={instagram} onChange={e=>setInstagram(e.target.value)}/>
+              <Field label="Pinterest handle" placeholder="@yourhandle" value={pinterest} onChange={e=>setPinterest(e.target.value)}/>
+              <Field label="Ravelry username" placeholder="yourhandle" value={ravelry} onChange={e=>setRavelry(e.target.value)}/>
+            </div>
+            {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
+            <button onClick={handleStep3Save} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Saving…":"Complete my profile"}</button>
+            <div style={{textAlign:"center",marginTop:12}}><button onClick={handleStep3Skip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Skip for now</button></div>
+          </>}
         </div>
       </div>
     </div>
@@ -2684,7 +2648,6 @@ export default function YarnHive() {
   // Show nothing until session is validated against Supabase
   if(!authChecked) return <><CSS/><div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div className="spinner" style={{width:28,height:28,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%"}}/></div></>;
   if(!authed) return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
-  if(view==="profileComplete") return <><CSS/><ProfileCompletionPage onComplete={()=>setView("profile")} onSkip={()=>{localStorage.setItem("yh_profile_complete_shown","1");setView("collection");}}/></>;
   if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setUserPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setStarterPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
 
   const openDetail=p=>{setSelected(p);setView("detail");};
@@ -2696,7 +2659,7 @@ export default function YarnHive() {
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("profileComplete");}} onSkip={()=>{setShowOnboarding(false);setView("profileComplete");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
@@ -2728,7 +2691,7 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("profileComplete");}} onSkip={()=>{setShowOnboarding(false);setView("profileComplete");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
