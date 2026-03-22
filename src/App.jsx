@@ -2387,10 +2387,10 @@ export default function YarnHive() {
 
   const handleNewSignup = () => {
     setAuthed(true);
+    setView("collection");
+    setShowOnboarding(true);
     setShowWelcomeBanner(true);
     setTimeout(()=>{ setShowWelcomeBanner(false); setShowEmailBanner(true); },4000);
-    setView("collection");
-    if (!localStorage.getItem("yh_onboarding_complete")) { setShowOnboarding(true); }
   };
 
   const handleSignIn = () => {
