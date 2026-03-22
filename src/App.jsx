@@ -1169,16 +1169,52 @@ const ProInfoModal = ({onClose}) => {
   );
 };
 
-const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome}) => {
+const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) => {
   const [username,setUsername]=useState(""),[displayName,setDisplayName]=useState(""),[bio,setBio]=useState("");
   const [profileSaving,setProfileSaving]=useState(false),[profileMsg,setProfileMsg]=useState(null),[profileLoaded,setProfileLoaded]=useState(false);
   const [saveBtnText,setSaveBtnText]=useState("Save Profile");
   const [curPass,setCurPass]=useState(""),[newPass,setNewPass]=useState(""),[passSaving,setPassSaving]=useState(false),[passMsg,setPassMsg]=useState(null);
   const [resending,setResending]=useState(false),[resendMsg,setResendMsg]=useState(null);
+  const [emailConfirmed,setEmailConfirmed]=useState(false);
   const{isDesktop}=useBreakpoint();
   const user = supabaseAuth.getUser();
   const session = getSession();
-  const emailConfirmed = session ? (() => { try { const p=JSON.parse(atob(session.access_token.split(".")[1])); return !!p.email_confirmed_at; } catch { return false; } })() : false;
+
+  // Initial check + poll every 10s for email confirmation
+  useEffect(()=>{
+    const checkConfirmed = async () => {
+      const s = getSession();
+      if (!s?.access_token) return;
+      try {
+        // Refresh the session to get updated JWT claims
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method:"POST",
+          headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+          body:JSON.stringify({refresh_token:s.refresh_token}),
+        });
+        if (res.ok) {
+          const newSession = await res.json();
+          saveSession(newSession);
+          try {
+            const p=JSON.parse(atob(newSession.access_token.split(".")[1]));
+            if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; }
+          } catch {}
+        } else {
+          // Fallback: check current JWT
+          try { const p=JSON.parse(atob(s.access_token.split(".")[1])); if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; } } catch {}
+        }
+      } catch {
+        try { const p=JSON.parse(atob(s.access_token.split(".")[1])); if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; } } catch {}
+      }
+      return false;
+    };
+    checkConfirmed();
+    const interval = setInterval(async ()=>{
+      const confirmed = await checkConfirmed();
+      if (confirmed) clearInterval(interval);
+    }, 10000);
+    return ()=>clearInterval(interval);
+  },[]);
 
   const profilePct = Math.round((displayName.trim()?33:0)+(username.trim()?33:0)+(bio.trim()?34:0));
 
@@ -2290,7 +2326,9 @@ const WelcomeBanner = ({visible}) => (
 const OnboardingScreen = ({onComplete,onSkip}) => {
   const user = supabaseAuth.getUser();
   const emailPrefix = (user?.email||"").split("@")[0].replace(/[^a-zA-Z0-9_]/g,"").slice(0,20);
+  const [firstName,setFirstName]=useState(""),[lastName,setLastName]=useState("");
   const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(emailPrefix);
+  const [cellPhone,setCellPhone]=useState(""),[smsOptIn,setSmsOptIn]=useState(false);
   const [saving,setSaving]=useState(false),[error,setError]=useState(null);
   const{isDesktop}=useBreakpoint();
 
@@ -2306,7 +2344,7 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
         await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}`, {
           method:"PATCH",
           headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-          body:JSON.stringify({username:handle,display_name:displayName.trim()}),
+          body:JSON.stringify({username:handle,display_name:displayName.trim(),first_name:firstName.trim()||null,last_name:lastName.trim()||null,cell_phone:cellPhone.trim()||null,sms_opt_in:smsOptIn}),
         });
       } catch {}
     }
@@ -2318,13 +2356,17 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
   const handleSkip = () => { localStorage.setItem("yh_onboarding_complete","1"); onSkip(); };
 
   return (
-    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans}}>
-      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
-      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:480,background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)",padding:isDesktop?"44px 48px 40px":"28px 24px 32px"}}>
+    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans,overflowY:"auto"}}>
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:480,background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)",padding:isDesktop?"44px 48px 40px":"28px 24px 32px",margin:"auto 0"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:48,marginBottom:12}}>🐝</div>
           <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
           <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>Let the hive know who you are.</p>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+          <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
+          <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
         </div>
         <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
         <div style={{marginBottom:14}}>
@@ -2334,9 +2376,157 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
             <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
           </div>
         </div>
+        <Field label="Cell phone" placeholder="e.g. (555) 123-4567" value={cellPhone} onChange={e=>setCellPhone(e.target.value)} type="tel"/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0 14px"}}>
+          <div style={{fontSize:13,color:T.ink2,fontWeight:500}}>Text me updates about my patterns</div>
+          <button onClick={()=>setSmsOptIn(!smsOptIn)} style={{width:44,height:26,borderRadius:13,background:smsOptIn?T.sage:T.border,border:"none",position:"relative",cursor:"pointer",transition:"background .2s ease",flexShrink:0}}>
+            <div style={{width:22,height:22,borderRadius:11,background:"#fff",position:"absolute",top:2,left:smsOptIn?20:2,boxShadow:"0 1px 3px rgba(0,0,0,.15)",transition:"left .2s ease"}}/>
+          </button>
+        </div>
         {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
         <button onClick={handleSave} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Setting up…":"Set up my profile"}</button>
         <div style={{textAlign:"center",marginTop:12}}><button onClick={handleSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Skip for now</button></div>
+      </div>
+    </div>
+  );
+};
+
+const ProfileCompletionPage = ({onComplete,onSkip}) => {
+  const user = supabaseAuth.getUser();
+  const session = getSession();
+  const{isDesktop}=useBreakpoint();
+  const [firstName,setFirstName]=useState(""),[lastName,setLastName]=useState("");
+  const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(""),[bio,setBio]=useState("");
+  const [cellPhone,setCellPhone]=useState("");
+  const [street,setStreet]=useState(""),[city,setCity]=useState(""),[state,setState]=useState(""),[zip,setZip]=useState("");
+  const [instagram,setInstagram]=useState(""),[pinterest,setPinterest]=useState(""),[ravelry,setRavelry]=useState("");
+  const [saving,setSaving]=useState(false),[error,setError]=useState(null),[loaded,setLoaded]=useState(false);
+
+  // Pre-populate from DB (picks up anything saved in Step 2)
+  useEffect(()=>{
+    if (!user || loaded) return;
+    (async ()=>{
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}&select=first_name,last_name,display_name,username,bio,cell_phone,address_street,address_city,address_state,address_zip,social_instagram,social_pinterest,social_ravelry`, {
+          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`},
+        });
+        if (res.ok) {
+          const rows = await res.json();
+          if (rows[0]) {
+            const r=rows[0];
+            setFirstName(r.first_name||""); setLastName(r.last_name||"");
+            setDisplayName(r.display_name||""); setUsername(r.username||""); setBio(r.bio||"");
+            setCellPhone(r.cell_phone||"");
+            setStreet(r.address_street||""); setCity(r.address_city||""); setState(r.address_state||""); setZip(r.address_zip||"");
+            setInstagram(r.social_instagram||""); setPinterest(r.social_pinterest||""); setRavelry(r.social_ravelry||"");
+          }
+        }
+      } catch {}
+      setLoaded(true);
+    })();
+  },[user?.id]);
+
+  const trackable = [firstName,lastName,displayName,username,cellPhone,street,city,state,zip];
+  const filled = trackable.filter(f=>f.trim()).length;
+  const progress = Math.round((filled/trackable.length)*100);
+
+  const handleSave = async () => {
+    const handle = username.trim().replace(/^@/,"");
+    if (handle && !/^[a-zA-Z0-9_]{2,30}$/.test(handle)) { setError("Username: 2-30 chars, letters/numbers/underscores only."); return; }
+    setSaving(true); setError(null);
+    if (user && session) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}`, {
+          method:"PATCH",
+          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+          body:JSON.stringify({first_name:firstName.trim()||null,last_name:lastName.trim()||null,display_name:displayName.trim()||null,username:handle||null,bio:bio.trim()||null,cell_phone:cellPhone.trim()||null,address_street:street.trim()||null,address_city:city.trim()||null,address_state:state.trim()||null,address_zip:zip.trim()||null,social_instagram:instagram.trim()||null,social_pinterest:pinterest.trim()||null,social_ravelry:ravelry.trim()||null}),
+        });
+        if (!res.ok) {
+          const d=await res.json().catch(()=>({}));
+          if (d.message?.includes("unique")||d.code==="23505") { setError("Username already taken."); setSaving(false); return; }
+          setError(d.message||"Save failed."); setSaving(false); return;
+        }
+      } catch { setError("Network error."); setSaving(false); return; }
+    }
+    localStorage.setItem("yh_profile_complete_shown","1");
+    setSaving(false);
+    onComplete();
+  };
+
+  const SECTION = {background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"24px 28px":"20px 18px",marginBottom:16};
+  const SECTION_TITLE = {fontFamily:T.serif,fontSize:17,fontWeight:700,color:T.ink,marginBottom:14};
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.sans,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:isDesktop?"20px 40px":"16px 18px"}}>
+        <button onClick={onSkip} style={{background:"none",border:"none",color:T.ink3,cursor:"pointer",fontSize:13,fontWeight:500,padding:0,display:"flex",alignItems:"center",gap:4}}>← Go to Your Hive</button>
+      </div>
+      <div style={{flex:1,display:"flex",justifyContent:"center",padding:isDesktop?"0 40px 60px":"0 18px 60px"}}>
+        <div style={{width:"100%",maxWidth:560}}>
+          <div style={{textAlign:"center",marginBottom:28}}>
+            <div style={{fontSize:48,marginBottom:12}}>🐝</div>
+            <div style={{fontFamily:T.serif,fontSize:isDesktop?30:24,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Complete your profile</div>
+            <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>All fields are optional — fill in what you'd like.</p>
+          </div>
+          {/* Progress bar */}
+          <div style={{marginBottom:24}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em"}}>Profile completion</span>
+              <span style={{fontSize:12,fontWeight:600,color:progress===100?T.sage:T.terra}}>{progress}%</span>
+            </div>
+            <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${progress}%`,background:progress===100?T.sage:`linear-gradient(90deg,${T.terra},#C97A5E)`,borderRadius:99,transition:"width .4s ease"}}/>
+            </div>
+          </div>
+          {/* Personal Info */}
+          <div style={SECTION}>
+            <div style={SECTION_TITLE}>Personal Info</div>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:isDesktop?"0 16px":0}}>
+              <Field label="First name" placeholder="e.g. Sarah" value={firstName} onChange={e=>setFirstName(e.target.value)}/>
+              <Field label="Last name" placeholder="e.g. Miller" value={lastName} onChange={e=>setLastName(e.target.value)}/>
+            </div>
+            <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
+              <div style={{position:"relative"}}>
+                <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
+                <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+              </div>
+            </div>
+            <Field label="Bio" placeholder="Tell us about your craft..." value={bio} onChange={e=>setBio(e.target.value)} rows={3}/>
+          </div>
+          {/* Contact */}
+          <div style={SECTION}>
+            <div style={SECTION_TITLE}>Contact</div>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Email</div>
+              <div style={{padding:"13px 16px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink3,fontSize:15}}>{user?.email||"—"}</div>
+            </div>
+            <Field label="Cell phone" placeholder="e.g. (555) 123-4567" value={cellPhone} onChange={e=>setCellPhone(e.target.value)} type="tel"/>
+            <div style={{height:1,background:T.border,margin:"4px 0 14px"}}/>
+            <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:10,fontWeight:600}}>Address</div>
+            <Field label="Street" placeholder="e.g. 123 Main St" value={street} onChange={e=>setStreet(e.target.value)}/>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"2fr 1fr 1fr":"1fr",gap:isDesktop?"0 12px":0}}>
+              <Field label="City" placeholder="e.g. Portland" value={city} onChange={e=>setCity(e.target.value)}/>
+              <Field label="State" placeholder="e.g. OR" value={state} onChange={e=>setState(e.target.value)}/>
+              <Field label="Zip" placeholder="e.g. 97201" value={zip} onChange={e=>setZip(e.target.value)}/>
+            </div>
+          </div>
+          {/* Social Connections */}
+          <div style={{...SECTION,opacity:.7}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+              <div style={SECTION_TITLE}>Social Connections</div>
+              <div style={{fontSize:16,marginTop:-14}}>🔒</div>
+            </div>
+            <div style={{background:T.linen,borderRadius:10,padding:"10px 14px",fontSize:12,color:T.ink3,lineHeight:1.5,marginBottom:14}}>Coming soon — connect your accounts</div>
+            <Field label="Instagram handle" placeholder="@yourhandle" value={instagram} onChange={e=>setInstagram(e.target.value)}/>
+            <Field label="Pinterest handle" placeholder="@yourhandle" value={pinterest} onChange={e=>setPinterest(e.target.value)}/>
+            <Field label="Ravelry username" placeholder="yourhandle" value={ravelry} onChange={e=>setRavelry(e.target.value)}/>
+          </div>
+          {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:12}}>{error}</div>}
+          <button onClick={handleSave} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Saving…":"Save and go to my Hive"}</button>
+          <div style={{textAlign:"center",marginTop:12}}><button onClick={onSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Go to my Hive</button></div>
+        </div>
       </div>
     </div>
   );
@@ -2389,6 +2579,28 @@ export default function YarnHive() {
     try { const p=JSON.parse(atob(s.access_token.split(".")[1])); return !!p.email_confirmed_at; } catch { return false; }
   };
 
+  // Poll for email confirmation when banner is visible — auto-dismiss when confirmed
+  useEffect(()=>{
+    if (!showEmailBanner || !authed) return;
+    const poll = setInterval(async ()=>{
+      const s = getSession();
+      if (!s?.refresh_token) return;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method:"POST",
+          headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+          body:JSON.stringify({refresh_token:s.refresh_token}),
+        });
+        if (res.ok) {
+          const ns = await res.json();
+          saveSession(ns);
+          try { const p=JSON.parse(atob(ns.access_token.split(".")[1])); if (p.email_confirmed_at) { setShowEmailBanner(false); clearInterval(poll); } } catch {}
+        }
+      } catch {}
+    }, 10000);
+    return ()=>clearInterval(poll);
+  },[showEmailBanner,authed]);
+
   const handleNewSignup = () => {
     setAuthed(true);
     setView("collection");
@@ -2409,6 +2621,7 @@ export default function YarnHive() {
   };
 
   if(!authed) return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
+  if(view==="profileComplete") return <><CSS/><ProfileCompletionPage onComplete={()=>setView("collection")} onSkip={()=>{localStorage.setItem("yh_profile_complete_shown","1");setView("collection");}}/></>;
   if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setUserPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setStarterPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
 
   const openDetail=p=>{setSelected(p);setView("detail");};
@@ -2420,7 +2633,7 @@ export default function YarnHive() {
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("profileComplete");}} onSkip={()=>{setShowOnboarding(false);setView("profileComplete");}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
@@ -2443,7 +2656,7 @@ export default function YarnHive() {
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList patterns={allPatterns}/></div>}
-          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
+          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
         </div>
       </div>
     </div>
@@ -2452,7 +2665,7 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("profileComplete");}} onSkip={()=>{setShowOnboarding(false);setView("profileComplete");}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
@@ -2472,7 +2685,7 @@ export default function YarnHive() {
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList patterns={allPatterns}/></div>}
-        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
+        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
         <button onClick={openAddModal} style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:99,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(184,90,60,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
