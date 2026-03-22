@@ -76,11 +76,12 @@ const TIER_CONFIG = {
   pro:  { patternCap: Infinity, priceMonthly: 9.99, priceAnnual: 74.99, priceLabel: "$9.99/mo", priceAnnualLabel: "$74.99/yr" },
 };
 
-const useTier = (isPro, patternCount) => {
-  const atCap  = !isPro && patternCount >= TIER_CONFIG.free.patternCap;
-  const canAdd = isPro  || patternCount  < TIER_CONFIG.free.patternCap;
+const useTier = (isPro, patternCount, starterCount=0) => {
+  const userCount = patternCount - starterCount;
+  const atCap  = !isPro && userCount >= TIER_CONFIG.free.patternCap;
+  const canAdd = isPro  || userCount  < TIER_CONFIG.free.patternCap;
   const hasFeature = () => canAdd;
-  return { isPro, atCap, canAdd, hasFeature };
+  return { isPro, atCap, canAdd, hasFeature, userCount };
 };
 
 const T = {
@@ -964,7 +965,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount}) => {
   );
 };
 
-const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut}) => {
+const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade}) => {
   const ITEMS=[{key:"collection",label:"Your Hive",sub:count+" saved",icon:"🧶"},{key:"wip",label:"In Progress",sub:"Currently making",icon:"🪡"},{key:"browse",label:"Browse Sites",sub:"Find free patterns",icon:"🌐"},{key:"stash",label:"Yarn Stash",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"Calculators",sub:"Gauge, yardage & more",icon:"🧮"},{key:"shopping",label:"Shopping List",sub:"Auto-generated",icon:"🛒"}];
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
@@ -994,14 +995,14 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut}) => {
       </div>
       <div style={{padding:"0 16px 24px"}}>
         {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
-        :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision, cloud sync.</div><div style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
+        :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision, cloud sync.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
         {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"none",border:"1px solid "+T.border,borderRadius:10,padding:"8px",fontSize:12,color:T.ink3,cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
       </div>
     </div>
   );
 };
 
-const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut}) => {
+const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut,onUpgrade}) => {
   const [closing,setClosing]=useState(false);
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
   const go=v=>{setView(v);dismiss();};
@@ -1036,7 +1037,7 @@ const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut}) => {
         </div>
         <div style={{padding:"0 18px 36px"}}>
           {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
-          :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px 16px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision.</div><div style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
+          :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px 16px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
           {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"none",border:"1px solid "+T.border,borderRadius:10,padding:"8px",fontSize:12,color:T.ink3,cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
         </div>
       </div>
@@ -1093,14 +1094,16 @@ const BeeAnimator = ({visible, isDesktop}) => {
   );
 };
 
-const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,authError,handleAuth,loading,onBack}) => (
+const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,authError,handleAuth,loading,onBack}) => {
+  const onKey = e => { if(e.key==="Enter"&&!loading) handleAuth(); };
+  return (
   <div style={cardStyle}>
     <button onClick={onBack} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:24,display:"flex",alignItems:"center",gap:6}}>← Back</button>
     <div style={{textAlign:"center",marginBottom:8}}>
       <div style={{fontFamily:T.serif,fontSize:26,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
       <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</p>
     </div>
-    <div style={{marginTop:20}}>
+    <div style={{marginTop:20}} onKeyDown={onKey}>
       <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
       <Field label="Password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} type="password"/>
       {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
@@ -1108,7 +1111,8 @@ const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,authError,hand
       <button onClick={handleAuth} disabled={loading} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8,opacity:loading?.6:1}}>{loading?"Please wait…":isSignup?"Create my YarnHive":"Sign in"}</button>
     </div>
   </div>
-);
+  );
+};
 
 const EmailConfirmBanner = ({onDismiss}) => (
   <div style={{background:T.terra,padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
@@ -1831,10 +1835,11 @@ const PatternCard = ({p,onClick,delay=0}) => {
       <div style={{position:"relative",height:160,overflow:"hidden",background:T.linen}}>
         <Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/>
-        {done===100&&<div style={{position:"absolute",top:10,right:10,background:T.sage,color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99,letterSpacing:".07em"}}>DONE</div>}
-        {done>0&&done<100&&<div style={{position:"absolute",top:10,right:10,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)",color:"#fff",fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:99}}>{done}%</div>}
-        {done>0&&done<100&&<div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={done} color="rgba(255,255,255,.8)" h={3} bg="transparent"/></div>}
-        {p.snapConfidence&&<div style={{position:"absolute",top:10,left:10,background:"rgba(184,90,60,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99}}>🐝 {p.snapConfidence}%</div>}
+        {p.isStarter?<div style={{position:"absolute",top:10,left:10,background:"rgba(184,90,60,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99}}>🎁 Starter</div>
+        :done===100?<div style={{position:"absolute",top:10,right:10,background:T.sage,color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99,letterSpacing:".07em"}}>DONE</div>
+        :done>0&&done<100?<><div style={{position:"absolute",top:10,right:10,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)",color:"#fff",fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:99}}>{done}%</div><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={done} color="rgba(255,255,255,.8)" h={3} bg="transparent"/></div></>
+        :null}
+        {!p.isStarter&&p.snapConfidence&&<div style={{position:"absolute",top:10,left:10,background:"rgba(184,90,60,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99}}>🐝 {p.snapConfidence}%</div>}
       </div>
       <div style={{padding:"12px 14px 16px"}}>
         <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>{p.cat}</div>
@@ -2224,18 +2229,68 @@ const CollectionView = ({patterns,cat,setCat,search,setSearch,openDetail,onAddPa
   );
 };
 
+const STARTER_PHOTO_MAP = {Blankets:PHOTOS.blanket,Amigurumi:PHOTOS.granny,Wearables:PHOTOS.cardigan,Accessories:PHOTOS.tote,Home:PHOTOS.pillow};
+
+const WelcomeToast = ({visible}) => (
+  <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:900,background:T.terra,color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(184,90,60,.4)",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,transition:"opacity .4s ease",pointerEvents:"none"}}>
+    <span style={{fontSize:18}}>🐝</span> Welcome back! Your hive is ready.
+  </div>
+);
+
+const WelcomeBanner = ({onDismiss}) => (
+  <div style={{background:T.terra,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+    <span style={{fontSize:13,color:"#fff",fontWeight:500,lineHeight:1.4}}>Welcome to YarnHive! 🐝 Your starter patterns are ready — start exploring.</span>
+    <button onClick={onDismiss} style={{background:"none",border:"none",cursor:"pointer",color:"#fff",fontSize:18,lineHeight:1,padding:"0 2px",flexShrink:0,opacity:.75}}>×</button>
+  </div>
+);
+
 export default function YarnHive() {
   const [authed,setAuthed]=useState(()=>!!supabaseAuth.getUser()),[isPro,setIsPro]=useState(false),[patterns,setPatterns]=useState(SEED_PATTERNS),[view,setView]=useState("collection"),[selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
   const [showEmailBanner,setShowEmailBanner]=useState(false);
+  const [showWelcomeBanner,setShowWelcomeBanner]=useState(false);
+  const [showWelcomeToast,setShowWelcomeToast]=useState(false);
   const [showProModal,setShowProModal]=useState(false);
   const{isTablet,isDesktop}=useBreakpoint();
-  const tier=useTier(isPro,patterns.length);
+  const starterCount = patterns.filter(p=>p.isStarter).length;
+  const tier=useTier(isPro,patterns.length,starterCount);
 
   const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); };
 
-  const handleNewSignup = () => { setAuthed(true); setShowEmailBanner(true); };
+  const fetchStarterPatterns = async () => {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/starter_patterns?is_active=eq.true&order=sort_order.asc`, {
+        headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${SUPABASE_ANON_KEY}`},
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        const starters = rows.map(r=>({
+          id:"starter_"+r.id, title:r.title||r.name||"Starter Pattern", source:"YarnHive Starter Collection",
+          cat:r.category||"Blankets", photo:STARTER_PHOTO_MAP[r.category]||PHOTOS.blanket,
+          hook:r.hook_size||"5.0mm", weight:r.yarn_weight||"Worsted", rating:5,
+          yardage:r.yardage||0, skeins:0, skeinYards:0,
+          notes:r.description||"", rows:[], materials:[], isStarter:true,
+        }));
+        if (starters.length) setPatterns(prev=>[...starters,...prev]);
+      }
+    } catch {}
+  };
 
-  if(!authed) return <><CSS/><Auth onEnter={()=>setAuthed(true)} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
+  const handleNewSignup = () => {
+    setAuthed(true);
+    setShowEmailBanner(true);
+    setShowWelcomeBanner(true);
+    setView("collection");
+    fetchStarterPatterns();
+  };
+
+  const handleSignIn = () => {
+    setAuthed(true);
+    setView("collection");
+    setShowWelcomeToast(true);
+    setTimeout(()=>setShowWelcomeToast(false),3000);
+  };
+
+  if(!authed) return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
   if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
 
   const openDetail=p=>{setSelected(p);setView("detail");};
@@ -2250,9 +2305,11 @@ export default function YarnHive() {
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
-      <SidebarNav view={view} setView={setView} count={patterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut}/>
+      <WelcomeToast visible={showWelcomeToast}/>
+      <SidebarNav view={view} setView={setView} count={patterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
         {showEmailBanner&&<EmailConfirmBanner onDismiss={()=>setShowEmailBanner(false)}/>}
+        {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
         <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 40px",height:64,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
           <div style={{fontFamily:T.serif,fontSize:24,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -2276,11 +2333,13 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
-      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={patterns.length} isPro={isPro} onSignOut={handleSignOut}/>
+      <WelcomeToast visible={showWelcomeToast}/>
+      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={patterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
       {showEmailBanner&&<EmailConfirmBanner onDismiss={()=>setShowEmailBanner(false)}/>}
+      {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 18px",height:56,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
         <button onClick={()=>setNavOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:"8px 8px 8px 0",display:"flex",flexDirection:"column",gap:5}}><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:15,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/></button>
         <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
