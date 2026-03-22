@@ -2313,9 +2313,9 @@ const OnboardingScreen = ({onComplete,onSkip}) => {
   const handleSkip = () => { localStorage.setItem("yh_onboarding_complete","1"); onSkip(); };
 
   return (
-    <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.sans,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <CSS/>
-      <div style={{width:"100%",maxWidth:480,background:"rgba(250,247,243,0.88)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)",padding:isDesktop?"44px 48px 40px":"28px 24px 32px"}}>
+    <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:T.sans}}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(8px)"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:480,background:"rgba(250,247,243,0.95)",backdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",WebkitBackdropFilter:"blur(36px) saturate(1.6) brightness(1.05)",borderRadius:28,boxShadow:"0 40px 100px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.45) inset, 0 2px 0 rgba(255,255,255,0.7) inset",border:"1px solid rgba(255,255,255,0.38)",padding:isDesktop?"44px 48px 40px":"28px 24px 32px"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:48,marginBottom:12}}>🐝</div>
           <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
@@ -2383,8 +2383,8 @@ export default function YarnHive() {
     setAuthed(true);
     setShowWelcomeBanner(true);
     setTimeout(()=>{ setShowWelcomeBanner(false); setShowEmailBanner(true); },4000);
+    setView("collection");
     if (!localStorage.getItem("yh_onboarding_complete")) { setShowOnboarding(true); }
-    else { setView("collection"); }
   };
 
   const handleSignIn = () => {
@@ -2395,7 +2395,6 @@ export default function YarnHive() {
   };
 
   if(!authed) return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
-  if(showOnboarding) return <OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>;
   if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setUserPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setStarterPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
 
   const openDetail=p=>{setSelected(p);setView("detail");};
@@ -2407,6 +2406,7 @@ export default function YarnHive() {
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
@@ -2438,6 +2438,7 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
