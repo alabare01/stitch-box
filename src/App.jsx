@@ -1183,32 +1183,35 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
   const user = supabaseAuth.getUser();
   const session = getSession();
 
-  // Initial check + poll every 10s for email confirmation
+  // Initial check + poll every 10s for email confirmation (GET only — no token refresh)
   useEffect(()=>{
     const checkConfirmed = async () => {
       const s = getSession();
-      if (!s?.access_token) return;
+      if (!s?.access_token) return false;
       try {
-        // Refresh the session to get updated JWT claims
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-          method:"POST",
-          headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-          body:JSON.stringify({refresh_token:s.refresh_token}),
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${s.access_token}`},
         });
         if (res.ok) {
-          const newSession = await res.json();
-          saveSession(newSession);
-          try {
-            const p=JSON.parse(atob(newSession.access_token.split(".")[1]));
-            if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; }
-          } catch {}
-        } else {
-          // Fallback: check current JWT
-          try { const p=JSON.parse(atob(s.access_token.split(".")[1])); if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; } } catch {}
+          const u = await res.json();
+          if (u.email_confirmed_at) {
+            // Confirmed — refresh token once to get updated JWT claims
+            if (s.refresh_token) {
+              try {
+                const tr = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                  method:"POST",
+                  headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+                  body:JSON.stringify({refresh_token:s.refresh_token}),
+                });
+                if (tr.ok) saveSession(await tr.json());
+              } catch {}
+            }
+            setEmailConfirmed(true);
+            if (onEmailConfirmed) onEmailConfirmed();
+            return true;
+          }
         }
-      } catch {
-        try { const p=JSON.parse(atob(s.access_token.split(".")[1])); if (p.email_confirmed_at) { setEmailConfirmed(true); if (onEmailConfirmed) onEmailConfirmed(); return true; } } catch {}
-      }
+      } catch {}
       return false;
     };
     checkConfirmed();
@@ -2557,12 +2560,19 @@ export default function YarnHive() {
 
   // Validate session against Supabase on mount
   useEffect(()=>{
+    const clearAuth = () => {
+      saveSession(null);
+      localStorage.removeItem("yh_profile_setup_shown");
+      localStorage.removeItem("yh_profile_complete_shown");
+      localStorage.removeItem("yh_onboarding_complete");
+      setAuthed(false);
+    };
     const validate = async () => {
       const s = getSession();
-      if (!s?.refresh_token) { saveSession(null); setAuthed(false); setAuthChecked(true); return; }
+      if (!s?.refresh_token) { clearAuth(); setAuthChecked(true); return; }
       // Check if JWT is still valid locally first
       const localUser = supabaseAuth.getUser();
-      if (!localUser) { saveSession(null); setAuthed(false); setAuthChecked(true); return; }
+      if (!localUser) { clearAuth(); setAuthChecked(true); return; }
       // Verify with Supabase by refreshing the token
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
@@ -2575,13 +2585,11 @@ export default function YarnHive() {
           saveSession(ns);
           setAuthed(true);
         } else {
-          // Session invalid server-side — clear it
-          saveSession(null);
-          setAuthed(false);
+          clearAuth();
         }
       } catch {
-        // Network error — fall back to local JWT check (already passed above)
-        setAuthed(true);
+        // Network error — do not bypass auth, show welcome screen
+        clearAuth();
       }
       setAuthChecked(true);
     };
@@ -2621,22 +2629,33 @@ export default function YarnHive() {
     try { const p=JSON.parse(atob(s.access_token.split(".")[1])); return !!p.email_confirmed_at; } catch { return false; }
   };
 
-  // Poll for email confirmation when banner is visible — auto-dismiss when confirmed
+  // Poll for email confirmation when banner is visible — auto-dismiss when confirmed (GET only)
   useEffect(()=>{
     if (!showEmailBanner || !authed) return;
     const poll = setInterval(async ()=>{
       const s = getSession();
-      if (!s?.refresh_token) return;
+      if (!s?.access_token) return;
       try {
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-          method:"POST",
-          headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-          body:JSON.stringify({refresh_token:s.refresh_token}),
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${s.access_token}`},
         });
         if (res.ok) {
-          const ns = await res.json();
-          saveSession(ns);
-          try { const p=JSON.parse(atob(ns.access_token.split(".")[1])); if (p.email_confirmed_at) { setShowEmailBanner(false); clearInterval(poll); } } catch {}
+          const u = await res.json();
+          if (u.email_confirmed_at) {
+            // Confirmed — refresh token once to update JWT
+            if (s.refresh_token) {
+              try {
+                const tr = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                  method:"POST",
+                  headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+                  body:JSON.stringify({refresh_token:s.refresh_token}),
+                });
+                if (tr.ok) saveSession(await tr.json());
+              } catch {}
+            }
+            setShowEmailBanner(false);
+            clearInterval(poll);
+          }
         }
       } catch {}
     }, 10000);
