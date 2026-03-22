@@ -76,8 +76,7 @@ const TIER_CONFIG = {
   pro:  { patternCap: Infinity, priceMonthly: 9.99, priceAnnual: 74.99, priceLabel: "$9.99/mo", priceAnnualLabel: "$74.99/yr" },
 };
 
-const useTier = (isPro, patternCount, starterCount=0) => {
-  const userCount = patternCount - starterCount;
+const useTier = (isPro, userCount) => {
   const atCap  = !isPro && userCount >= TIER_CONFIG.free.patternCap;
   const canAdd = isPro  || userCount  < TIER_CONFIG.free.patternCap;
   const hasFeature = () => canAdd;
@@ -198,18 +197,6 @@ const Field = ({label,value,onChange,type="text",placeholder,rows:r}) => (
   </div>
 );
 
-const SEED_PATTERNS = [
-  {id:1,photo:PHOTOS.blanket,title:"Autumn Ridge Throw",source:"ravelry.com",cat:"Blankets",hook:"6.0mm",weight:"Bulky",rating:5,yardage:1200,skeins:4,skeinYards:300,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},notes:"Caron Simply Soft in Autumn Maize, Burgundy, and Sage. Block lightly.",materials:[{id:1,name:"Bulky yarn — Autumn Maize",amount:"300g",yardage:300},{id:2,name:"Bulky yarn — Burgundy",amount:"300g",yardage:300},{id:3,name:"Bulky yarn — Sage",amount:"300g",yardage:300},{id:4,name:"6.0mm crochet hook",amount:"1"},{id:5,name:"Yarn needle",amount:"1"}],rows:[{id:1,text:"Foundation chain: Ch 120 loosely",done:true,note:""},{id:2,text:"Row 1: Sc in 2nd ch from hook and across (119 sts)",done:true,note:""},{id:3,text:"Rows 2–15: Ch 1 turn, sc across — Autumn Maize",done:true,note:""},{id:4,text:"Row 16: Join Burgundy, sc across",done:false,note:""},{id:5,text:"Rows 17–30: Sc across, Burgundy section",done:false,note:""},{id:6,text:"Row 31: Join Sage, sc across",done:false,note:""},{id:7,text:"Rows 32–45: Sc across, Sage section",done:false,note:""},{id:8,text:"Repeat 3-color block sequence twice more",done:false,note:""},{id:9,text:"Border Rnd 1: Sc evenly around, 3 sc in corners",done:false,note:""},{id:10,text:"Border Rnd 2: Reverse sc — fasten off",done:false,note:""}]},
-  {id:2,photo:PHOTOS.cardigan,title:"Coastal Shell Cardigan",source:"lovecrafts.com",cat:"Wearables",hook:"4.5mm",weight:"DK",rating:4,yardage:900,skeins:5,skeinYards:180,gauge:{stitches:18,rows:20,size:4},dimensions:{width:20,height:26},notes:"Size M. Add 2 rows per size up. Mark raglan seams carefully.",materials:[{id:1,name:"DK cotton yarn — driftwood",amount:"500g",yardage:500},{id:2,name:"4.5mm crochet hook",amount:"1"},{id:3,name:"Stitch markers",amount:"8"},{id:4,name:"Shell buttons 15mm",amount:"5"}],rows:[{id:1,text:"Back panel: Ch 82, shell stitch 40 rows",done:true,note:""},{id:2,text:"Front panels x2: Ch 42 each, match back",done:true,note:""},{id:3,text:"Sleeves x2: Inc 1 st each side every 6th row",done:false,note:""},{id:4,text:"Join shoulders with slip stitch seam",done:false,note:""},{id:5,text:"Set in sleeves, seam underarms",done:false,note:""},{id:6,text:"Neckline: 3 rounds sc, picot edge",done:false,note:""},{id:7,text:"Button band along front opening",done:false,note:""},{id:8,text:"Sew buttons, weave ends, block flat",done:false,note:""}]},
-  {id:3,photo:PHOTOS.granny,title:"Meadow Granny Squares",source:"sarahmaker.com",cat:"Blankets",hook:"4.0mm",weight:"Worsted",rating:5,yardage:1500,skeins:10,skeinYards:150,gauge:{stitches:16,rows:18,size:4},dimensions:{width:48,height:60},notes:"48 squares in 12 color combinations. Flat join creates beautiful ridge.",materials:[{id:1,name:"Worsted yarn — 10 assorted colors",amount:"50g each",yardage:150},{id:2,name:"4.0mm hook",amount:"1"},{id:3,name:"Yarn needle",amount:"1"}],rows:[{id:1,text:"Magic ring, [ch 3, 2 dc, ch 2] x4, sl st",done:true,note:""},{id:2,text:"Rnd 2: Corner clusters + ch-1 side spaces",done:true,note:""},{id:3,text:"Rnd 3: Larger corners, 2 side groups",done:true,note:""},{id:4,text:"Complete all 48 squares — 12 color combos",done:false,note:""},{id:5,text:"Lay out 6x8 grid, photograph arrangement",done:false,note:""},{id:6,text:"Join squares into rows — sc flat join",done:false,note:""},{id:7,text:"Join all rows together",done:false,note:""},{id:8,text:"Outer border: 3 rounds, picot finish",done:false,note:""}]},
-];
-
-const SEED_STASH = [
-  {id:1,brand:"Lion Brand",name:"Pound of Love",weight:"Worsted",color:"Antique White",colorCode:"#F5F0E8",yardage:1020,skeins:2,used:0},
-  {id:2,brand:"Caron",name:"Simply Soft",weight:"Worsted",color:"Autumn Maize",colorCode:"#D4A44C",yardage:315,skeins:3,used:0},
-  {id:3,brand:"WeCrochet",name:"Swish DK",weight:"DK",color:"Cobblestone Heather",colorCode:"#8A8078",yardage:123,skeins:4,used:0},
-  {id:4,brand:"Paintbox",name:"Simply DK",weight:"DK",color:"Pillar Red",colorCode:"#C0392B",yardage:137,skeins:2,used:0},
-];
 
 const CATS = ["All","Blankets","Wearables","Accessories","Amigurumi","Home Décor"];
 
@@ -2106,7 +2093,7 @@ const Detail = ({p,onBack,onSave}) => {
 };
 
 const YarnStash = () => {
-  const [stash,setStash]=useState(SEED_STASH),[adding,setAdding]=useState(false),[brand,setBrand]=useState(""),[name,setName]=useState(""),[weight,setWeight]=useState("Worsted"),[color,setColor]=useState(""),[yardage,setYardage]=useState(""),[skeins,setSkeins]=useState("1");
+  const [stash,setStash]=useState([]),[adding,setAdding]=useState(false),[brand,setBrand]=useState(""),[name,setName]=useState(""),[weight,setWeight]=useState("Worsted"),[color,setColor]=useState(""),[yardage,setYardage]=useState(""),[skeins,setSkeins]=useState("1");
   const totalYards=stash.reduce((a,y)=>a+y.yardage*y.skeins,0);
   const addYarn=()=>{if(!brand||!name)return;setStash(p=>[...p,{id:Date.now(),brand,name,weight,color,colorCode:"#8A8278",yardage:parseInt(yardage)||0,skeins:parseInt(skeins)||1,used:0}]);setBrand("");setName("");setColor("");setYardage("");setSkeins("1");setAdding(false);};
   const{isDesktop:isD}=useBreakpoint();
@@ -2169,7 +2156,7 @@ const Calculators = () => {
 };
 
 const ShoppingList = ({patterns}) => {
-  const needs=patterns.flatMap(p=>(p.materials||[]).filter(m=>m.yardage>0).map(m=>{const match=SEED_STASH.find(s=>s.weight===p.weight),have=match?match.yardage*match.skeins:0,need=m.yardage||0,more=Math.max(0,need-have);return{pattern:p.title,material:m.name,need,have,more,skeins:Math.ceil(more/200)};})).filter(n=>n.more>0);
+  const needs=patterns.flatMap(p=>(p.materials||[]).filter(m=>m.yardage>0).map(m=>{const need=m.yardage||0,more=need;return{pattern:p.title,material:m.name,need,have:0,more,skeins:Math.ceil(more/200)};})).filter(n=>n.more>0);
   const{isDesktop:isDsl}=useBreakpoint();
   return (
     <div style={{padding:isDsl?"0 0 100px":"0 18px 100px"}}>
@@ -2191,12 +2178,40 @@ const ShoppingList = ({patterns}) => {
   );
 };
 
-const CollectionView = ({patterns,cat,setCat,search,setSearch,openDetail,onAddPattern,isPro,tier}) => {
+const FEED_CARDS = [
+  {id:"welcome",bg:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",title:"Welcome to YarnHive!",sub:"Your hive is ready. Start adding patterns.",emoji:"🐝",isWelcome:true},
+  {id:"community",bg:`linear-gradient(135deg,${T.sage},#3D5E3F)`,color:"#fff",title:"847 makers active this week",sub:"You're part of the hive now.",emoji:"🧶"},
+  {id:"tip",bg:`linear-gradient(135deg,${T.gold},#8B6914)`,color:"#fff",title:"Block your finished pieces",sub:"For a professional look every time.",emoji:"💡"},
+  {id:"seasonal",bg:T.terraLt,color:T.ink,title:"Spring patterns trending",sub:"Browse the latest seasonal picks.",emoji:"🌸",action:"browse"},
+  {id:"milestone",bg:T.linen,color:T.ink,border:`1.5px solid ${T.terra}`,title:"Earn your first badge",sub:"Complete a pattern to unlock it.",emoji:"⭐"},
+];
+
+const HiveFeedStrip = ({hasPatterns,setView}) => {
   const{isDesktop}=useBreakpoint();
-  const filtered=patterns.filter(p=>(cat==="All"||p.cat===cat)&&(!search||p.title.toLowerCase().includes(search.toLowerCase())));
-  const inProgress=patterns.filter(p=>{const v=pct(p);return v>0&&v<100;});
+  const cards = hasPatterns ? [{id:"streak",bg:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",title:"You're on a roll!",sub:"Keep your making streak going.",emoji:"🔥"},...FEED_CARDS.slice(1)] : FEED_CARDS;
+  return (
+    <div style={{padding:isDesktop?"16px 0 8px":"16px 0 8px",overflow:"hidden"}}>
+      <div style={{display:"flex",gap:12,overflowX:"auto",padding:isDesktop?"0":"0 18px",WebkitOverflowScrolling:"touch"}}>
+        {cards.map(c=>(
+          <div key={c.id} onClick={c.action==="browse"?()=>setView("browse"):undefined} style={{width:220,minWidth:220,height:100,borderRadius:16,padding:16,background:c.bg,color:c.color,border:c.border||"none",display:"flex",flexDirection:"column",justifyContent:"space-between",cursor:c.action?"pointer":"default",flexShrink:0}}>
+            <span style={{fontSize:20}}>{c.emoji}</span>
+            <div><div style={{fontSize:13,fontWeight:600,lineHeight:1.3}}>{c.title}</div><div style={{fontSize:11,opacity:.7,marginTop:2,lineHeight:1.3}}>{c.sub}</div></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearch,openDetail,onAddPattern,isPro,tier,setView}) => {
+  const{isDesktop}=useBreakpoint();
+  const allPatterns = [...userPatterns,...starterPatterns];
+  const filteredUser=userPatterns.filter(p=>(cat==="All"||p.cat===cat)&&(!search||p.title.toLowerCase().includes(search.toLowerCase())));
+  const filteredStarter=starterPatterns.filter(p=>(cat==="All"||p.cat===cat)&&(!search||p.title.toLowerCase().includes(search.toLowerCase())));
+  const inProgress=allPatterns.filter(p=>{const v=pct(p);return v>0&&v<100;});
   return (
     <>
+      <HiveFeedStrip hasPatterns={userPatterns.length>0} setView={setView}/>
       {inProgress.length>0&&(
         <div style={{background:T.linen,borderBottom:`1px solid ${T.border}`,padding:"16px 0 18px",marginBottom:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 "+(isDesktop?"0":"18px"),marginBottom:12}}>
@@ -2216,15 +2231,30 @@ const CollectionView = ({patterns,cat,setCat,search,setSearch,openDetail,onAddPa
       </div>
       {!isPro&&(
         <div style={{margin:isDesktop?"0 0 16px":"0 18px 16px",background:T.linen,borderRadius:12,padding:"10px 14px",border:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:12}}>
-          <div style={{flex:1}}><div style={{fontSize:11,color:T.ink2,marginBottom:5,fontWeight:500}}>{patterns.length}/{TIER_CONFIG.free.patternCap} free patterns · {patterns.length<TIER_CONFIG.free.patternCap?"all features available":"upgrade to add more"}</div><Bar val={(patterns.length/TIER_CONFIG.free.patternCap)*100} color={tier.atCap?"#C0392B":T.terra} h={4}/></div>
+          <div style={{flex:1}}><div style={{fontSize:11,color:T.ink2,marginBottom:5,fontWeight:500}}>{tier.userCount}/{TIER_CONFIG.free.patternCap} free patterns · {tier.userCount<TIER_CONFIG.free.patternCap?"all features available":"upgrade to add more"}</div><Bar val={(tier.userCount/TIER_CONFIG.free.patternCap)*100} color={tier.atCap?T.terra:T.terra} h={4}/></div>
           {tier.atCap&&<button onClick={onAddPattern} style={{background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>Upgrade</button>}
         </div>
       )}
-      <div className="pattern-grid" style={{padding:isDesktop?"0 0 80px":"0 18px 120px"}}>
-        {filtered.length===0
-          ?<div style={{gridColumn:"1/-1",textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🧶</div><div style={{fontFamily:T.serif,fontSize:18,color:T.ink2,marginBottom:8}}>Your Hive is empty</div><div style={{fontSize:13,color:T.ink3,lineHeight:1.6,marginBottom:20}}>Tap + to add your first pattern.</div><button onClick={onAddPattern} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>+ Add Your First Pattern</button></div>
-          :filtered.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.04} onClick={()=>openDetail(p)}/>)}
+      {/* User Patterns */}
+      <div style={{padding:isDesktop?"0":"0 18px"}}>
+        <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".09em",fontWeight:600,marginBottom:12}}>Your Patterns</div>
       </div>
+      <div className="pattern-grid" style={{padding:isDesktop?"0 0 16px":"0 18px 16px"}}>
+        {filteredUser.length===0
+          ?<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🧶</div><div style={{fontFamily:T.serif,fontSize:18,color:T.ink2,marginBottom:8}}>Your hive is empty</div><div style={{fontSize:13,color:T.ink3,lineHeight:1.6,marginBottom:20}}>Add your first pattern or start with a starter below.</div><button onClick={onAddPattern} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>+ Add Your First Pattern</button></div>
+          :filteredUser.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.04} onClick={()=>openDetail(p)}/>)}
+      </div>
+      {/* Starter Patterns */}
+      {filteredStarter.length>0&&(
+        <div style={{padding:isDesktop?"0 0 80px":"0 0 120px"}}>
+          <div style={{padding:isDesktop?"16px 0 12px":"16px 18px 12px"}}>
+            <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".09em",fontWeight:600}}>🎁 Your Starter Collection</div>
+            <div style={{fontSize:11,color:T.ink3,marginTop:4,lineHeight:1.5}}>Free patterns to get you started — these don't count toward your {TIER_CONFIG.free.patternCap} free slots.</div>
+          </div>
+          <HScrollRow itemCount={filteredStarter.length}>{filteredStarter.map(p=><ShelfCard key={p.id} p={p} onClick={()=>openDetail(p)}/>)}</HScrollRow>
+        </div>
+      )}
+      {filteredStarter.length===0&&<div style={{height:isDesktop?80:120}}/>}
     </>
   );
 };
@@ -2232,7 +2262,7 @@ const CollectionView = ({patterns,cat,setCat,search,setSearch,openDetail,onAddPa
 const STARTER_PHOTO_MAP = {Blankets:PHOTOS.blanket,Amigurumi:PHOTOS.granny,Wearables:PHOTOS.cardigan,Accessories:PHOTOS.tote,Home:PHOTOS.pillow};
 
 const WelcomeToast = ({visible}) => (
-  <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:900,background:T.terra,color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(184,90,60,.4)",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,transition:"opacity .4s ease",pointerEvents:"none"}}>
+  <div style={{position:"fixed",top:16,right:16,zIndex:900,background:T.terra,color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(184,90,60,.4)",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,transform:visible?"translateX(0)":"translateX(20px)",transition:"opacity .4s ease, transform .4s ease",pointerEvents:"none"}}>
     <span style={{fontSize:18}}>🐝</span> Welcome back! Your hive is ready.
   </div>
 );
@@ -2244,19 +2274,80 @@ const WelcomeBanner = ({onDismiss}) => (
   </div>
 );
 
+const OnboardingScreen = ({onComplete,onSkip}) => {
+  const user = supabaseAuth.getUser();
+  const emailPrefix = (user?.email||"").split("@")[0].replace(/[^a-zA-Z0-9_]/g,"").slice(0,20);
+  const [displayName,setDisplayName]=useState(""),[username,setUsername]=useState(emailPrefix);
+  const [saving,setSaving]=useState(false),[error,setError]=useState(null);
+  const{isDesktop}=useBreakpoint();
+
+  const handleSave = async () => {
+    if (!displayName.trim()) { setError("Display name is required."); return; }
+    const handle = username.trim().replace(/^@/,"");
+    if (!handle) { setError("Username is required."); return; }
+    if (!/^[a-zA-Z0-9_]{2,30}$/.test(handle)) { setError("Username: 2-30 chars, letters/numbers/underscores only."); return; }
+    setSaving(true); setError(null);
+    const session = getSession();
+    if (user && session) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}`, {
+          method:"PATCH",
+          headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+          body:JSON.stringify({username:handle,display_name:displayName.trim()}),
+        });
+      } catch {}
+    }
+    localStorage.setItem("yh_onboarding_complete","1");
+    setSaving(false);
+    onComplete();
+  };
+
+  const handleSkip = () => { localStorage.setItem("yh_onboarding_complete","1"); onSkip(); };
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.sans,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <CSS/>
+      <div style={{width:"100%",maxWidth:420}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:12}}>🐝</div>
+          <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
+          <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>Let the hive know who you are.</p>
+        </div>
+        <div style={{background:T.surface,borderRadius:20,border:`1px solid ${T.border}`,padding:isDesktop?"32px 36px":"24px 20px"}}>
+          <Field label="Display name" placeholder="e.g. Sarah" value={displayName} onChange={e=>setDisplayName(e.target.value)}/>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Username</div>
+            <div style={{position:"relative"}}>
+              <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:T.ink3,fontSize:15,pointerEvents:"none"}}>@</span>
+              <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="yourhandle" style={{width:"100%",padding:"13px 16px 13px 30px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,color:T.ink,fontSize:15}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+            </div>
+          </div>
+          {error&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{error}</div>}
+          <button onClick={handleSave} disabled={saving} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",marginTop:4,opacity:saving?.6:1}}>{saving?"Setting up…":"Set up my profile"}</button>
+          <div style={{textAlign:"center",marginTop:12}}><button onClick={handleSkip} style={{background:"none",border:"none",color:T.ink3,fontSize:13,cursor:"pointer",fontWeight:500}}>Skip for now</button></div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function YarnHive() {
-  const [authed,setAuthed]=useState(()=>!!supabaseAuth.getUser()),[isPro,setIsPro]=useState(false),[patterns,setPatterns]=useState(SEED_PATTERNS),[view,setView]=useState("collection"),[selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
+  const [authed,setAuthed]=useState(()=>!!supabaseAuth.getUser()),[isPro,setIsPro]=useState(false);
+  const [userPatterns,setUserPatterns]=useState([]);
+  const [starterPatterns,setStarterPatterns]=useState([]);
+  const [view,setView]=useState("collection"),[selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
   const [showEmailBanner,setShowEmailBanner]=useState(false);
   const [showWelcomeBanner,setShowWelcomeBanner]=useState(false);
   const [showWelcomeToast,setShowWelcomeToast]=useState(false);
   const [showProModal,setShowProModal]=useState(false);
+  const [showOnboarding,setShowOnboarding]=useState(false);
   const{isTablet,isDesktop}=useBreakpoint();
-  const starterCount = patterns.filter(p=>p.isStarter).length;
-  const tier=useTier(isPro,patterns.length,starterCount);
+  const allPatterns = [...userPatterns,...starterPatterns];
+  const tier=useTier(isPro,userPatterns.length);
 
-  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); };
+  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); setStarterPatterns([]); };
 
-  const fetchStarterPatterns = async () => {
+  const fetchStarterPatterns = useCallback(async () => {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/starter_patterns?is_active=eq.true&order=sort_order.asc`, {
         headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${SUPABASE_ANON_KEY}`},
@@ -2268,19 +2359,24 @@ export default function YarnHive() {
           cat:r.category||"Blankets", photo:STARTER_PHOTO_MAP[r.category]||PHOTOS.blanket,
           hook:r.hook_size||"5.0mm", weight:r.yarn_weight||"Worsted", rating:5,
           yardage:r.yardage||0, skeins:0, skeinYards:0,
-          notes:r.description||"", rows:[], materials:[], isStarter:true,
+          notes:r.description||"", rows:(() => { try { return Array.isArray(r.rows)?r.rows:JSON.parse(r.rows||"[]"); } catch { return []; } })(),
+          materials:(() => { try { return Array.isArray(r.materials)?r.materials:JSON.parse(r.materials||"[]"); } catch { return []; } })(),
+          isStarter:true,
         }));
-        if (starters.length) setPatterns(prev=>[...starters,...prev]);
+        setStarterPatterns(starters);
       }
     } catch {}
-  };
+  },[]);
+
+  // Fetch starters on mount when authed
+  useEffect(()=>{ if(authed) fetchStarterPatterns(); },[authed,fetchStarterPatterns]);
 
   const handleNewSignup = () => {
     setAuthed(true);
     setShowEmailBanner(true);
     setShowWelcomeBanner(true);
-    setView("collection");
-    fetchStarterPatterns();
+    if (!localStorage.getItem("yh_onboarding_complete")) { setShowOnboarding(true); }
+    else { setView("collection"); }
   };
 
   const handleSignIn = () => {
@@ -2291,22 +2387,23 @@ export default function YarnHive() {
   };
 
   if(!authed) return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onEnterAsPro={()=>{setIsPro(true);setAuthed(true);}}/></>;
-  if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
+  if(showOnboarding) return <OnboardingScreen onComplete={()=>{setShowOnboarding(false);setView("collection");}} onSkip={()=>{setShowOnboarding(false);setView("collection");}}/>;
+  if(view==="detail"&&selected) return <><CSS/><Detail p={selected} onBack={()=>setView("collection")} onSave={u=>{setUserPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setStarterPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);}}/></>;
 
   const openDetail=p=>{setSelected(p);setView("detail");};
-  const handleAddPattern=p=>{setPatterns(prev=>[p,...prev]);setView("collection");};
+  const handleAddPattern=p=>{setUserPatterns(prev=>[p,...prev]);setView("collection");};
   const openAddModal=()=>{if(tier.atCap){setShowPaywall(true);return;}setAddOpen(true);};
-  const inProgress=patterns.filter(p=>{const v=pct(p);return v>0&&v<100;});
+  const inProgress=allPatterns.filter(p=>{const v=pct(p);return v>0&&v<100;});
   const TITLE_MAP={collection:"Your Hive",wip:"In Progress",browse:"Browse Sites",stash:"Yarn Stash",calculator:"Calculators",shopping:"Shopping List",profile:"Profile & Settings"};
 
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
-      {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
+      {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
+      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
       <WelcomeToast visible={showWelcomeToast}/>
-      <SidebarNav view={view} setView={setView} count={patterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
+      <SidebarNav view={view} setView={setView} count={userPatterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
         {showEmailBanner&&<EmailConfirmBanner onDismiss={()=>setShowEmailBanner(false)}/>}
         {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
@@ -2318,12 +2415,12 @@ export default function YarnHive() {
           </div>
         </div>
         <div style={{flex:1,padding:"0 40px"}}>
-          {view==="collection"&&<CollectionView patterns={patterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier}/>}
+          {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} setView={setView}/>}
           {view==="wip"&&<div style={{padding:"24px 0 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:T.ink3}}>Open a pattern and start checking off rows.</div></div>:<div className="pattern-grid">{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)}/>)}</div>}</div>}
           {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
-          {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList patterns={patterns}/></div>}
+          {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList patterns={allPatterns}/></div>}
           {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
         </div>
       </div>
@@ -2334,10 +2431,10 @@ export default function YarnHive() {
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
       <WelcomeToast visible={showWelcomeToast}/>
-      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={patterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
-      {showPaywall&&<PaywallGate patternCount={patterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
+      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
+      {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={patterns.length}/>}
+      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
       {showEmailBanner&&<EmailConfirmBanner onDismiss={()=>setShowEmailBanner(false)}/>}
       {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 18px",height:56,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
@@ -2346,12 +2443,12 @@ export default function YarnHive() {
         <button onClick={openAddModal} style={{background:T.terra,border:"none",borderRadius:9,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(184,90,60,.4)"}}>+</button>
       </div>
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
-        {view==="collection"&&<CollectionView patterns={patterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier}/>}
+        {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} setView={setView}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)}/>)}</div>}</div>}
         {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
-        {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList patterns={patterns}/></div>}
+        {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList patterns={allPatterns}/></div>}
         {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")}/>}
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
