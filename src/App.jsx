@@ -1074,7 +1074,8 @@ const BeeAnimator = ({visible, isDesktop}) => {
 };
 
 const Auth = ({onEnter,onEnterAsPro}) => {
-  const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState("");
+const [screen,setScreen]=useState("welcome"),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[name,setName]=useState("");
+const [loading,setLoading]=useState(false),[authError,setAuthError]=useState(null);
   const{isDesktop}=useBreakpoint();
 
   const isSignup=screen==="signup";
