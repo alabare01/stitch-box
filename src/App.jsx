@@ -257,22 +257,37 @@ Ensure the JSON is complete and valid. Do not truncate.`;
   };
 
   console.log("[YarnHive] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.5-flash");
+  const geminiCall = async (model) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000);
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      return r;
+    } catch (e) {
+      clearTimeout(timeout);
+      throw e;
+    }
+  };
   let res;
   try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    res = await geminiCall("gemini-2.5-flash");
   } catch (e) {
-    console.error("[YarnHive] Gemini fetch network error:", e);
-    // Fallback to gemini-1.5-flash
-    console.log("[YarnHive] Retrying with gemini-1.5-flash...");
-    res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    console.error("[YarnHive] Gemini first attempt failed:", e.name === "AbortError" ? "timeout (90s)" : e.message);
+    console.log("[YarnHive] Retrying Gemini extraction...");
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      res = await geminiCall("gemini-2.5-flash");
+    } catch (e2) {
+      console.error("[YarnHive] Gemini retry also failed:", e2.message);
+      console.log("[YarnHive] Falling back to gemini-2.0-flash-lite...");
+      res = await geminiCall("gemini-2.0-flash-lite");
+    }
   }
 
   console.log("[YarnHive] Gemini raw response status:", res.status);
@@ -283,12 +298,8 @@ Ensure the JSON is complete and valid. Do not truncate.`;
     console.error("[YarnHive] Gemini API error:", res.status, rawText);
     // If 2.5 flash failed, try 1.5 flash
     if (res.status === 404 || res.status === 400) {
-      console.log("[YarnHive] Retrying with gemini-1.5-flash...");
-      const res2 = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      console.log("[YarnHive] Retrying with gemini-2.0-flash-lite...");
+      const res2 = await geminiCall("gemini-2.0-flash-lite");
       console.log("[YarnHive] Fallback response status:", res2.status);
       if (!res2.ok) {
         const err2 = await res2.text();
@@ -1091,7 +1102,7 @@ const PDFUploadForm = ({onSave}) => {
     <div style={{padding:"40px 0",textAlign:"center"}}>
       <div style={{fontSize:36,marginBottom:16}}>{stage==="building"?"✓":"🔎"}</div>
       <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:8}}>{stageText}</div>
-      {stage==="extracting"&&<div style={{fontSize:12,color:T.ink3,marginBottom:16}}>This takes 10–20 seconds for detailed patterns</div>}
+      {stage==="extracting"&&<div style={{fontSize:12,color:T.ink3,marginBottom:16}}>This may take 30–60 seconds for detailed patterns</div>}
       <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden",margin:"0 auto",maxWidth:300}}><div className={stage==="extracting"?"progress-bar-fill":""} style={{height:"100%",width:progress+"%",background:stage==="building"?T.sage:T.terra,borderRadius:99,transition:"width .4s ease"}}/></div>
     </div>
   );
