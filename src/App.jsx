@@ -254,10 +254,10 @@ Extract every round and row instruction as individual row entries. For multi-rou
     generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
   };
 
-  console.log("[YarnHive] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.5-flash-preview-04-17");
+  console.log("[YarnHive] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.0-flash");
   let res;
   try {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_API_KEY}`, {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -266,7 +266,7 @@ Extract every round and row instruction as individual row entries. For multi-rou
     console.error("[YarnHive] Gemini fetch network error:", e);
     // Fallback to gemini-1.5-flash
     console.log("[YarnHive] Retrying with gemini-1.5-flash...");
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
