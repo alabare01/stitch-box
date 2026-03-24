@@ -2722,6 +2722,7 @@ export default function YarnHive() {
   const [justCompletedOnboarding,setJustCompletedOnboarding]=useState(false);
   const [createdPattern,setCreatedPattern]=useState(null);
   const [readyPromptPattern,setReadyPromptPattern]=useState(null);
+  const [deleteTarget,setDeleteTarget]=useState(null);
   const{isTablet,isDesktop}=useBreakpoint();
   const allPatterns = [...userPatterns,...starterPatterns];
   const userStarterCount=userPatterns.filter(p=>p.isStarter).length;
@@ -2994,7 +2995,6 @@ export default function YarnHive() {
     }
   };
   const openAddModal=()=>{if(tier.atCap){setShowPaywall(true);return;}setAddOpen(true);};
-  const [deleteTarget,setDeleteTarget]=useState(null);
   const updatePatternStatus=(p,status)=>{
     const updated={...p,status};
     setUserPatterns(prev=>prev.map(x=>x.id===p.id?updated:x));
