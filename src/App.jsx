@@ -226,7 +226,9 @@ const uploadPatternFile = async (file, onProgress) => {
 
 // Extract pattern data from PDF/image using Gemini Vision
 const extractPatternFromPDF = async (cloudinaryUrl, filename, mimeType) => {
-  if (!GEMINI_API_KEY) throw new Error("Gemini API key not configured");
+  console.log("[YarnHive] Gemini extraction starting for:", cloudinaryUrl, "mime:", mimeType);
+  if (!GEMINI_API_KEY) { console.error("[YarnHive] No Gemini API key"); throw new Error("Gemini API key not configured"); }
+
   const prompt = `You are a crochet pattern extraction specialist. Analyze this crochet pattern and extract all structured data. Return ONLY valid JSON with no markdown, no backticks, no explanation.
 
 Return this exact structure:
@@ -234,50 +236,108 @@ Return this exact structure:
 
 Extract every round and row instruction as individual row entries. For multi-round instructions like 'RND 5-7 sc 24 (24) (3 RNDs total)', expand them into individual rows: RND 5, RND 6, RND 7 each with the same instruction. Be thorough -- extract every component, every round, every material.`;
 
+  // Always fetch file and convert to base64 (file_data with external URLs doesn't work)
+  console.log("[YarnHive] Fetching file for base64 conversion...");
+  let base64, fileMime;
+  try {
+    const fileRes = await fetch(cloudinaryUrl);
+    if (!fileRes.ok) throw new Error("Failed to fetch file: " + fileRes.status);
+    const blob = await fileRes.blob();
+    // Size check: skip extraction for files over 10MB
+    if (blob.size > 10 * 1024 * 1024) {
+      console.warn("[YarnHive] File too large for extraction:", (blob.size/1024/1024).toFixed(1), "MB");
+      throw new Error("Pattern file is too large for automatic reading. File saved — add rows manually.");
+    }
+    fileMime = mimeType || blob.type || "application/pdf";
+    base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = () => reject(new Error("FileReader failed"));
+      reader.readAsDataURL(blob);
+    });
+    console.log("[YarnHive] Base64 conversion complete, size:", base64.length, "chars, mime:", fileMime);
+  } catch (e) {
+    console.error("[YarnHive] File fetch/conversion error:", e);
+    throw e;
+  }
+
   const body = {
     contents: [{
       parts: [
         { text: prompt },
-        { file_data: { mime_type: mimeType || "application/pdf", file_uri: cloudinaryUrl } }
+        { inline_data: { mime_type: fileMime, data: base64 } }
       ]
     }],
     generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
   };
 
-  // Try inline_data approach for images, file_data for PDFs
-  const isImage = mimeType && mimeType.startsWith("image");
-  if (isImage) {
-    // For images, fetch and convert to base64
-    try {
-      const imgRes = await fetch(cloudinaryUrl);
-      const blob = await imgRes.blob();
-      const base64 = await new Promise(r => { const reader = new FileReader(); reader.onload = () => r(reader.result.split(",")[1]); reader.readAsDataURL(blob); });
-      body.contents[0].parts[1] = { inline_data: { mime_type: mimeType, data: base64 } };
-    } catch (e) {
-      console.warn("[YarnHive] Image base64 conversion failed, trying URL approach");
-    }
+  console.log("[YarnHive] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.5-flash-preview-04-17");
+  let res;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    console.error("[YarnHive] Gemini fetch network error:", e);
+    // Fallback to gemini-1.5-flash
+    console.log("[YarnHive] Retrying with gemini-1.5-flash...");
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
   }
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  console.log("[YarnHive] Gemini raw response status:", res.status);
+  const rawText = await res.text();
+  console.log("[YarnHive] Gemini raw response body:", rawText.substring(0, 500));
 
   if (!res.ok) {
-    const errText = await res.text();
-    console.error("[YarnHive] Gemini API error:", res.status, errText);
+    console.error("[YarnHive] Gemini API error:", res.status, rawText);
+    // If 2.5 flash failed, try 1.5 flash
+    if (res.status === 404 || res.status === 400) {
+      console.log("[YarnHive] Retrying with gemini-1.5-flash...");
+      const res2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      console.log("[YarnHive] Fallback response status:", res2.status);
+      if (!res2.ok) {
+        const err2 = await res2.text();
+        console.error("[YarnHive] Fallback also failed:", err2.substring(0, 300));
+        throw new Error("Gemini extraction failed: " + res2.status);
+      }
+      const data2 = await res2.json();
+      const text2 = data2.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const cleaned2 = text2.replace(/```json/g, "").replace(/```/g, "").trim();
+      console.log("[YarnHive] Fallback extracted text:", cleaned2.substring(0, 200));
+      return JSON.parse(cleaned2);
+    }
     throw new Error("Gemini extraction failed: " + res.status);
   }
 
-  const data = await res.json();
+  let data;
+  try { data = JSON.parse(rawText); } catch (e) {
+    console.error("[YarnHive] Response is not valid JSON wrapper:", e);
+    throw new Error("Invalid Gemini response format");
+  }
+
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  // Strip markdown fences if present
-  const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
+  console.log("[YarnHive] Gemini extracted text length:", text.length);
+  console.log("[YarnHive] Gemini extracted text preview:", text.substring(0, 300));
+
+  // Strip markdown fences thoroughly
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
   try {
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+    console.log("[YarnHive] Extraction successful:", parsed.title, "—", (parsed.components||[]).length, "components");
+    return parsed;
   } catch (e) {
-    console.error("[YarnHive] JSON parse failed:", cleaned.substring(0, 200));
+    console.error("[YarnHive] JSON parse failed. Cleaned text:", cleaned.substring(0, 300));
+    console.error("[YarnHive] Parse error:", e.message);
     throw new Error("Could not parse extraction results");
   }
 };
