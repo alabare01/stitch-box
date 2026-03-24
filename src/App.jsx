@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useNavigate, useLocation, useParams, Routes, Route, Navigate } from "react-router-dom";
 
 if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
   const l = document.createElement("link");
@@ -6,6 +7,18 @@ if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
   l.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap";
   document.head.appendChild(l);
 }
+
+// ─── ROUTE ↔ VIEW MAPPING ───────────────────────────────────────────────────
+const VIEW_TO_PATH = {collection:"/hive",detail:"/hive",wip:"/builds",browse:"/browse",stash:"/stash",calculator:"/tools",shopping:"/shopping",profile:"/profile"};
+const PATH_TO_VIEW = {"/hive":"collection","/builds":"wip","/browse":"browse","/stash":"stash","/tools":"calculator","/shopping":"shopping","/profile":"profile","/hive-vision":"hive-vision"};
+const viewFromPath = (pathname) => {
+  if(pathname.startsWith("/hive/")) return "detail";
+  return PATH_TO_VIEW[pathname] || "collection";
+};
+const patternIdFromPath = (pathname) => {
+  const m = pathname.match(/^\/hive\/(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+};
 
 const PHOTOS = {
   hero:     "https://res.cloudinary.com/dmaupzhcx/image/upload/v1773877266/Gemini_Generated_Image_u44qfru44qfru44q_2_rsk1rn.png",
@@ -1093,7 +1106,14 @@ const PDFUploadForm = ({onSave}) => {
       const uploaded=await uploadPatternFile(f);
       clearInterval(intv1);
       if(!uploaded){setStage("error");setErrorMsg("Upload failed — check your connection and try again.");return;}
-      setFileInfo({url:uploaded.url,name:uploaded.filename,type:uploaded.type});setProgress(33);
+      // Generate PDF page-1 thumbnail via Cloudinary transform
+      let coverUrl=null;
+      try{
+        const u=uploaded.url;
+        const idx=u.indexOf("/upload/");
+        if(idx!==-1) coverUrl=u.slice(0,idx+8)+"fl_attachment:false/pg_1/w_400,h_400,c_fill/"+u.slice(idx+8);
+      }catch(e){console.warn("[YarnHive] Cover thumbnail generation failed:",e);}
+      setFileInfo({url:uploaded.url,name:uploaded.filename,type:uploaded.type,coverUrl});setProgress(33);
       // Stage 2: Extract with Gemini using local base64 (no re-fetch needed)
       setStage("extracting");setStageText("Reading your pattern...");
       const intv2=setInterval(()=>setProgress(p=>Math.min(p+1,62)),300);
@@ -1110,9 +1130,9 @@ const PDFUploadForm = ({onSave}) => {
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
     const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));
-    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:PILL[Math.floor(Math.random()*PILL.length)],source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[]});
+    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[]});
   };
-  const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:PILL[Math.floor(Math.random()*PILL.length)],source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
+  const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
   if(stage==="pick") return (
     <div style={{paddingBottom:8}}>
       <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:14}}>Upload your pattern — PDF or photo. We'll read it and set up your workspace.</div>
@@ -1262,13 +1282,13 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount}) => {
   );
 };
 
-const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade,userPatterns=[],allPatterns=[]}) => {
+const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrade,userPatterns=[],allPatterns=[]}) => {
   const starterC=DEFAULT_STARTERS.length;const addedC=userPatterns.filter(p=>!p.isStarter).length;
   const wipCount=allPatterns.filter(p=>!p.isStarter&&(p.status==="in_progress"||p.started)).filter(p=>pct(p)<100).length;
   const ITEMS=[{key:"collection",label:"Your Hive",sub:starterC+" starter"+(starterC!==1?"s":"")+" · "+addedC+" added",icon:"🧶"},{key:"wip",label:"Builds in Progress",sub:wipCount>0?wipCount+" active":"Currently making",icon:"🪡"},{key:"browse",label:"Browse Sites",sub:"Find free patterns",icon:"🌐"},{key:"stash",label:"Yarn Stash",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"Calculators",sub:"Gauge, yardage & more",icon:"🧮"},{key:"shopping",label:"Shopping List",sub:"Auto-generated",icon:"🛒"}];
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
-      <div onClick={()=>setView("collection")} style={{position:"relative",height:160,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+      <div onClick={()=>onNavigate("collection")} style={{position:"relative",height:160,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
         <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
         <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
@@ -1276,7 +1296,7 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade,u
       <div style={{padding:"16px 16px 8px"}}><button onClick={onAddPattern} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.4)",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>+</span> Add Pattern</button></div>
       <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
         {ITEMS.map(item=>{const active=view===item.key;return(
-          <div key={item.key} className="nav-item" onClick={()=>setView(item.key)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+          <div key={item.key} className="nav-item" onClick={()=>onNavigate(item.key)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
             <span style={{fontSize:18,width:24,textAlign:"center"}}>{item.icon}</span>
             <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>{item.label}</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>{item.sub}</div></div>
             {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
@@ -1285,7 +1305,7 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade,u
       </div>
       <div style={{padding:"0 0 8px"}}>
         {(()=>{const active=view==="profile";return(
-          <div className="nav-item" onClick={()=>setView("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
+          <div className="nav-item" onClick={()=>onNavigate("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderLeft:"3px solid "+(active?T.terra:"transparent"),background:active?T.terraLt:"transparent",cursor:"pointer",transition:"background .12s"}}>
             <span style={{fontSize:18,width:24,textAlign:"center"}}>👤</span>
             <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?T.terra:T.ink}}>Profile & Settings</div><div style={{fontSize:11,color:T.ink3,marginTop:1}}>Your account</div></div>
             {active&&<div style={{width:6,height:6,borderRadius:99,background:T.terra}}/>}
@@ -1301,10 +1321,10 @@ const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade,u
   );
 };
 
-const NavPanel = ({open,onClose,view,setView,count,isPro,onSignOut,onUpgrade}) => {
+const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}) => {
   const [closing,setClosing]=useState(false);
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const go=v=>{setView(v);dismiss();};
+  const go=v=>{onNavigate(v);dismiss();};
   if(!open) return null;
   const ITEMS=[{key:"collection",label:"Your Hive",sub:count+" patterns",icon:"🧶"},{key:"wip",label:"Builds in Progress",sub:"Currently making",icon:"🪡"},{key:"browse",label:"Browse Sites",sub:"Find free patterns",icon:"🌐"},{key:"stash",label:"Yarn Stash",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"Calculators",sub:"Gauge, yardage & more",icon:"🧮"},{key:"shopping",label:"Shopping List",sub:"Auto-generated needs",icon:"🛒"}];
   return (
@@ -3053,10 +3073,13 @@ const OnboardingScreen = ({onComplete,onBackToAuth}) => {
 // ─── MASTER DOC VIEWER (private, no app chrome) ──────────────────────────────
 const MasterDocView = () => {
   const [pw,setPw]=useState(()=>sessionStorage.getItem("yh_master_pw")||"");
+  const [authed,setAuthed]=useState(false);
   const [doc,setDoc]=useState(null);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const [markedReady,setMarkedReady]=useState(false);
+  const [activeTab,setActiveTab]=useState("master-doc");
+  const {isDesktop}=useBreakpoint();
 
   // Inject marked.js + noindex meta
   useEffect(()=>{
@@ -3075,7 +3098,7 @@ const MasterDocView = () => {
       if(res.status===401){setError("Incorrect password");setLoading(false);return;}
       if(!res.ok){setError("Failed to load document");setLoading(false);return;}
       const data=await res.json();
-      setDoc(data);sessionStorage.setItem("yh_master_pw",password);
+      setDoc(data);setAuthed(true);sessionStorage.setItem("yh_master_pw",password);
     }catch(e){setError("Network error");}
     setLoading(false);
   };
@@ -3088,7 +3111,86 @@ const MasterDocView = () => {
     try{return window.marked.parse(content);}catch{return content;}
   };
 
-  if(doc) return (
+  const TabBar = () => (
+    <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.border}`,marginBottom:32}}>
+      {[{id:"master-doc",label:"Master Doc"},{id:"changelog",label:"Changelog"}].map(tab=>(
+        <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"none",border:"none",borderBottom:activeTab===tab.id?`3px solid ${T.terra}`:"3px solid transparent",padding:"12px 24px",fontSize:14,fontWeight:activeTab===tab.id?700:500,color:activeTab===tab.id?T.ink:T.ink3,cursor:"pointer",transition:"all .15s",letterSpacing:".01em"}}>{tab.label}</button>
+      ))}
+    </div>
+  );
+
+  const ChangelogTab = () => {
+    const pad = isDesktop ? "0 0" : "0 0";
+    const maxW = isDesktop ? "100%" : "100%";
+    return (
+      <div style={{maxWidth:maxW,margin:"0 auto",padding:pad}}>
+        {/* Hero */}
+        <div style={{textAlign:"center",marginBottom:48}}>
+          <div style={{fontSize:14,color:T.terra,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Release Notes</div>
+          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in YarnHive</h1>
+          <p style={{fontSize:15,color:T.ink3,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>Every stitch of progress, documented. Follow along as we build the crochet companion you deserve.</p>
+        </div>
+        {/* Coming Soon card */}
+        <div style={{background:"linear-gradient(135deg, #2D2235 0%, #1C1724 100%)",borderRadius:20,padding:isDesktop?"32px 36px":"24px 22px",marginBottom:40,border:"1px solid rgba(139,107,174,.25)",boxShadow:"0 8px 32px rgba(44,34,53,.25)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+            <div style={{background:"rgba(139,107,174,.2)",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,color:"#C4AAE0",letterSpacing:".06em",textTransform:"uppercase"}}>Coming Soon</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)"}}>On the roadmap</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:10}}>
+            {COMING_SOON.map((item,i) => (
+              <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",background:"rgba(255,255,255,.04)",borderRadius:12,border:"1px solid rgba(255,255,255,.06)"}}>
+                <span style={{color:"#8B6BAE",fontSize:14,marginTop:1,flexShrink:0}}>◇</span>
+                <span style={{fontSize:13,color:"rgba(255,255,255,.8)",lineHeight:1.5}}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Version entries */}
+        <div style={{position:"relative"}}>
+          <div style={{position:"absolute",left:isDesktop?19:15,top:8,bottom:0,width:2,background:T.border,zIndex:0}}/>
+          {CHANGELOG_ENTRIES.map((entry, idx) => (
+            <div key={entry.version} className="fu" style={{position:"relative",paddingLeft:isDesktop?56:44,marginBottom:idx < CHANGELOG_ENTRIES.length - 1 ? 40 : 0,animationDelay:idx*.08+"s"}}>
+              <div style={{position:"absolute",left:isDesktop?10:6,top:6,width:entry.major?22:16,height:entry.major?22:16,borderRadius:99,background:entry.major?T.terra:T.surface,border:`3px solid ${entry.major?T.terra:T.border}`,zIndex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {entry.major && <div style={{width:8,height:8,borderRadius:99,background:"#fff"}}/>}
+              </div>
+              <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,overflow:"hidden",boxShadow:entry.major?"0 4px 24px rgba(184,90,60,.1)":T.shadow}}>
+                <div style={{padding:isDesktop?"22px 28px 18px":"18px 20px 14px",borderBottom:`1px solid ${T.border}`,background:entry.major?"linear-gradient(135deg, #FAF0EC 0%, "+T.card+" 100%)":T.card}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                    <span style={{fontFamily:"'DM Sans', monospace",fontSize:isDesktop?22:18,fontWeight:700,color:T.ink,letterSpacing:"-0.02em"}}>{entry.version}</span>
+                    {entry.major && <span style={{fontSize:16}} title="Major release">🐝</span>}
+                    <span style={{fontSize:12,color:T.ink3,fontWeight:500,marginLeft:"auto"}}>{entry.date}</span>
+                  </div>
+                </div>
+                <div style={{padding:isDesktop?"20px 28px 24px":"16px 20px 20px"}}>
+                  {Object.entries(entry.changes).map(([cat, items]) => (
+                    <div key={cat} style={{marginBottom:16}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <div style={{background:CAT_COLORS[cat]||T.terra,borderRadius:6,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff",letterSpacing:".05em",textTransform:"uppercase"}}>{cat}</div>
+                        <div style={{flex:1,height:1,background:T.border}}/>
+                      </div>
+                      {items.map((item, j) => (
+                        <div key={j} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"6px 0"}}>
+                          <span style={{color:CAT_COLORS[cat]||T.terra,fontSize:8,marginTop:5,flexShrink:0}}>●</span>
+                          <span style={{fontSize:13,color:T.ink2,lineHeight:1.55}}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Footer */}
+        <div style={{textAlign:"center",marginTop:56}}>
+          <div style={{width:40,height:1,background:T.border,margin:"0 auto 20px"}}/>
+          <p style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>That's everything so far. More stitches coming soon.</p>
+        </div>
+      </div>
+    );
+  };
+
+  if(authed) return (
     <div style={{minHeight:"100vh",background:"#FAF7F3",fontFamily:'"DM Sans",-apple-system,sans-serif'}}>
       <style>{`
         .md-doc h1,.md-doc h2,.md-doc h3{font-family:"Playfair Display",Georgia,serif;color:#1C1714;margin:1.5em 0 .5em;}
@@ -3106,16 +3208,23 @@ const MasterDocView = () => {
         .md-doc a{color:#B85A3C;text-decoration:underline;}
         .md-doc blockquote{border-left:4px solid #B85A3C;margin:1em 0;padding:8px 16px;background:#F5E2DA;border-radius:0 8px 8px 0;}
       `}</style>
+      <CSS/>
       <div style={{maxWidth:900,margin:"0 auto",padding:"40px 24px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
           <div>
-            <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:28,fontWeight:700,color:"#1C1714"}}>YarnHive Master Doc</div>
-            <div style={{fontSize:13,color:"#9E8E82",marginTop:4}}>Version {doc.version} · Updated {new Date(doc.updated_at).toLocaleDateString()}</div>
+            <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:28,fontWeight:700,color:"#1C1714"}}>YarnHive Admin</div>
+            <div style={{fontSize:13,color:"#9E8E82",marginTop:4}}>{doc?`Version ${doc.version} · Updated ${new Date(doc.updated_at).toLocaleDateString()}`:""}</div>
           </div>
-          <button onClick={()=>{sessionStorage.removeItem("yh_master_pw");setDoc(null);setPw("");}} style={{background:"#F0EBE3",border:"1px solid #E2D8CC",borderRadius:8,padding:"8px 16px",fontSize:13,color:"#5C4F44",cursor:"pointer"}}>Lock</button>
+          <button onClick={()=>{sessionStorage.removeItem("yh_master_pw");setDoc(null);setAuthed(false);setPw("");}} style={{background:"#F0EBE3",border:"1px solid #E2D8CC",borderRadius:8,padding:"8px 16px",fontSize:13,color:"#5C4F44",cursor:"pointer"}}>Lock</button>
         </div>
-        {doc.change_summary&&<div style={{background:"#F5E2DA",borderRadius:10,padding:"12px 16px",marginBottom:24,fontSize:13,color:"#B85A3C",lineHeight:1.6}}>Latest changes: {doc.change_summary}</div>}
-        <div className="md-doc" dangerouslySetInnerHTML={{__html:renderMarkdown(doc.content)}}/>
+        <TabBar/>
+        {activeTab==="master-doc" && doc && (
+          <>
+            {doc.change_summary&&<div style={{background:"#F5E2DA",borderRadius:10,padding:"12px 16px",marginBottom:24,fontSize:13,color:"#B85A3C",lineHeight:1.6}}>Latest changes: {doc.change_summary}</div>}
+            <div className="md-doc" dangerouslySetInnerHTML={{__html:renderMarkdown(doc.content)}}/>
+          </>
+        )}
+        {activeTab==="changelog" && <ChangelogTab/>}
       </div>
     </div>
   );
@@ -3125,25 +3234,214 @@ const MasterDocView = () => {
       <div style={{width:"100%",maxWidth:380,padding:"40px 32px",background:"#FAF7F3",borderRadius:20,border:"1px solid #E2D8CC",boxShadow:"0 8px 32px rgba(139,90,60,.08)"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:40,marginBottom:12}}>🐝</div>
-          <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:22,fontWeight:700,color:"#1C1714"}}>YarnHive Master Doc</div>
+          <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:22,fontWeight:700,color:"#1C1714"}}>YarnHive Admin</div>
           <div style={{fontSize:13,color:"#9E8E82",marginTop:6}}>Enter password to view</div>
         </div>
         <input value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchDoc(pw)} type="password" placeholder="Password" style={{width:"100%",padding:"13px 16px",background:"#EDE8E0",border:"1.5px solid #E2D8CC",borderRadius:12,color:"#1C1714",fontSize:15,marginBottom:12,outline:"none"}}/>
         {error&&<div style={{fontSize:12,color:"#B85A3C",marginBottom:10}}>{error}</div>}
-        <button onClick={()=>fetchDoc(pw)} disabled={loading||!pw} style={{width:"100%",background:"#B85A3C",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:600,cursor:"pointer",opacity:loading?.6:1}}>{loading?"Loading…":"View Doc"}</button>
+        <button onClick={()=>fetchDoc(pw)} disabled={loading||!pw} style={{width:"100%",background:"#B85A3C",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:600,cursor:"pointer",opacity:loading?.6:1}}>{loading?"Loading…":"Unlock"}</button>
+      </div>
+    </div>
+  );
+};
+
+// ─── CHANGELOG DATA & PAGE ──────────────────────────────────────────────────
+const CHANGELOG_ENTRIES = [
+  {
+    version: "v1.5.x", date: "March 24, 2026", major: true,
+    changes: {
+      "New": [
+        "PDF pattern import with Gemini AI extraction",
+        "Collapsible component sections in row manager",
+        "Make count tracking (FLIPPER x2 = 2 passes)",
+        "Assembly & Finishing extracted as final component",
+        "Pattern Notes collapsible header in row manager",
+        "Action item rows (place eyes, begin stuffing) with visual treatment",
+      ],
+      "Improved": [
+        "RND vs ROW labeling now detects construction type",
+        "Multi-round expansion — RND 10-23 becomes 14 individual rows",
+        "View Source Pattern pill in row manager",
+      ],
+      "Fixed": [
+        "Starter patterns always show 5 in nav count",
+        "Pattern sort order — newest first, starters below",
+      ],
+    },
+  },
+  {
+    version: "v1.4.x", date: "March 22, 2026", major: false,
+    changes: {
+      "New": [
+        "Real Supabase auth — signup, signin, signout, session persistence",
+        "Three-step onboarding flow",
+        "Profile & Settings view",
+        "Builds in Progress with live count in nav",
+        "Starter patterns (Granny Square, Amigurumi Ball, Basic Beanie)",
+        "Row notes persist to Supabase",
+      ],
+      "Fixed": [
+        "Stale sessions redirect to welcome screen correctly",
+      ],
+    },
+  },
+  {
+    version: "v1.3.x", date: "March 20, 2026", major: true,
+    changes: {
+      "New": [
+        "YarnHive brand launch — retired Stitch Box",
+        "Smart Import URL pipeline with og:image extraction",
+        "Hive Vision (Snap to Pattern) with Gemini Vision",
+        "Social sharing with milestone banners and share cards",
+        "Welcome screen with illustrated world background",
+        "Bee animation (pure CSS — mobile Safari safe)",
+        "Free/Pro/App Store modals",
+        "Waitlist email capture live in Supabase",
+      ],
+    },
+  },
+];
+
+const COMING_SOON = [
+  "Sub-counter / in-row repeat tracker for bracket repeats",
+  "Stitch tutorial videos (Bella Coco integration)",
+  "Hive Vision end-to-end (multi-angle scan)",
+  "iOS and Android apps",
+];
+
+const CAT_COLORS = {
+  "New": T.terra,
+  "Improved": T.sage,
+  "Fixed": T.gold,
+  "Coming Soon": "#8B6BAE",
+};
+
+const ChangelogPage = () => {
+  const navigate = useNavigate();
+  const {isDesktop} = useBreakpoint();
+
+  useEffect(() => {
+    document.title = "YarnHive Changelog";
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    let ogDesc = document.querySelector('meta[property="og:description"]');
+    if (!ogTitle) { ogTitle = document.createElement("meta"); ogTitle.setAttribute("property","og:title"); document.head.appendChild(ogTitle); }
+    if (!ogDesc) { ogDesc = document.createElement("meta"); ogDesc.setAttribute("property","og:description"); document.head.appendChild(ogDesc); }
+    ogTitle.setAttribute("content", "YarnHive Changelog");
+    ogDesc.setAttribute("content", "What's new in YarnHive");
+    return () => { document.title = "YarnHive"; };
+  }, []);
+
+  const pad = isDesktop ? "0 60px" : "0 20px";
+  const maxW = isDesktop ? 720 : "100%";
+
+  return (
+    <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh"}}>
+      <CSS/>
+      {/* Header bar */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 24px",height:60,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>navigate("/")}>
+          <span style={{fontSize:22}}>🐝</span>
+          <span style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>YarnHive</span>
+        </div>
+        <div style={{fontSize:12,color:T.ink3,fontWeight:500,letterSpacing:".04em",textTransform:"uppercase"}}>Changelog</div>
+      </div>
+
+      <div style={{maxWidth:maxW,margin:"0 auto",padding:pad,paddingTop:40,paddingBottom:100}}>
+        {/* Hero */}
+        <div style={{textAlign:"center",marginBottom:48}}>
+          <div style={{fontSize:14,color:T.terra,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Release Notes</div>
+          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in YarnHive</h1>
+          <p style={{fontSize:15,color:T.ink3,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>Every stitch of progress, documented. Follow along as we build the crochet companion you deserve.</p>
+        </div>
+
+        {/* Coming Soon card */}
+        <div style={{background:"linear-gradient(135deg, #2D2235 0%, #1C1724 100%)",borderRadius:20,padding:isDesktop?"32px 36px":"24px 22px",marginBottom:40,border:"1px solid rgba(139,107,174,.25)",boxShadow:"0 8px 32px rgba(44,34,53,.25)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+            <div style={{background:"rgba(139,107,174,.2)",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,color:"#C4AAE0",letterSpacing:".06em",textTransform:"uppercase"}}>Coming Soon</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)"}}>On the roadmap</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:10}}>
+            {COMING_SOON.map((item,i) => (
+              <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",background:"rgba(255,255,255,.04)",borderRadius:12,border:"1px solid rgba(255,255,255,.06)"}}>
+                <span style={{color:"#8B6BAE",fontSize:14,marginTop:1,flexShrink:0}}>◇</span>
+                <span style={{fontSize:13,color:"rgba(255,255,255,.8)",lineHeight:1.5}}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Version entries */}
+        <div style={{position:"relative"}}>
+          {/* Timeline line */}
+          <div style={{position:"absolute",left:isDesktop?19:15,top:8,bottom:0,width:2,background:T.border,zIndex:0}}/>
+
+          {CHANGELOG_ENTRIES.map((entry, idx) => (
+            <div key={entry.version} className="fu" style={{position:"relative",paddingLeft:isDesktop?56:44,marginBottom:idx < CHANGELOG_ENTRIES.length - 1 ? 40 : 0,animationDelay:idx*.08+"s"}}>
+              {/* Timeline dot */}
+              <div style={{position:"absolute",left:isDesktop?10:6,top:6,width:entry.major?22:16,height:entry.major?22:16,borderRadius:99,background:entry.major?T.terra:T.surface,border:`3px solid ${entry.major?T.terra:T.border}`,zIndex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {entry.major && <div style={{width:8,height:8,borderRadius:99,background:"#fff"}}/>}
+              </div>
+
+              {/* Version card */}
+              <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,overflow:"hidden",boxShadow:entry.major?"0 4px 24px rgba(184,90,60,.1)":T.shadow}}>
+                {/* Version header */}
+                <div style={{padding:isDesktop?"22px 28px 18px":"18px 20px 14px",borderBottom:`1px solid ${T.border}`,background:entry.major?"linear-gradient(135deg, #FAF0EC 0%, "+T.card+" 100%)":T.card}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                    <span style={{fontFamily:"'DM Sans', monospace",fontSize:isDesktop?22:18,fontWeight:700,color:T.ink,letterSpacing:"-0.02em"}}>{entry.version}</span>
+                    {entry.major && <span style={{fontSize:16}} title="Major release">🐝</span>}
+                    <span style={{fontSize:12,color:T.ink3,fontWeight:500,marginLeft:"auto"}}>{entry.date}</span>
+                  </div>
+                </div>
+
+                {/* Change categories */}
+                <div style={{padding:isDesktop?"20px 28px 24px":"16px 20px 20px"}}>
+                  {Object.entries(entry.changes).map(([cat, items]) => (
+                    <div key={cat} style={{marginBottom:16}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <div style={{background:CAT_COLORS[cat]||T.terra,borderRadius:6,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff",letterSpacing:".05em",textTransform:"uppercase"}}>{cat}</div>
+                        <div style={{flex:1,height:1,background:T.border}}/>
+                      </div>
+                      {items.map((item, j) => (
+                        <div key={j} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"6px 0"}}>
+                          <span style={{color:CAT_COLORS[cat]||T.terra,fontSize:8,marginTop:5,flexShrink:0}}>●</span>
+                          <span style={{fontSize:13,color:T.ink2,lineHeight:1.55}}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{textAlign:"center",marginTop:56,padding:"0 20px"}}>
+          <div style={{width:40,height:1,background:T.border,margin:"0 auto 20px"}}/>
+          <p style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>That's everything so far. More stitches coming soon.</p>
+          <div style={{marginTop:16}}>
+            <button onClick={()=>navigate("/")} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>Open YarnHive</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 export default function YarnHive() {
-  // Private route: /master-doc
-  if(typeof window!=="undefined"&&window.location.pathname==="/master-doc") return <MasterDocView/>;
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Private route: /master-doc (includes changelog tab)
+  if(location.pathname==="/master-doc") return <MasterDocView/>;
+  // Redirect old /changelog URL to /master-doc
+  if(location.pathname==="/changelog") return <Navigate to="/master-doc" replace/>;
   const [authed,setAuthed]=useState(false),[isPro,setIsPro]=useState(false);
   const [authChecked,setAuthChecked]=useState(false);
   const [userPatterns,setUserPatterns]=useState([]);
   const [starterPatterns,setStarterPatterns]=useState(()=>makeStarterPatterns());
-  const [view,setView]=useState("collection"),[selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
+  // Derive view from URL path instead of state
+  const view = viewFromPath(location.pathname);
+  const [selected,setSelected]=useState(null),[navOpen,setNavOpen]=useState(false),[addOpen,setAddOpen]=useState(false),[showPaywall,setShowPaywall]=useState(false),[cat,setCat]=useState("All"),[search,setSearch]=useState("");
   const [showEmailBanner,setShowEmailBanner]=useState(false);
   const [showWelcomeBanner,setShowWelcomeBanner]=useState(false);
   const [showWelcomeToast,setShowWelcomeToast]=useState(false);
@@ -3203,23 +3501,17 @@ export default function YarnHive() {
     validate();
   },[]);
 
-  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); };
+  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); navigate("/"); };
 
-  // FIX 1 — Browser back/forward navigation
-  const setViewWithHistory = (v) => {
-    if (v !== view) {
-      history.pushState({view:v},"","");
-      setView(v);
+  // Navigation helper — translates view keys to URL paths
+  const navigateToView = useCallback((v, patternId) => {
+    if (v === "detail" && patternId) {
+      navigate("/hive/" + encodeURIComponent(patternId));
+    } else {
+      const path = VIEW_TO_PATH[v] || "/hive";
+      if (path !== location.pathname) navigate(path);
     }
-  };
-  useEffect(()=>{
-    const handlePop = (e) => {
-      if (e.state?.view) setView(e.state.view);
-      else setView("collection");
-    };
-    window.addEventListener("popstate",handlePop);
-    return ()=>window.removeEventListener("popstate",handlePop);
-  },[]);
+  }, [navigate, location.pathname]);
 
   // Starter patterns are hardcoded in DEFAULT_STARTERS — no DB fetch needed
 
@@ -3243,7 +3535,7 @@ export default function YarnHive() {
           if(data.length>0){
             const patterns=data.map(r=>({
               id:r.id,_supabaseId:r.id,title:r.title||"",cat:r.cat||"",source:r.source||"",source_url:r.source_url||"",
-              notes:r.notes||"",photo:r.photo||r.image_url||"",hook:r.hook||r.hook_size||"",weight:r.weight||r.yarn_weight||"",
+              notes:r.notes||"",photo:r.cover_image_url||r.photo||r.image_url||"",cover_image_url:r.cover_image_url||null,hook:r.hook||r.hook_size||"",weight:r.weight||r.yarn_weight||"",
               yardage:r.yardage||0,materials:r.materials||[],rows:(r.rows||[]).map(row=>({...row,done:!!row.done})),
               rating:r.rating||0,skeins:r.skeins||0,skeinYards:r.skein_yards||200,
               gauge:r.gauge||{stitches:12,rows:16,size:4},dimensions:r.dimensions||{},
@@ -3267,6 +3559,26 @@ export default function YarnHive() {
       }catch(e){console.error("[YarnHive] Fetch patterns error:",e);}
     })();
   },[authed,authChecked]);
+
+  // Deep-link resolution: when URL is /hive/:id, resolve selected pattern from loaded data
+  useEffect(()=>{
+    if(view!=="detail") return;
+    const pid=patternIdFromPath(location.pathname);
+    if(!pid) return;
+    if(selected&&(String(selected.id)===pid||String(selected._supabaseId)===pid)) return;
+    const allP=[...userPatterns,...starterPatterns];
+    const match=allP.find(p=>String(p.id)===pid||String(p._supabaseId)===pid);
+    if(match) setSelected(match);
+    else if(authed&&authChecked&&allP.length>0) navigate("/hive",{replace:true});
+  },[view,location.pathname,userPatterns,starterPatterns,authed,authChecked]);
+
+  // /hive-vision route: open add-pattern modal (Hive Vision tab) and redirect to /hive
+  useEffect(()=>{
+    if(view==="hive-vision"&&authed){
+      setAddOpen(true);
+      navigate("/hive",{replace:true});
+    }
+  },[view,authed]);
 
   const isEmailConfirmed = () => {
     const s = getSession(); if(!s?.access_token) return false;
@@ -3330,7 +3642,7 @@ export default function YarnHive() {
 
   const handleNewSignup = () => {
     setAuthed(true);
-    setView("collection");
+    navigate("/hive");
     setShowOnboarding(true);
     setShowWelcomeBanner(true);
     setTimeout(()=>{
@@ -3341,7 +3653,7 @@ export default function YarnHive() {
 
   const handleSignIn = () => {
     setAuthed(true);
-    setView("collection");
+    navigate("/hive");
     setShowWelcomeToast(true);
     setTimeout(()=>setShowWelcomeToast(false),3000);
     showEmailBannerIfNeeded();
@@ -3349,7 +3661,16 @@ export default function YarnHive() {
 
   // Show nothing until session is validated against Supabase
   if(!authChecked) return <><CSS/><div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div className="spinner" style={{width:28,height:28,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%"}}/></div></>;
-  if(!authed) return <><CSS/><WaitlistPopup/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup}/></>;
+  if(!authed) {
+    // Auth guard: redirect any non-root path to / when not logged in
+    if(location.pathname!=="/") return <Navigate to="/" replace/>;
+    return <><CSS/><WaitlistPopup/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup}/></>;
+  }
+  // Authed users on root redirect to /hive
+  if(location.pathname==="/") return <Navigate to="/hive" replace/>;
+  // Unknown routes redirect to /hive
+  const knownPaths=["/hive","/builds","/browse","/stash","/tools","/shopping","/profile","/hive-vision","/master-doc"];
+  if(!knownPaths.some(p=>location.pathname===p||location.pathname.startsWith("/hive/"))) return <Navigate to="/hive" replace/>;
   const detailOnSave=u=>{
     setUserPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setStarterPatterns(prev=>prev.map(p=>p.id===u.id?u:p));setSelected(u);
     const user=supabaseAuth.getUser();const session=getSession();
@@ -3362,7 +3683,7 @@ export default function YarnHive() {
       }).then(r=>{console.log("[YarnHive] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[YarnHive] Row PATCH error body:",t));}).catch(e=>console.error("[YarnHive] Row progress save error:",e));
     }
   };
-  const detailOnBack=()=>{if(history.state?.view)history.back();else setView("collection");};
+  const detailOnBack=()=>navigate(-1);
   if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave}/></>;
 
   const startAndOpenPattern=(p)=>{
@@ -3379,7 +3700,7 @@ export default function YarnHive() {
         body:JSON.stringify({status:"in_progress"}),
       }).catch(e=>console.error("[YarnHive] Start pattern error:",e));
     }
-    setViewWithHistory("detail");
+    navigateToView("detail",p._supabaseId||p.id);
   };
   const openDetail=p=>{
     // Show "Ready to build?" prompt for unstarted patterns with rows
@@ -3392,7 +3713,7 @@ export default function YarnHive() {
       startAndOpenPattern(p);
     } else {
       setSelected(p);
-      setViewWithHistory("detail");
+      navigateToView("detail",p._supabaseId||p.id);
     }
   };
   const handleAddPattern=async(p)=>{
@@ -3409,7 +3730,7 @@ export default function YarnHive() {
         const res=await fetch(`${SUPABASE_URL}/rest/v1/patterns`,{
           method:"POST",
           headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=representation"},
-          body:JSON.stringify({user_id:user.id,title:p.title||"",cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null,extracted_by_ai:!!p.extracted_by_ai,components:p.components||null}),
+          body:JSON.stringify({user_id:user.id,title:p.title||"",cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",cover_image_url:p.cover_image_url||null,row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null,extracted_by_ai:!!p.extracted_by_ai,components:p.components||null}),
         });
         console.log("[YarnHive] INSERT response status:", res.status);
         if(res.ok){
@@ -3450,15 +3771,15 @@ export default function YarnHive() {
   if(isDesktop) return (
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:T.bg,fontFamily:T.sans,position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");setView("profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
-      {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);setViewWithHistory("collection");}}/>}
-      {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);setViewWithHistory("detail");}} onDismiss={()=>setReadyPromptPattern(null)}/>}
+      {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
+      {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
-      <SidebarNav view={view} setView={setViewWithHistory} count={userPatterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)} userPatterns={userPatterns} allPatterns={allPatterns}/>
+      <SidebarNav view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)} userPatterns={userPatterns} allPatterns={allPatterns}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
         <WelcomeBanner visible={showWelcomeBanner}/>
         {showEmailBanner&&!showWelcomeBanner&&<EmailConfirmBanner onDismiss={handleDismissEmailBanner} onResend={handleResendEmail}/>}
@@ -3470,14 +3791,14 @@ export default function YarnHive() {
           </div>
         </div>
         <div style={{flex:1,padding:"0 40px"}}>
-          {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} setView={setViewWithHistory} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
-          {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>setViewWithHistory("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:T.ink3}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=>{const v=pct(p),done=p.rows.filter(r=>r.done).length;return(<div key={p.id} className="card fu" onClick={()=>openDetail(p)} style={{background:T.card,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,cursor:"pointer",animationDelay:i*.06+"s"}}><div style={{position:"relative",height:140,overflow:"hidden",background:T.linen}}><Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color="rgba(255,255,255,.85)" h={4} bg="rgba(0,0,0,.2)"/></div>{p.isStarter&&<div style={{position:"absolute",top:8,left:8,background:"rgba(184,144,44,.9)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>}</div><div style={{padding:"12px 14px 14px"}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3}}>{p.cat}</div><div style={{fontFamily:T.serif,fontSize:14,fontWeight:500,color:T.ink,lineHeight:1.3,marginBottom:6}}>{p.title}</div><div style={{fontSize:11,color:T.ink3,marginBottom:8}}>{done} of {p.rows.length} rows complete</div><button style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Continue →</button></div></div>);})}</div>}</div>}
+          {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
+          {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:T.ink3}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=>{const v=pct(p),done=p.rows.filter(r=>r.done).length;return(<div key={p.id} className="card fu" onClick={()=>openDetail(p)} style={{background:T.card,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,cursor:"pointer",animationDelay:i*.06+"s"}}><div style={{position:"relative",height:140,overflow:"hidden",background:T.linen}}><Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color="rgba(255,255,255,.85)" h={4} bg="rgba(0,0,0,.2)"/></div>{p.isStarter&&<div style={{position:"absolute",top:8,left:8,background:"rgba(184,144,44,.9)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>}</div><div style={{padding:"12px 14px 14px"}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3}}>{p.cat}</div><div style={{fontFamily:T.serif,fontSize:14,fontWeight:500,color:T.ink,lineHeight:1.3,marginBottom:6}}>{p.title}</div><div style={{fontSize:11,color:T.ink3,marginBottom:8}}>{done} of {p.rows.length} rows complete</div><button style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Continue →</button></div></div>);})}</div>}</div>}
           {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave}/></div>}
           {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList/></div>}
-          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
+          {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>navigate("/hive")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
         </div>
       </div>
     </div>
@@ -3486,14 +3807,14 @@ export default function YarnHive() {
   return (
     <div style={{fontFamily:T.sans,background:T.bg,minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
-      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");setView("profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
+      {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
-      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} setView={setViewWithHistory} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
+      <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
       {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length}/>}
-      {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);setViewWithHistory("collection");}}/>}
-      {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);setViewWithHistory("detail");}} onDismiss={()=>setReadyPromptPattern(null)}/>}
+      {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
+      {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
       {showEmailBanner&&<EmailConfirmBanner onDismiss={handleDismissEmailBanner} onResend={handleResendEmail}/>}
       {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
@@ -3503,13 +3824,13 @@ export default function YarnHive() {
         <button onClick={openAddModal} style={{background:T.terra,border:"none",borderRadius:9,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(184,90,60,.4)"}}>+</button>
       </div>
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
-        {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} setView={setViewWithHistory} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
+        {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)}/>)}</div>}</div>}
         {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList/></div>}
-        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>setView("collection")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
+        {view==="profile"&&<ProfileSettingsView isPro={isPro} onOpenProModal={()=>setShowProModal(true)} onGoHome={()=>navigate("/hive")} onEmailConfirmed={()=>setShowEmailBanner(false)}/>}
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
         <button onClick={openAddModal} style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:99,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(184,90,60,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
