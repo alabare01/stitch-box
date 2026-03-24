@@ -202,6 +202,28 @@ const DEFAULT_STARTERS = [
   ]},
 ];
 const makeStarterPatterns = () => DEFAULT_STARTERS.map(p=>({...p,rows:p.rows.map(r=>({...r}))}));
+// Upload pattern file to Cloudinary (PDF, JPG, PNG)
+const uploadPatternFile = async (file, onProgress) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "yarnhive_patterns");
+  formData.append("resource_type", "auto");
+  if(onProgress) onProgress("uploading");
+  try {
+    const res = await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/auto/upload", {
+      method: "POST", body: formData,
+    });
+    if (!res.ok) throw new Error("Upload failed: " + res.status);
+    const data = await res.json();
+    if(onProgress) onProgress("done");
+    return { url: data.secure_url, filename: data.original_filename + "." + (data.format||"pdf"), type: file.type };
+  } catch (e) {
+    if(onProgress) onProgress("error");
+    console.error("[YarnHive] File upload error:", e);
+    return null;
+  }
+};
+
 const estYards = p => {
   if (p.yardage > 0) return p.yardage;
   return (p.materials||[]).reduce((s,m) => {
@@ -770,9 +792,18 @@ const HiveVisionForm = ({onSave}) => {
 
 const ManualEntryForm = ({onSave}) => {
   const [title,setTitle]=useState(""),[cat,setCat]=useState("Blankets"),[hook,setHook]=useState(""),[weight,setWeight]=useState(""),[source,setSource]=useState(""),[notes,setNotes]=useState(""),[yardage,setYardage]=useState(""),[rowText,setRowText]=useState(""),[rows,setRows]=useState([]),[matName,setMatName]=useState(""),[matAmt,setMatAmt]=useState(""),[materials,setMaterials]=useState([]);
+  const [fileUrl,setFileUrl]=useState(""),[fileName,setFileName]=useState(""),[fileType,setFileType]=useState(""),[fileUploading,setFileUploading]=useState(false);
+  const fileRef=useRef(null);
+  const handleFileUpload=async(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    setFileUploading(true);
+    const result=await uploadPatternFile(file);
+    setFileUploading(false);
+    if(result){setFileUrl(result.url);setFileName(result.filename);setFileType(result.type);}
+  };
   const addRow=()=>{if(!rowText.trim())return;setRows(p=>[...p,{id:Date.now(),text:rowText.trim(),done:false,note:""}]);setRowText("");};
   const addMat=()=>{if(!matName.trim())return;setMaterials(p=>[...p,{id:Date.now(),name:matName.trim(),amount:matAmt.trim()}]);setMatName("");setMatAmt("");};
-  const save=()=>{if(!title.trim())return;onSave({id:Date.now(),photo:PILL[Math.floor(Math.random()*PILL.length)],title,source:source||"My Pattern",cat,hook,weight,notes,rating:0,yardage:parseInt(yardage)||0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials,rows});};
+  const save=()=>{if(!title.trim())return;onSave({id:Date.now(),photo:PILL[Math.floor(Math.random()*PILL.length)],title,source:source||"My Pattern",cat,hook,weight,notes,rating:0,yardage:parseInt(yardage)||0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials,rows,source_file_url:fileUrl||undefined,source_file_name:fileName||undefined,source_file_type:fileType||undefined});};
   return (
     <div style={{paddingBottom:8}}>
       <Field label="Pattern Title *" placeholder="e.g. Cozy Weekend Blanket" value={title} onChange={e=>setTitle(e.target.value)}/>
@@ -810,6 +841,22 @@ const ManualEntryForm = ({onSave}) => {
       <div style={{display:"flex",gap:8,marginTop:8,marginBottom:20}}>
         <input value={rowText} onChange={e=>setRowText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addRow()} placeholder="Row 1: Ch 120, sc across…" style={{flex:1,padding:"9px 12px",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:9,fontSize:13,color:T.ink,outline:"none"}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
         <button onClick={addRow} style={{background:T.terra,color:"#fff",border:"none",borderRadius:9,padding:"9px 14px",cursor:"pointer",fontSize:18,lineHeight:1}}>+</button>
+      </div>
+      <div style={{marginBottom:18}}>
+        <div style={{fontSize:11,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:5}}>Attach source pattern (optional)</div>
+        <div style={{fontSize:12,color:T.ink3,marginBottom:8}}>PDF, JPG, or PNG — we'll keep it handy while you build</div>
+        {fileUrl?(
+          <div style={{display:"flex",alignItems:"center",gap:8,background:T.linen,borderRadius:10,padding:"10px 14px",border:`1px solid ${T.border}`}}>
+            <span style={{color:T.sage,fontSize:14}}>✓</span>
+            <span style={{flex:1,fontSize:13,color:T.ink2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fileName}</span>
+            <button onClick={()=>{setFileUrl("");setFileName("");setFileType("");}} style={{background:"none",border:"none",color:T.ink3,cursor:"pointer",fontSize:16}}>×</button>
+          </div>
+        ):(
+          <>
+            <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} style={{display:"none"}}/>
+            <button onClick={()=>fileRef.current?.click()} disabled={fileUploading} style={{background:T.linen,border:`1.5px dashed ${T.border}`,borderRadius:10,padding:"12px 16px",cursor:"pointer",fontSize:13,color:T.ink2,width:"100%",fontWeight:500,opacity:fileUploading?.6:1}}>{fileUploading?"Uploading…":"📎 Choose file"}</button>
+          </>
+        )}
       </div>
       <Btn onClick={save} disabled={!title.trim()}>Save Pattern</Btn>
     </div>
@@ -2153,9 +2200,41 @@ const ShareCardModal = ({pattern,onClose}) => {
   );
 };
 
+const SourceFileViewer = ({url,name,type,onClose}) => {
+  const isImage=type&&(type.startsWith("image")||/\.(jpg|jpeg|png|gif|webp)$/i.test(url));
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.sans}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:800,maxHeight:"90vh",background:T.modal,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+          <div><div style={{fontSize:14,fontWeight:600,color:T.ink}}>Source Pattern</div><div style={{fontSize:11,color:T.ink3,marginTop:2}}>{name}</div></div>
+          <button onClick={onClose} style={{background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+        <div style={{flex:1,overflow:"auto",padding:0}}>
+          {isImage?<img src={url} alt={name} style={{width:"100%",display:"block"}}/>
+          :<iframe src={url} title={name} style={{width:"100%",height:"80vh",border:"none"}}/>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Detail = ({p,onBack,onSave}) => {
   const [rows,setRows]=useState(p.rows),[tab,setTab]=useState("materials"),[newRow,setNewRow]=useState(""),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[noteEdit,setNoteEdit]=useState(null),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
   const [noteSaved,setNoteSaved]=useState(false);
+  const [showSourceFile,setShowSourceFile]=useState(false);
+  const [attachUploading,setAttachUploading]=useState(false);
+  const attachRef=useRef(null);
+  const handleAttachFile=async(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    setAttachUploading(true);
+    const result=await uploadPatternFile(file);
+    setAttachUploading(false);
+    if(result){
+      const updated={...p,source_file_url:result.url,source_file_name:result.filename,source_file_type:result.type,rows};
+      onSave(updated);
+    }
+  };
   const prevDone=useRef(pct({...p,rows:p.rows}));
   const{isDesktop}=useBreakpoint();
   const done=pct({...p,rows}),currentRowIdx=rows.findIndex(r=>!r.done);
@@ -2308,6 +2387,25 @@ const Detail = ({p,onBack,onSave}) => {
             <button onClick={addRow} style={{background:T.terra,color:"#fff",border:"none",borderRadius:11,padding:"10px 18px",fontSize:22,cursor:"pointer",lineHeight:1,boxShadow:"0 4px 12px rgba(184,90,60,.35)"}}>+</button>
           </div>
         </>)}
+        {/* Source file attach + viewer */}
+        {tab==="rows"&&p.source_file_url&&<div style={{position:"sticky",bottom:16,display:"flex",justifyContent:"center",marginTop:16,zIndex:5}}>
+          <button onClick={()=>setShowSourceFile(true)} style={{background:T.card,color:T.terra,border:`1.5px solid ${T.border}`,borderRadius:99,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(139,90,60,.12)",display:"flex",alignItems:"center",gap:6}}>📄 View Source Pattern</button>
+        </div>}
+        {showSourceFile&&p.source_file_url&&<SourceFileViewer url={p.source_file_url} name={p.source_file_name||"Source"} type={p.source_file_type||""} onClose={()=>setShowSourceFile(false)}/>}
+        {tab==="materials"&&(
+          <div style={{marginTop:16,borderTop:`1px solid ${T.border}`,paddingTop:14}}>
+            <input ref={attachRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleAttachFile} style={{display:"none"}}/>
+            {p.source_file_url?(
+              <div style={{display:"flex",alignItems:"center",gap:8,background:T.linen,borderRadius:10,padding:"10px 14px",border:`1px solid ${T.border}`}}>
+                <span style={{color:T.sage,fontSize:14}}>📄</span>
+                <span style={{flex:1,fontSize:12,color:T.ink2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.source_file_name||"Attached file"}</span>
+                <button onClick={()=>attachRef.current?.click()} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600}}>Replace</button>
+              </div>
+            ):(
+              <button onClick={()=>attachRef.current?.click()} disabled={attachUploading} style={{width:"100%",background:T.linen,border:`1.5px dashed ${T.border}`,borderRadius:10,padding:"12px",cursor:"pointer",fontSize:13,color:T.ink2,fontWeight:500,opacity:attachUploading?.6:1}}>{attachUploading?"Uploading…":"📎 Attach Pattern File"}</button>
+            )}
+          </div>
+        )}
         {tab==="notes"&&(
           <div style={{paddingTop:10}}>
             {editing?<textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} style={{width:"100%",minHeight:140,border:`1.5px solid ${T.border}`,borderRadius:12,padding:14,fontSize:14,lineHeight:1.75,resize:"vertical",outline:"none",color:T.ink,background:T.linen}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
@@ -2814,6 +2912,7 @@ export default function YarnHive() {
               rating:r.rating||0,skeins:r.skeins||0,skeinYards:r.skein_yards||200,
               gauge:r.gauge||{stitches:12,rows:16,size:4},dimensions:r.dimensions||{},
               isStarter:!!r.is_starter,is_ai_generated:!!r.is_ai_generated,difficulty:r.difficulty||"",tags:r.tags||[],started:r.status==="in_progress",
+              source_file_url:r.source_file_url||"",source_file_name:r.source_file_name||"",source_file_type:r.source_file_type||"",
             }));
             setUserPatterns(prev=>{
               // Keep local-only patterns (starters, unsaved) that aren't in Supabase
@@ -2923,7 +3022,7 @@ export default function YarnHive() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",
         headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString()}),
+        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null}),
       }).then(r=>{console.log("[YarnHive] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[YarnHive] Row PATCH error body:",t));}).catch(e=>console.error("[YarnHive] Row progress save error:",e));
     }
   };
@@ -2974,7 +3073,7 @@ export default function YarnHive() {
         const res=await fetch(`${SUPABASE_URL}/rest/v1/patterns`,{
           method:"POST",
           headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=representation"},
-          body:JSON.stringify({user_id:user.id,title:p.title||"",cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||""}),
+          body:JSON.stringify({user_id:user.id,title:p.title||"",cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null}),
         });
         console.log("[YarnHive] INSERT response status:", res.status);
         if(res.ok){
