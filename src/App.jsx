@@ -240,11 +240,21 @@ const extractPatternFromPDF = async (base64Data, filename, mimeType) => {
   const prompt = `You are a crochet pattern extraction specialist. Analyze this crochet pattern and extract all structured data. Return ONLY valid JSON with no markdown, no backticks, no explanation.
 
 Return this exact structure:
-{"title":"string","designer":"string","source_url":null,"finished_size":"string","difficulty":"Beginner or Intermediate or Advanced","yarn_weight":"string","hook_size":"string","gauge":"string or null","materials":[{"name":"string","amount":"string","notes":"string"}],"abbreviations":[{"abbr":"string","meaning":"string"}],"pattern_notes":"string","components":[{"name":"string","make_count":1,"rows":[{"id":"rnd-1","label":"RND 1","text":"full instruction text","stitch_count":null}]}],"assembly_notes":"string","image_description":"string"}
+{"title":"string","designer":"string","source_url":null,"finished_size":"string","difficulty":"Beginner or Intermediate or Advanced","yarn_weight":"string","hook_size":"string","gauge":"string or null","materials":[{"name":"string","amount":"string","notes":"string"}],"abbreviations":[{"abbr":"string","meaning":"string"}],"pattern_notes":"string","components":[{"name":"string","make_count":1,"rows":[{"id":"rnd-1","label":"RND 1","text":"full instruction text","stitch_count":null,"action_item":false}]}],"assembly_notes":"string","image_description":"string"}
 
-Extract every round and row instruction as individual row entries. For multi-round instructions like 'RND 5-7 sc 24 (24) (3 RNDs total)', expand them into individual rows: RND 5, RND 6, RND 7 each with the same instruction. Be thorough -- extract every component, every round, every material.
+For patterns worked in the round, use 'RND' as the label prefix (RND 1, RND 2, etc). For patterns worked in rows, use 'ROW'. Detect from context which applies per component.
 
-Ensure the JSON is complete and valid. Do not truncate.`;
+For any instruction covering multiple rounds like 'RND 10-23: sc x40 (24) (14 RNDs total)', expand into individual rows: RND 10, RND 11, RND 12... each with the same instruction text. Never leave a range as a single row. Every round the user needs to complete must be its own checkable row.
+
+For mid-pattern instructions that are not stitch rows (examples: 'Place the eyes now', 'Begin stuffing', 'PM in front post', 'See page 7 for details') -- include these as rows with label 'NOTE' and set action_item: true. These are critical build steps not stitch instructions.
+
+For components like 'FLIPPER (MAKE 2)', make_count should be 2. Always extract make_count as a number, default 1 if not specified.
+
+After all construction components, extract any assembly, finishing, or detail sections as a final component named 'ASSEMBLY & FINISHING'. Extract each distinct step as a row. Examples: 'Place safety eyes between RND 5 and 6', 'Attach flippers to body at RND 9-14'. Use label: 'STEP' and action_item: true for all assembly rows.
+
+Extract pattern_notes as a single string containing all special technique notes, tension notes, and construction tips. Include: special stitch methods, decrease methods, tension guidance, and technique-specific instructions.
+
+Be thorough -- extract every component, every round, every material. Ensure the JSON is complete and valid. Do not truncate.`;
 
   const body = {
     contents: [{
@@ -343,10 +353,15 @@ const buildRowsFromComponents = (components) => {
   const rows = [];
   let rowId = 1;
   (components || []).forEach(comp => {
-    const label = comp.name + (comp.make_count > 1 ? ` (MAKE ${comp.make_count})` : "");
-    rows.push({ id: "header-" + (comp.name || rowId).toLowerCase().replace(/\s+/g, "-"), text: "── " + label.toUpperCase() + " ──", isHeader: true, done: false, note: "" });
+    const makeCount = comp.make_count || 1;
+    const label = comp.name + (makeCount > 1 ? ` (MAKE ${makeCount})` : "");
+    rows.push({ id: "header-" + (comp.name || rowId).toLowerCase().replace(/\s+/g, "-"), text: "── " + label.toUpperCase() + " ──", isHeader: true, done: false, note: "", componentName: comp.name, makeCount });
     (comp.rows || []).forEach(r => {
-      rows.push({ id: "row-" + rowId++, text: (r.label ? r.label + ": " : "") + r.text + (r.stitch_count ? " (" + r.stitch_count + ")" : ""), done: false, note: "" });
+      const isAction = !!r.action_item;
+      const prefix = isAction ? "📌 " : "";
+      const labelText = r.label ? r.label + ": " : "";
+      const stitchSuffix = r.stitch_count ? " (" + r.stitch_count + ")" : "";
+      rows.push({ id: "row-" + rowId++, text: prefix + labelText + r.text + stitchSuffix, done: false, note: "", isAction, componentName: comp.name });
     });
   });
   return rows;
@@ -1242,7 +1257,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount}) => {
 };
 
 const SidebarNav = ({view,setView,count,isPro,onAddPattern,onSignOut,onUpgrade,userPatterns=[],allPatterns=[]}) => {
-  const starterC=allPatterns.filter(p=>p.isStarter).length;const addedC=userPatterns.filter(p=>!p.isStarter).length;
+  const starterC=DEFAULT_STARTERS.length;const addedC=userPatterns.filter(p=>!p.isStarter).length;
   const wipCount=allPatterns.filter(p=>!p.isStarter&&(p.status==="in_progress"||p.started)).filter(p=>pct(p)<100).length;
   const ITEMS=[{key:"collection",label:"Your Hive",sub:starterC+" starter"+(starterC!==1?"s":"")+" · "+addedC+" added",icon:"🧶"},{key:"wip",label:"Builds in Progress",sub:wipCount>0?wipCount+" active":"Currently making",icon:"🪡"},{key:"browse",label:"Browse Sites",sub:"Find free patterns",icon:"🌐"},{key:"stash",label:"Yarn Stash",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"Calculators",sub:"Gauge, yardage & more",icon:"🧮"},{key:"shopping",label:"Shopping List",sub:"Auto-generated",icon:"🛒"}];
   return (
@@ -2411,6 +2426,7 @@ const Detail = ({p,onBack,onSave}) => {
   const [noteSaved,setNoteSaved]=useState(false);
   const [showSourceFile,setShowSourceFile]=useState(false);
   const [attachUploading,setAttachUploading]=useState(false);
+  const [expandedSections,setExpandedSections]=useState({});
   const attachRef=useRef(null);
   const handleAttachFile=async(e)=>{
     const file=e.target.files?.[0];if(!file)return;
@@ -2543,6 +2559,14 @@ const Detail = ({p,onBack,onSave}) => {
           </div>
         </>)}
         {tab==="rows"&&(<>
+          {/* Pattern notes section */}
+          {(p.notes||p.pattern_notes)&&<div style={{marginBottom:12}}>
+            <button onClick={()=>setNoteEdit(noteEdit==="pnotes"?null:"pnotes")} style={{width:"100%",background:T.linen,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{fontSize:13,color:T.ink2,fontWeight:500}}>📋 Pattern Notes — tap to expand</span>
+              <span style={{fontSize:12,color:T.ink3}}>{noteEdit==="pnotes"?"▼":"▶"}</span>
+            </button>
+            {noteEdit==="pnotes"&&<div style={{background:T.linen,border:`1px solid ${T.border}`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"12px 14px",fontSize:13,color:T.ink2,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{p.notes||p.pattern_notes}</div>}
+          </div>}
           {rows.length===0?(
             <div style={{textAlign:"center",padding:"48px 20px"}}>
               <div style={{fontSize:40,marginBottom:14}}>🧶</div>
@@ -2550,15 +2574,43 @@ const Detail = ({p,onBack,onSave}) => {
               <div style={{fontSize:13,color:T.ink3,lineHeight:1.6,marginBottom:20}}>Add rows to start building this pattern step by step.</div>
               <button onClick={()=>{if(!editing)setEditing(true);}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>Add Rows</button>
             </div>
-          ):(()=>{const seenAbbr=new Set();return rows.map((r,i)=>{if(r.isHeader) return(<div key={r.id} style={{padding:"16px 0 6px"}}><div style={{fontSize:11,fontWeight:700,color:T.terra,letterSpacing:".08em",textTransform:"uppercase"}}>{r.text}</div></div>);const isCurrent=i===currentRowIdx,newAbbr=r.done?[]:findNewAbbr(r.text,seenAbbr);return(
-            <div key={r.id} style={{borderBottom:`1px solid ${T.border}`}}>
+          ):(()=>{
+            // Group rows into sections by header rows
+            const sections=[];let current={header:null,rows:[]};
+            rows.forEach(r=>{if(r.isHeader){if(current.header||current.rows.length)sections.push(current);current={header:r,rows:[]};}else current.rows.push(r);});
+            if(current.header||current.rows.length)sections.push(current);
+            // Find first incomplete section
+            const firstIncomplete=sections.findIndex(s=>s.rows.some(r=>!r.done));
+            const seenAbbr=new Set();
+            return sections.map((sec,si)=>{
+              const secKey=sec.header?.id||"sec-"+si;
+              const secDone=sec.rows.filter(r=>r.done).length;
+              const secTotal=sec.rows.length;
+              const secComplete=secTotal>0&&secDone===secTotal;
+              const defaultOpen=si===firstIncomplete||(!sec.header);
+              const open=expandedSections[secKey]!==undefined?expandedSections[secKey]:defaultOpen;
+              const toggleSec=()=>setExpandedSections(prev=>({...prev,[secKey]:!open}));
+              return (<div key={secKey} style={{marginBottom:8}}>
+                {sec.header&&<button onClick={toggleSec} style={{width:"100%",background:secComplete?T.sageLt:T.linen,border:`1px solid ${secComplete?"rgba(92,122,94,.3)":T.border}`,borderRadius:open?"10px 10px 0 0":10,padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,textAlign:"left"}}>
+                  <span style={{fontSize:12,color:T.ink3}}>{open?"▼":"▶"}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:700,color:secComplete?T.sage:T.terra}}>{sec.header.text.replace(/──/g,"").trim()}{secComplete?" ✓":""}</div>
+                    <div style={{fontSize:11,color:T.ink3,marginTop:2}}>{secDone} of {secTotal} complete</div>
+                  </div>
+                  {sec.header.makeCount>1&&<div style={{background:T.gold,color:"#fff",borderRadius:99,padding:"2px 8px",fontSize:10,fontWeight:700}}>×{sec.header.makeCount}</div>}
+                  <div style={{width:60}}><Bar val={secTotal?secDone/secTotal*100:0} color={secComplete?T.sage:T.terra} h={3}/></div>
+                </button>}
+                {(open||!sec.header)&&<div style={{border:sec.header?`1px solid ${T.border}`:"none",borderTop:"none",borderRadius:sec.header?"0 0 10px 10px":0,overflow:"hidden"}}>
+                  {sec.rows.map((r,i)=>{const globalIdx=rows.indexOf(r);const isCurrent=globalIdx===currentRowIdx;const newAbbr=r.done?[]:findNewAbbr(r.text,seenAbbr);return(
+            <div key={r.id} style={{borderBottom:`1px solid ${T.border}`,background:r.isAction?"rgba(184,144,44,.06)":"transparent"}}>
               <div onClick={()=>toggle(r.id)} style={{display:"flex",gap:13,alignItems:"flex-start",cursor:"pointer",background:isCurrent?"rgba(184,90,60,.04)":"transparent",padding:"14px 8px",margin:"0 -8px"}}>
                 <div style={{width:26,height:26,borderRadius:7,flexShrink:0,marginTop:1,background:r.done?T.terra:T.surface,border:"1.5px solid "+(r.done?T.terra:isCurrent?T.terra:T.border),display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",boxShadow:r.done?"0 2px 8px rgba(184,90,60,.3)":isCurrent?"0 0 0 3px rgba(184,90,60,.15)":"none"}}>
                   {r.done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}{!r.done&&isCurrent&&<div style={{width:8,height:8,borderRadius:99,background:T.terra}}/>}
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   {isCurrent&&<div style={{fontSize:10,color:T.terra,fontWeight:600,letterSpacing:".06em",marginBottom:2}}>CURRENT ROW</div>}
-                  {!isCurrent&&<div style={{fontSize:10,color:T.ink3,letterSpacing:".06em",marginBottom:2}}>ROW {i+1}</div>}
+                  {!isCurrent&&r.isAction&&<div style={{fontSize:10,color:T.gold,fontWeight:600,letterSpacing:".06em",marginBottom:2}}>ACTION</div>}
+                  {!isCurrent&&!r.isAction&&<div style={{fontSize:10,color:T.ink3,letterSpacing:".06em",marginBottom:2}}>ROW {globalIdx+1}</div>}
                   <div style={{fontSize:14,lineHeight:1.6,color:r.done?T.ink3:T.ink,textDecoration:r.done?"line-through":"none"}}>{r.text}</div>
                 </div>
                 <button onClick={e=>{e.stopPropagation();setNoteEdit(noteEdit===r.id?null:r.id);}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",padding:"4px",flexShrink:0,position:"relative"}}><span style={{color:r.note?T.terra:T.ink3,opacity:r.note?1:.5}}>📝</span></button>
@@ -2567,15 +2619,19 @@ const Detail = ({p,onBack,onSave}) => {
               {newAbbr.length>0&&<div style={{padding:"0 8px 10px 47px",display:"flex",flexWrap:"wrap",gap:6}} onClick={e=>e.stopPropagation()}>{newAbbr.map(a=><button key={a.raw} onClick={e=>{e.stopPropagation();window.open(a.url,"_blank","noopener,noreferrer");}} style={{display:"flex",alignItems:"center",gap:5,background:"#FF0000",color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",boxShadow:"0 2px 8px rgba(255,0,0,.3)"}}><span style={{fontSize:10}}>▶</span><span>{a.raw}</span><span style={{opacity:.8,fontWeight:400}}>— {a.full}</span></button>)}</div>}
               {noteEdit===r.id&&<div style={{padding:"0 8px 12px 47px",display:"flex",alignItems:"center",gap:8}}><input value={r.note} onChange={e=>updateNote(r.id,e.target.value)} placeholder="Add a note for this row…" style={{flex:1,padding:"9px 12px",background:T.linen,border:`1.5px solid ${T.terra}`,borderRadius:9,fontSize:13,color:T.ink,outline:"none"}}/>{noteSaved&&<span style={{fontSize:11,color:T.sage,fontWeight:600,flexShrink:0}}>Note saved</span>}</div>}
             </div>
-          );});})()}
+          );})}
+                </div>}
+              </div>);
+            });
+          })()}
           <div style={{display:"flex",gap:8,marginTop:16}}>
             <input value={newRow} onChange={e=>setNewRow(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addRow()} placeholder="Add a row or step…" style={{flex:1,border:`1.5px solid ${T.border}`,borderRadius:11,padding:"10px 14px",fontSize:13,color:T.ink,background:T.linen,outline:"none"}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
             <button onClick={addRow} style={{background:T.terra,color:"#fff",border:"none",borderRadius:11,padding:"10px 18px",fontSize:22,cursor:"pointer",lineHeight:1,boxShadow:"0 4px 12px rgba(184,90,60,.35)"}}>+</button>
           </div>
         </>)}
         {/* Source file attach + viewer */}
-        {tab==="rows"&&p.source_file_url&&<div style={{position:"sticky",bottom:16,display:"flex",justifyContent:"center",marginTop:16,zIndex:5}}>
-          <button onClick={()=>setShowSourceFile(true)} style={{background:T.card,color:T.terra,border:`1.5px solid ${T.border}`,borderRadius:99,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(139,90,60,.12)",display:"flex",alignItems:"center",gap:6}}>📄 View Source Pattern</button>
+        {tab==="rows"&&p.source_file_url&&p.source_file_url.length>0&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",zIndex:100}}>
+          <button onClick={()=>setShowSourceFile(true)} style={{background:T.card,color:T.terra,border:`1.5px solid ${T.border}`,borderRadius:99,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(139,90,60,.15)",display:"flex",alignItems:"center",gap:6}}>📄 View Source Pattern</button>
         </div>}
         {showSourceFile&&p.source_file_url&&<SourceFileViewer url={p.source_file_url} name={p.source_file_name||"Source"} type={p.source_file_type||""} onClose={()=>setShowSourceFile(false)}/>}
         {tab==="materials"&&(
