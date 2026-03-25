@@ -173,7 +173,7 @@ const CSS = () => (
 const pct = p => { const checkable=(p.rows||[]).filter(r=>!r.isHeader); return checkable.length ? Math.round(checkable.filter(r=>r.done).length/checkable.length*100) : 0; };
 
 const DEFAULT_STARTERS = [
-  {id:"starter_granny",title:"Granny Square",cat:"Blankets",hook:"5.0mm",weight:"Worsted",yardage:120,notes:"",source:"YarnHive Starter",photo:PHOTOS.blanket,materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:12,height:12},isStarter:true,rows:[
+  {id:"starter_granny",title:"Granny Square",cat:"Blankets",hook:"5.0mm",weight:"Worsted",yardage:120,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:12,height:12},isStarter:true,rows:[
     {id:1,text:"Magic ring, ch 3 (counts as first dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times, sl st to top of ch-3 to join.",done:false,note:""},
     {id:2,text:"Sl st to ch-2 sp, ch 3, 2 dc in same sp, ch 1, [3 dc, ch 2, 3 dc in next ch-2 sp, ch 1] 3 times, 3 dc in first sp, ch 2, sl st to join.",done:false,note:""},
     {id:3,text:"Sl st to ch-2 corner sp, ch 3, 2 dc in same sp, ch 2, 3 dc in same sp, ch 1, 3 dc in ch-1 sp, ch 1, [corner, ch 1, 3 dc in ch-1 sp, ch 1] repeat, sl st to join.",done:false,note:""},
@@ -181,7 +181,7 @@ const DEFAULT_STARTERS = [
     {id:5,text:"Repeat Row 4 to expand square one more round.",done:false,note:""},
     {id:6,text:"Final round: sc evenly around entire square, working 3 sc in each corner. Fasten off and weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_amigurumi",title:"Amigurumi Ball",cat:"Amigurumi",hook:"3.5mm",weight:"DK",yardage:40,notes:"",source:"YarnHive Starter",photo:PHOTOS.granny,materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:4,height:4},isStarter:true,rows:[
+  {id:"starter_amigurumi",title:"Amigurumi Ball",cat:"Amigurumi",hook:"3.5mm",weight:"DK",yardage:40,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:4,height:4},isStarter:true,rows:[
     {id:11,text:"Magic ring, 6 sc in ring. (6)",done:false,note:""},
     {id:12,text:"2 sc in each st around. (12)",done:false,note:""},
     {id:13,text:"[ Sc in next st, 2 sc in next st ] repeat around. (18)",done:false,note:""},
@@ -189,7 +189,7 @@ const DEFAULT_STARTERS = [
     {id:15,text:"[ Sc in next st, sc2tog ] repeat around. (12) — stuff with fiberfill now.",done:false,note:""},
     {id:16,text:"Sc2tog around. (6) — fasten off, close opening, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_beanie",title:"Basic Beanie",cat:"Wearables",hook:"5.0mm",weight:"Worsted",yardage:150,notes:"",source:"YarnHive Starter",photo:PHOTOS.cardigan,materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:10,height:8},isStarter:true,rows:[
+  {id:"starter_beanie",title:"Basic Beanie",cat:"Wearables",hook:"5.0mm",weight:"Worsted",yardage:150,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:10,height:8},isStarter:true,rows:[
     {id:21,text:"Magic ring, 6 sc. (6)",done:false,note:""},
     {id:22,text:"2 sc in each st. (12)",done:false,note:""},
     {id:23,text:"[ Sc, 2 sc in next ] repeat. (18)",done:false,note:""},
@@ -199,13 +199,13 @@ const DEFAULT_STARTERS = [
     {id:27,text:"Continue even rounds until beanie measures 7.5 inches total.",done:false,note:""},
     {id:28,text:"Last round: sl st in each st around. Fasten off, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_dishcloth",title:"Simple Dishcloth",cat:"Home",hook:"5.0mm",weight:"Cotton",yardage:80,notes:"",source:"YarnHive Starter",photo:PHOTOS.pillow,materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:8,height:8},isStarter:true,rows:[
+  {id:"starter_dishcloth",title:"Simple Dishcloth",cat:"Home",hook:"5.0mm",weight:"Cotton",yardage:80,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:8,height:8},isStarter:true,rows:[
     {id:31,text:"Ch 25. Sc in 2nd ch from hook and in each ch across. (24 sc)",done:false,note:""},
     {id:32,text:"Ch 1, turn. Sc in each st across. (24)",done:false,note:""},
     {id:33,text:"Repeat Row 2. Continue until piece is roughly square.",done:false,note:""},
     {id:34,text:"Final row: ch 1, turn, sc across. Fasten off, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_magicring",title:"Magic Ring Practice Swatch",cat:"Amigurumi",hook:"4.0mm",weight:"Worsted",yardage:30,notes:"",source:"YarnHive Starter",photo:PHOTOS.granny,materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:5,height:5},isStarter:true,rows:[
+  {id:"starter_magicring",title:"Magic Ring Practice Swatch",cat:"Amigurumi",hook:"4.0mm",weight:"Worsted",yardage:30,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:5,height:5},isStarter:true,rows:[
     {id:41,text:"Make a magic ring. Ch 1, work 6 sc into ring, pull tight to close. (6)",done:false,note:""},
     {id:42,text:"2 sc in each st around. (12)",done:false,note:""},
     {id:43,text:"[ Sc in next st, 2 sc in next ] repeat around. (18)",done:false,note:""},
@@ -413,6 +413,149 @@ const Photo = ({src,alt,style:sx}) => {
   if(err) return <div style={{...sx,background:"linear-gradient(145deg,#C4855A,#6B3A22)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,opacity:.4}}>🧶</span></div>;
   return <img src={src} alt={alt} onError={()=>setErr(true)} style={{...sx,objectFit:"cover",display:"block"}}/>;
 };
+
+// ─── CATEGORY FALLBACK IMAGES (Imagen 4.0 generated) ──────────────────────
+const CAT_IMG = {
+  "Amigurumi":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",
+  "Blankets":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405430/u1evbmu4nccpiyg8fc7a.png",
+  "Wearables":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405433/yrcitmgukrik0owg1typ.png",
+  "Accessories":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405436/uq692cchkcsjowpgu2le.png",
+  "Home Décor":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405438/moqrjnlupspgoxt9v4wb.png",
+  "Uncategorized":"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405441/ggzvsrbeeetyiabs55sn.png",
+};
+const catImgFor = (cat) => CAT_IMG[cat] || CAT_IMG["Uncategorized"];
+const ALL_CAT_ENTRIES = Object.entries(CAT_IMG);
+
+const CoverImagePicker = ({pattern, onConfirm, onClose}) => {
+  const [tab,setTab]=useState("import");
+  const [selected,setSelected]=useState(null);
+  const [uploading,setUploading]=useState(false);
+  const [importFailed,setImportFailed]=useState(false);
+  const [importUrl,setImportUrl]=useState(null);
+  const fileRef=useRef(null);
+
+  const hasImport = !!(pattern.source_file_url || pattern.source_url);
+  const isManual = !pattern.source_file_url && !pattern.source_url;
+
+  // Auto-detect import cover on mount
+  useEffect(()=>{
+    if(isManual){setTab("photo");return;}
+    if(pattern.source_file_url && pattern.source_file_url.endsWith(".pdf")){
+      const thumb = pdfThumbUrl(pattern.source_file_url);
+      if(thumb){
+        const img=new Image();
+        img.onload=()=>{setImportUrl(thumb);setSelected(thumb);};
+        img.onerror=()=>setImportFailed(true);
+        img.src=thumb;
+      } else setImportFailed(true);
+    } else if(pattern.photo && !PILL.includes(pattern.photo)){
+      setImportUrl(pattern.photo);setSelected(pattern.photo);
+    } else {
+      setImportFailed(true);
+    }
+  },[]);
+
+  const handleFileSelect = async(e) => {
+    const file=e.target.files?.[0];if(!file)return;
+    setUploading(true);
+    const formData=new FormData();
+    formData.append("file",file);
+    formData.append("upload_preset","yarnhive_patterns");
+    try{
+      const res=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:formData});
+      if(res.ok){const data=await res.json();setSelected(data.secure_url);setTab("photo");}
+    }catch{}
+    setUploading(false);
+  };
+
+  const cat = pattern.cat || "Uncategorized";
+
+  const TABS = [];
+  if(hasImport) TABS.push({id:"import",label:"Use Import"});
+  TABS.push({id:"photo",label:"Take a Photo"});
+  TABS.push({id:"library",label:"Our Library"});
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.sans}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)"}}/>
+      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:440,maxHeight:"85vh",background:T.modal,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.3)",margin:16}}>
+        {/* Header */}
+        <div style={{padding:"18px 20px 0",flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:T.ink}}>Set Cover Image</div>
+            <button onClick={onClose} style={{background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>
+          {/* Tabs */}
+          <div style={{display:"flex",gap:0,borderBottom:`1px solid ${T.border}`}}>
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{background:"none",border:"none",borderBottom:tab===t.id?`2px solid ${T.terra}`:"2px solid transparent",padding:"10px 16px",fontSize:12,fontWeight:tab===t.id?700:500,color:tab===t.id?T.ink:T.ink3,cursor:"pointer"}}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+        {/* Content */}
+        <div style={{flex:1,overflow:"auto",padding:20}}>
+          {tab==="import"&&(
+            importFailed
+              ?<div style={{textAlign:"center",padding:"24px 0"}}>
+                <div style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>We couldn't extract a cover from your file. Choose below.</div>
+                <button onClick={()=>setTab("photo")} style={{background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",marginTop:16}}>Take a Photo</button>
+              </div>
+              :importUrl
+                ?<div style={{textAlign:"center"}}>
+                  <div style={{borderRadius:12,overflow:"hidden",border:selected===importUrl?`3px solid ${T.terra}`:`1px solid ${T.border}`,cursor:"pointer",display:"inline-block",position:"relative"}} onClick={()=>setSelected(importUrl)}>
+                    <img src={importUrl} alt="Import cover" style={{width:"100%",maxWidth:300,display:"block",borderRadius:9}}/>
+                    {selected===importUrl&&<div style={{position:"absolute",top:8,right:8,background:T.terra,color:"#fff",borderRadius:99,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>✓</div>}
+                  </div>
+                  <div style={{fontSize:11,color:T.ink3,marginTop:10}}>Extracted from your imported file</div>
+                </div>
+                :<div style={{textAlign:"center",padding:"24px 0"}}><div className="spinner" style={{width:24,height:24,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%",margin:"0 auto"}}/><div style={{fontSize:12,color:T.ink3,marginTop:10}}>Extracting cover...</div></div>
+          )}
+          {tab==="photo"&&(
+            <div style={{textAlign:"center",padding:"16px 0"}}>
+              <div style={{fontSize:13,color:T.ink3,lineHeight:1.6,marginBottom:16}}>Show off your work — use a photo of your finished object or your pattern cover</div>
+              {selected&&!PILL.includes(selected)&&selected!==importUrl&&!Object.values(CAT_IMG).includes(selected)
+                ?<div style={{marginBottom:16}}>
+                  <div style={{borderRadius:12,overflow:"hidden",border:`3px solid ${T.terra}`,display:"inline-block",position:"relative"}}>
+                    <img src={selected} alt="Your photo" style={{width:"100%",maxWidth:300,display:"block",borderRadius:9}}/>
+                    <div style={{position:"absolute",top:8,right:8,background:T.terra,color:"#fff",borderRadius:99,width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>✓</div>
+                  </div>
+                </div>
+                :null}
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleFileSelect} style={{display:"none"}}/>
+              <button onClick={()=>fileRef.current?.click()} disabled={uploading} style={{background:T.linen,border:`1.5px dashed ${T.terra}`,borderRadius:12,padding:"20px",cursor:"pointer",width:"100%",opacity:uploading?.6:1}}>
+                <div style={{fontSize:24,marginBottom:6}}>{uploading?"⏳":"📷"}</div>
+                <div style={{fontSize:13,color:T.terra,fontWeight:600}}>{uploading?"Uploading...":"Choose Photo or Take One"}</div>
+              </button>
+            </div>
+          )}
+          {tab==="library"&&(
+            <div>
+              <div style={{fontSize:12,color:T.ink3,marginBottom:12}}>Choose a category image</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                {ALL_CAT_ENTRIES.map(([cat,url])=>(
+                  <div key={cat} onClick={()=>setSelected(url)} style={{borderRadius:10,overflow:"hidden",cursor:"pointer",border:selected===url?`3px solid ${T.terra}`:`1px solid ${T.border}`,position:"relative",aspectRatio:"1"}}>
+                    <img src={url} alt={cat} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(to top,rgba(0,0,0,.6),transparent)",padding:"16px 6px 4px"}}>
+                      <span style={{color:"#fff",fontSize:9,fontWeight:600,letterSpacing:".06em"}}>{cat.toUpperCase()}</span>
+                    </div>
+                    {selected===url&&<div style={{position:"absolute",top:6,right:6,background:T.terra,color:"#fff",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>✓</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Confirm button */}
+        <div style={{padding:"12px 20px 20px",flexShrink:0,borderTop:`1px solid ${T.border}`}}>
+          <button onClick={()=>{if(selected)onConfirm(selected);}} disabled={!selected} style={{width:"100%",background:selected?T.terra:"#ccc",color:"#fff",border:"none",borderRadius:12,padding:"14px",fontSize:15,fontWeight:600,cursor:selected?"pointer":"not-allowed",opacity:selected?1:.6,boxShadow:selected?"0 4px 16px rgba(184,90,60,.3)":"none"}}>Use this image</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Category-aware fallback for cards with no cover
+const catFallbackPhoto = (cat) => catImgFor(cat);
 const Btn = ({children,onClick,variant="primary",full=true,small=false,disabled=false,style:sx={}}) => {
   const styles = {
     primary:{background:T.terra,color:"#fff",border:"none"},
@@ -1090,6 +1233,11 @@ const PDFUploadForm = ({onSave}) => {
   const [editDesigner,setEditDesigner]=useState("");
   const [editHook,setEditHook]=useState("");
   const [editWeight,setEditWeight]=useState("");
+  const [coverTab,setCoverTab]=useState("pdf");
+  const [coverUrl,setCoverUrl]=useState(null);
+  const [coverFailed,setCoverFailed]=useState(false);
+  const [coverUploading,setCoverUploading]=useState(false);
+  const coverFileRef=useRef(null);
   const handleFile=async(e)=>{
     const f=e.target.files?.[0];if(!f)return;
     // Size check before anything
@@ -1130,7 +1278,8 @@ const PDFUploadForm = ({onSave}) => {
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
     const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));
-    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[]});
+    const finalCover=coverUrl||fileInfo?.coverUrl||null;
+    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[]});
   };
   const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
   if(stage==="pick") return (
@@ -1158,6 +1307,44 @@ const PDFUploadForm = ({onSave}) => {
   return (
     <div style={{paddingBottom:8}}>
       <div style={{background:T.sageLt,borderRadius:12,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>✓</span><span style={{fontSize:13,color:T.sage,fontWeight:600}}>We read your pattern — does this look right?</span></div>
+      {/* Cover image picker */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:11,color:T.ink2,textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Pattern Cover Image</div>
+        {coverUrl&&<div style={{marginBottom:10,borderRadius:10,overflow:"hidden",border:`2px solid ${T.terra}`,width:120,height:120}}><img src={coverUrl} alt="Cover" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
+        {!coverUrl&&fileInfo?.coverUrl&&!coverFailed&&<div style={{marginBottom:10,borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,width:120,height:120}}><img src={fileInfo.coverUrl} alt="PDF cover" onError={()=>setCoverFailed(true)} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
+        {!coverUrl&&coverFailed&&<div style={{marginBottom:10,width:120,height:120,borderRadius:10,background:T.linen,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:11,color:T.ink3,textAlign:"center",padding:8}}>No preview</span></div>}
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
+          {["pdf","photo","library"].map(t=>(
+            <button key={t} onClick={()=>setCoverTab(t)} style={{background:coverTab===t?T.terra:"transparent",color:coverTab===t?"#fff":T.ink3,border:`1px solid ${coverTab===t?T.terra:T.border}`,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:coverTab===t?600:400,cursor:"pointer"}}>{t==="pdf"?"From PDF":t==="photo"?"Take Photo":"Our Library"}</button>
+          ))}
+        </div>
+        {coverTab==="pdf"&&(
+          fileInfo?.coverUrl&&!coverFailed
+            ?<div style={{fontSize:12,color:T.ink3}}>{coverUrl===fileInfo.coverUrl?"PDF cover selected":"Tap to use extracted cover"} <button onClick={()=>setCoverUrl(fileInfo.coverUrl)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:12,fontWeight:600,textDecoration:"underline"}}>Use PDF cover</button></div>
+            :<div style={{fontSize:12,color:T.ink3}}>Could not extract — choose another option</div>
+        )}
+        {coverTab==="photo"&&(
+          <div>
+            <input ref={coverFileRef} type="file" accept="image/*" capture="environment" onChange={async(e)=>{
+              const f=e.target.files?.[0];if(!f)return;
+              setCoverUploading(true);
+              const fd=new FormData();fd.append("file",f);fd.append("upload_preset","yarnhive_patterns");
+              try{const res=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:fd});if(res.ok){const d=await res.json();setCoverUrl(d.secure_url);}}catch{}
+              setCoverUploading(false);
+            }} style={{display:"none"}}/>
+            <button onClick={()=>coverFileRef.current?.click()} disabled={coverUploading} style={{background:T.linen,border:`1px dashed ${T.terra}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",width:"100%",fontSize:12,color:T.terra,fontWeight:500}}>{coverUploading?"Uploading...":"Choose Photo or Take One"}</button>
+          </div>
+        )}
+        {coverTab==="library"&&(
+          <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
+            {ALL_CAT_ENTRIES.map(([cat,url])=>(
+              <div key={cat} onClick={()=>setCoverUrl(url)} style={{width:64,height:64,borderRadius:8,overflow:"hidden",cursor:"pointer",border:coverUrl===url?`2px solid ${T.terra}`:`1px solid ${T.border}`,flexShrink:0,position:"relative"}}>
+                <img src={url} alt={cat} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <Field label="Pattern title" value={editTitle} onChange={e=>setEditTitle(e.target.value)} placeholder="Pattern name"/>
       <Field label="Designer" value={editDesigner} onChange={e=>setEditDesigner(e.target.value)} placeholder="Designer name"/>
       <div style={{display:"flex",gap:10,marginBottom:14}}><div style={{flex:1}}><Field label="Hook size" value={editHook} onChange={e=>setEditHook(e.target.value)} placeholder="5.0mm"/></div><div style={{flex:1}}><Field label="Yarn weight" value={editWeight} onChange={e=>setEditWeight(e.target.value)} placeholder="Worsted"/></div></div>
@@ -1763,8 +1950,9 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 const WaitlistPopup = () => {
   const [show,setShow]=useState(false),[wlEmail,setWlEmail]=useState(""),[wlPhone,setWlPhone]=useState(""),[submitted,setSubmitted]=useState(false),[saving,setSaving]=useState(false);
   useEffect(()=>{
-    if(sessionStorage.getItem("yh_popup_shown")) return;
-    const t=setTimeout(()=>{setShow(true);sessionStorage.setItem("yh_popup_shown","1");},3000);
+    const last=parseInt(localStorage.getItem("yh_popup_last_shown")||"0",10);
+    if(Date.now()-last<86400000) return;
+    const t=setTimeout(()=>{setShow(true);localStorage.setItem("yh_popup_last_shown",String(Date.now()));},3000);
     return ()=>clearTimeout(t);
   },[]);
   const handleSubmit=async()=>{
@@ -2295,15 +2483,18 @@ const DeleteConfirmModal = ({pattern,isPro,onCancel,onDelete,onPark,onGoPro}) =>
   </div>
 );
 
-const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,delay=0}) => {
+const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,delay=0}) => {
   const done=pct(p);
   const [menuOpen,setMenuOpen]=useState(false);
   const isParked=p.status==="parked";
+  const cardPhoto=p.cover_image_url||pdfThumbUrl(p.source_file_url)||(PILL.includes(p.photo)?catFallbackPhoto(p.cat):p.photo);
+  const isPlaceholder=!p.cover_image_url&&!pdfThumbUrl(p.source_file_url)&&PILL.includes(p.photo);
   return (
     <div className="card fu" onClick={onClick} style={{background:T.surface,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,cursor:"pointer",animationDelay:delay+"s",position:"relative"}}>
       {!p.isStarter&&(onPark||onDelete)&&<div style={{position:"absolute",top:8,right:8,zIndex:5}}>
         <button onClick={e=>{e.stopPropagation();setMenuOpen(!menuOpen);}} style={{background:"rgba(0,0,0,.45)",backdropFilter:"blur(4px)",border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>⋮</button>
         {menuOpen&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",right:0,top:32,background:T.modal,border:`1px solid ${T.border}`,borderRadius:10,boxShadow:"0 8px 24px rgba(139,90,60,.12)",zIndex:10,minWidth:150,overflow:"hidden"}}>
+          {!p.isStarter&&onCoverChange&&<div onClick={()=>{setMenuOpen(false);onCoverChange(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid ${T.border}`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Change cover image</div>}
           {isParked
             ?<div onClick={()=>{setMenuOpen(false);onUnpark&&onUnpark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid ${T.border}`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Unpark</div>
             :<div onClick={()=>{setMenuOpen(false);onPark&&onPark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid ${T.border}`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Park for later</div>
@@ -2312,7 +2503,7 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,delay=0}) => {
         </div>}
       </div>}
       <div style={{position:"relative",height:160,overflow:"hidden",background:T.linen}}>
-        <Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/>
+        <Photo src={cardPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/>
         {isParked?<div style={{position:"absolute",top:10,left:10,background:"rgba(92,79,68,.8)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Parked</div>
         :p.isStarter?<div style={{position:"absolute",top:10,left:10,background:"rgba(184,144,44,.9)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>
@@ -2321,6 +2512,7 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,delay=0}) => {
         :null}
         {!isParked&&!p.isStarter&&done===0&&!p.started&&p.rows&&p.rows.length>0&&<div style={{position:"absolute",top:10,right:10,background:"rgba(92,122,94,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Ready to build</div>}
         {!p.isStarter&&p.snapConfidence&&<div style={{position:"absolute",top:10,left:10,background:"rgba(184,90,60,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99}}>🐝 {p.snapConfidence}%</div>}
+        {isPlaceholder&&!p.isStarter&&onCoverChange&&<button onClick={e=>{e.stopPropagation();onCoverChange(p);}} style={{position:"absolute",bottom:10,left:"50%",transform:"translateX(-50%)",background:"rgba(255,255,255,.15)",backdropFilter:"blur(4px)",border:`1.5px solid ${T.terra}`,borderRadius:10,padding:"6px 14px",fontSize:11,fontWeight:600,color:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>Set cover image</button>}
       </div>
       <div style={{padding:"12px 14px 16px"}}>
         <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>{p.cat}</div>
@@ -2334,9 +2526,10 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,delay=0}) => {
 
 const ShelfCard = ({p,onClick}) => {
   const v=pct(p);
+  const cardPhoto=p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo;
   return (
     <div onClick={onClick} style={{width:160,borderRadius:14,overflow:"hidden",border:`1px solid ${T.border}`,background:T.surface,cursor:"pointer",boxShadow:"0 2px 8px rgba(28,23,20,.06)",transition:"transform .16s,box-shadow .16s",flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 20px rgba(28,23,20,.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 2px 8px rgba(28,23,20,.06)";}}>
-      <div style={{height:100,position:"relative",background:T.linen,overflow:"hidden"}}><Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color={T.terra} h={3} bg="rgba(0,0,0,.2)"/></div></div>
+      <div style={{height:100,position:"relative",background:T.linen,overflow:"hidden"}}><Photo src={cardPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center center"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color={T.terra} h={3} bg="rgba(0,0,0,.2)"/></div></div>
       <div style={{padding:"9px 12px 11px"}}><div style={{fontFamily:T.serif,fontSize:13,color:T.ink,lineHeight:1.3,marginBottom:2}}>{p.title}</div><div style={{fontSize:11,color:T.terra,fontWeight:600}}>{v}% done</div></div>
     </div>
   );
@@ -2428,31 +2621,85 @@ const ShareCardModal = ({pattern,onClose}) => {
   );
 };
 
-const SourceFileViewer = ({url,name,type,onClose}) => {
-  const isImage=type&&(type.startsWith("image")||/\.(jpg|jpeg|png|gif|webp)$/i.test(url));
+// ─── CLOUDINARY PDF THUMBNAIL HELPER ──────────────────────────────────────
+const pdfThumbUrl = (sourceFileUrl) => {
+  if (!sourceFileUrl || !sourceFileUrl.endsWith(".pdf")) return null;
+  const m = sourceFileUrl.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/);
+  if (!m) return null;
+  return m[1] + "pg_1,w_400,h_400,c_fill/" + m[2];
+};
+
+
+// ─── CLIENT-SIDE REPEAT BRACKET PARSER (for old patterns) ─────────────────
+const parseRepeatBrackets = (text) => {
+  const results = [];
+  const re = /\(([^)]+)\)\s*[x×]\s*(\d+)/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    results.push({ sequence: m[1].trim(), count: parseInt(m[2]) });
+  }
+  return results;
+};
+const ensureRepeatBrackets = (rows) => rows.map(r => {
+  if (r.isHeader) return r;
+  if (r.repeat_brackets && r.repeat_brackets.length > 0) return r;
+  const parsed = parseRepeatBrackets(r.text || "");
+  return parsed.length > 0 ? { ...r, repeat_brackets: parsed } : r;
+});
+
+// ─── DOT COLOR CYCLE ──────────────────────────────────────────────────────
+const DOT_COLORS = [null, "#C0392B", "#F5C842", "#2980B9", "#27AE60"];
+const nextDotColor = (current) => {
+  const idx = DOT_COLORS.indexOf(current);
+  return DOT_COLORS[(idx + 1) % DOT_COLORS.length];
+};
+
+const SubCounter = ({row, globalIdx, onDotTap}) => {
+  const rb = (row.repeat_brackets || []).find(b => b.count > 1);
+  if (!rb) return null;
+  const dots = row.dot_state && row.dot_state.length === rb.count ? row.dot_state : Array(rb.count).fill(null);
   return (
-    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.sans}}>
-      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)"}}/>
-      <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:800,maxHeight:"90vh",background:T.modal,borderRadius:20,overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.3)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-          <div><div style={{fontSize:14,fontWeight:600,color:T.ink}}>Source Pattern</div><div style={{fontSize:11,color:T.ink3,marginTop:2}}>{name}</div></div>
-          <button onClick={onClose} style={{background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-        </div>
-        <div style={{flex:1,overflow:"auto",padding:0}}>
-          {isImage?<img src={url} alt={name} style={{width:"100%",display:"block"}}/>
-          :<iframe src={"https://docs.google.com/viewer?url="+encodeURIComponent(url)+"&embedded=true"} title={name} style={{width:"100%",height:"80vh",border:"none"}}/>}
-        </div>
+    <div style={{paddingTop:8}} onClick={e => e.stopPropagation()}>
+      <div style={{fontSize:11, color:T.ink3, marginBottom:4}}>Repeat: {rb.sequence} × {rb.count}</div>
+      <div style={{display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
+        {dots.map((color, di) => (
+          <div key={di} onClick={() => onDotTap(globalIdx, di)} style={{width:14, height:14, borderRadius:99, border: color ? "none" : "1.5px solid #ccc", background: color || "transparent", cursor:"pointer", transition:"all .15s"}} />
+        ))}
       </div>
     </div>
   );
 };
 
 const Detail = ({p,onBack,onSave}) => {
-  const [rows,setRows]=useState(p.rows),[tab,setTab]=useState("materials"),[newRow,setNewRow]=useState(""),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[noteEdit,setNoteEdit]=useState(null),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
+  const [rows,setRows]=useState(()=>ensureRepeatBrackets(p.rows)),[tab,setTab]=useState("materials"),[newRow,setNewRow]=useState(""),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[noteEdit,setNoteEdit]=useState(null),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
   const [noteSaved,setNoteSaved]=useState(false);
-  const [showSourceFile,setShowSourceFile]=useState(false);
   const [attachUploading,setAttachUploading]=useState(false);
   const [expandedSections,setExpandedSections]=useState({});
+  // Backfill cover_image_url from PDF source file
+  useEffect(()=>{
+    if(p.cover_image_url||!p.source_file_url||!p.source_file_url.endsWith(".pdf"))return;
+    const thumb=pdfThumbUrl(p.source_file_url);if(!thumb)return;
+    const pid=p._supabaseId||p.id;
+    if(typeof pid!=="string"||pid.startsWith("local_")||pid.startsWith("starter_"))return;
+    const user=supabaseAuth.getUser();const session=getSession();if(!user||!session)return;
+    fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
+      method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+      body:JSON.stringify({cover_image_url:thumb}),
+    }).then(r=>{if(r.ok){console.log("[YarnHive] Backfilled cover_image_url for",pid);onSave({...p,rows,cover_image_url:thumb,photo:thumb});}}).catch(()=>{});
+  },[]);
+  const handleDotTap=(globalIdx,dotIdx)=>{
+    const row=rows[globalIdx];if(!row)return;
+    const rb=(row.repeat_brackets||[]).find(b=>b.count>1);if(!rb)return;
+    const dots=[...(row.dot_state&&row.dot_state.length===rb.count?row.dot_state:Array(rb.count).fill(null))];
+    dots[dotIdx]=nextDotColor(dots[dotIdx]);
+    const nextRows=rows.map((r,i)=>i===globalIdx?{...r,dot_state:dots}:r);
+    if(dots.every(c=>c!==null)){
+      const autoCheck=nextRows.map((r,i)=>i===globalIdx?{...r,done:true,dot_state:dots}:r);
+      setRows(autoCheck);onSave({...p,rows:autoCheck});
+      const newDone=pct({...p,rows:autoCheck}),prev2=prevDone.current;for(const m of [25,50,75,100]){if(prev2<m&&newDone>=m){setMilestone(m);break;}}prevDone.current=newDone;return;
+    }
+    setRows(nextRows);onSave({...p,rows:nextRows});
+  };
   const attachRef=useRef(null);
   const handleAttachFile=async(e)=>{
     const file=e.target.files?.[0];if(!file)return;
@@ -2467,12 +2714,13 @@ const Detail = ({p,onBack,onSave}) => {
   const prevDone=useRef(pct({...p,rows:p.rows}));
   const{isDesktop}=useBreakpoint();
   const done=pct({...p,rows}),currentRowIdx=rows.findIndex(r=>!r.done&&!r.isHeader);
-  const toggle=id=>{const r=rows.find(x=>x.id===id);if(r?.isHeader)return;const next=rows.map(r=>r.id===id?{...r,done:!r.done}:r);setRows(next);onSave({...p,rows:next});const newDone=pct({...p,rows:next}),prev=prevDone.current;for(const m of [25,50,75,100]){if(prev<m&&newDone>=m){setMilestone(m);break;}}prevDone.current=newDone;};
+  const toggle=id=>{const r=rows.find(x=>x.id===id);if(r?.isHeader)return;const wasChecked=r.done;const next=rows.map(r=>{if(r.id!==id)return r;const updated={...r,done:!r.done};if(wasChecked&&r.dot_state){const rb=(r.repeat_brackets||[]).find(b=>b.count>1);updated.dot_state=Array(rb?rb.count:0).fill(null);}return updated;});setRows(next);onSave({...p,rows:next});const newDone=pct({...p,rows:next}),prev=prevDone.current;for(const m of [25,50,75,100]){if(prev<m&&newDone>=m){setMilestone(m);break;}}prevDone.current=newDone;};
   const addRow=()=>{if(!newRow.trim())return;const next=[...rows,{id:Date.now(),text:newRow.trim(),done:false,note:""}];setRows(next);onSave({...p,rows:next});setNewRow("");};
   const save=()=>{onSave({...draft,rows});setEditing(false);};
   const updateNote=(id,note)=>{const next=rows.map(r=>r.id===id?{...r,note}:r);setRows(next);onSave({...p,rows:next});setNoteSaved(true);setTimeout(()=>setNoteSaved(false),2000);};
   const yardDisplay=estYards(p)>0?"~"+estYards(p)+(p.yardage>0?" yds":" yds (est.)"):"Not listed";
   const skeinDisplay=estSkeins(p)>0?"~"+estSkeins(p)+(p.skeins>0?" skeins":" skeins (est.)"):"Not listed";
+  const detailPhoto=p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,overflow:"hidden"}}>
       <CSS/>
@@ -2503,7 +2751,7 @@ const Detail = ({p,onBack,onSave}) => {
           <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr 1fr",height:isDesktop?340:240,position:"relative"}}>
             {/* left: photo — contain so full subject always visible */}
             <div style={{position:"relative",overflow:"hidden",background:"#0E0A08"}}>
-              <Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"contain",objectPosition:"center center"}}/>
+              <Photo src={detailPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"contain",objectPosition:"center center"}}/>
               <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(14,10,8,.85) 0%,transparent 45%)"}}/>
               <div style={{position:"absolute",bottom:14,left:14,right:0}}>
                 <div style={{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:3}}>{p.cat} · {p.weight}</div>
@@ -2536,7 +2784,7 @@ const Detail = ({p,onBack,onSave}) => {
       ) : (
         /* ── STANDARD PHOTO HERO ── */
         <div style={{position:"relative",flexShrink:0,height:isDesktop?260:220,overflow:"hidden",background:T.linen,marginTop:milestone?56:0,transition:"margin .3s"}}>
-          <Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 20%"}}/>
+          <Photo src={detailPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 20%"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.92) 0%,rgba(20,14,10,.3) 50%,rgba(20,14,10,.05) 100%)"}}/>
           <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",justifyContent:"space-between"}}>
             <button onClick={onBack} style={{background:"rgba(15,10,8,.45)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 16px",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:500}}>← Back</button>
@@ -2641,8 +2889,9 @@ const Detail = ({p,onBack,onSave}) => {
                 </div>
                 <button onClick={e=>{e.stopPropagation();setNoteEdit(noteEdit===r.id?null:r.id);}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",padding:"4px",flexShrink:0,position:"relative"}}><span style={{color:r.note?T.terra:T.ink3,opacity:r.note?1:.5}}>📝</span></button>
               </div>
+              {!r.done&&(r.repeat_brackets||[]).some(b=>b.count>1)&&<div style={{padding:"0 8px 10px 47px"}}><SubCounter row={r} globalIdx={globalIdx} onDotTap={handleDotTap}/></div>}
               {r.note&&noteEdit!==r.id&&<div onClick={e=>{e.stopPropagation();setNoteEdit(r.id);}} style={{padding:"0 8px 10px 47px",fontSize:12,color:T.ink3,fontStyle:"italic",cursor:"pointer"}}>📝 {r.note}</div>}
-              {newAbbr.length>0&&<div style={{padding:"0 8px 10px 47px",display:"flex",flexWrap:"wrap",gap:6}} onClick={e=>e.stopPropagation()}>{newAbbr.map(a=><button key={a.raw} onClick={e=>{e.stopPropagation();window.open(a.url,"_blank","noopener,noreferrer");}} style={{display:"flex",alignItems:"center",gap:5,background:"#FF0000",color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",boxShadow:"0 2px 8px rgba(255,0,0,.3)"}}><span style={{fontSize:10}}>▶</span><span>{a.raw}</span><span style={{opacity:.8,fontWeight:400}}>— {a.full}</span></button>)}</div>}
+              {newAbbr.length>0&&<div style={{padding:"0 8px 10px 47px",display:"flex",flexWrap:"wrap",gap:4}} onClick={e=>e.stopPropagation()}>{newAbbr.map(a=><button key={a.raw} onClick={e=>{e.stopPropagation();window.open(a.url,"_blank","noopener,noreferrer");}} style={{background:"transparent",color:T.terra,border:"1px solid rgba(184,90,60,0.4)",borderRadius:4,padding:"2px 6px",fontSize:10,fontWeight:500,cursor:"pointer"}}>{a.raw}</button>)}</div>}
               {noteEdit===r.id&&<div style={{padding:"0 8px 12px 47px",display:"flex",alignItems:"center",gap:8}}><input value={r.note} onChange={e=>updateNote(r.id,e.target.value)} placeholder="Add a note for this row…" style={{flex:1,padding:"9px 12px",background:T.linen,border:`1.5px solid ${T.terra}`,borderRadius:9,fontSize:13,color:T.ink,outline:"none"}}/>{noteSaved&&<span style={{fontSize:11,color:T.sage,fontWeight:600,flexShrink:0}}>Note saved</span>}</div>}
             </div>
           );})}
@@ -2655,11 +2904,10 @@ const Detail = ({p,onBack,onSave}) => {
             <button onClick={addRow} style={{background:T.terra,color:"#fff",border:"none",borderRadius:11,padding:"10px 18px",fontSize:22,cursor:"pointer",lineHeight:1,boxShadow:"0 4px 12px rgba(184,90,60,.35)"}}>+</button>
           </div>
         </>)}
-        {/* Source file attach + viewer */}
+        {/* Source file direct link */}
         {tab==="rows"&&p.source_file_url&&p.source_file_url.length>0&&<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",zIndex:100}}>
-          <button onClick={()=>setShowSourceFile(true)} style={{background:T.card,color:T.terra,border:`1.5px solid ${T.border}`,borderRadius:99,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(139,90,60,.15)",display:"flex",alignItems:"center",gap:6}}>📄 View Source Pattern</button>
+          <button onClick={()=>window.open(p.source_file_url,"_blank","noopener,noreferrer")} style={{background:T.card,color:T.terra,border:`1.5px solid ${T.border}`,borderRadius:99,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(139,90,60,.15)",display:"flex",alignItems:"center",gap:6}}>View Source Pattern →</button>
         </div>}
-        {showSourceFile&&p.source_file_url&&<SourceFileViewer url={p.source_file_url} name={p.source_file_name||"Source"} type={p.source_file_type||""} onClose={()=>setShowSourceFile(false)}/>}
         {tab==="materials"&&(
           <div style={{marginTop:16,borderTop:`1px solid ${T.border}`,paddingTop:14}}>
             <input ref={attachRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleAttachFile} style={{display:"none"}}/>
@@ -2825,10 +3073,10 @@ const PatternCreatedOverlay = ({pattern,onStartBuilding,onGoToHive}) => {
 };
 
 const CAROUSEL_CARDS = [
-  {id:"welcome",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774116735/yarnhive_bg_v2.jpg",title:"Welcome to The Hive",sub:"Your crafting journey starts here"},
-  {id:"community",type:"solid",bg:"#2C5F4A",title:"847 makers active",sub:"this week"},
-  {id:"tip",type:"solid",bg:"#8B6914",title:"Pro tip 💡",sub:"Block finished pieces for a pro look"},
-  {id:"seasonal",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774123693/yarnhive_sidebar_bee.jpg",title:"Spring patterns 🌸",sub:"Browse trending now"},
+  {id:"welcome",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774405608/x0f1g5ugglvlce5kq2kj.png",title:"Welcome to The Hive",sub:"Your crafting journey starts here"},
+  {id:"community",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774405611/dpdkta0ii5q5zo2m7myq.png",title:"847 makers active",sub:"this week"},
+  {id:"tip",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774405613/fjneuxzjdexijyerdit4.png",title:"Pro tip",sub:"Block finished pieces for a pro look"},
+  {id:"seasonal",type:"image",src:"https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_200,g_center/v1774405616/emjhufj6ujhuwyhodr4z.png",title:"Spring patterns",sub:"Browse trending now"},
 ];
 
 const HiveCarousel = () => {
@@ -2891,7 +3139,7 @@ const EmptySlotCard = ({onClick,slotIndex=0}) => (
   </div>
 );
 
-const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearch,openDetail,onAddPattern,isPro,tier,setView,onPark,onUnpark,onDelete}) => {
+const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearch,openDetail,onAddPattern,isPro,tier,setView,onPark,onUnpark,onDelete,onCoverChange}) => {
   const{isDesktop}=useBreakpoint();
   const allPatterns = [...userPatterns,...starterPatterns];
   const visible=allPatterns.filter(p=>p.status!=="deleted");
@@ -2935,7 +3183,7 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
       {/* Unified grid */}
       {viewMode==="grid"?(
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20,padding:isDesktop?"0 0 80px":"0 18px 120px"}}>
-          {filteredAll.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.04} onClick={()=>openDetail(p)} onPark={onPark} onUnpark={onUnpark} onDelete={onDelete}/>)}
+          {filteredAll.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.04} onClick={()=>openDetail(p)} onPark={onPark} onUnpark={onUnpark} onDelete={onDelete} onCoverChange={onCoverChange}/>)}
           {!isPro&&cat==="All"&&!search&&Array.from({length:emptySlots}).map((_,i)=><EmptySlotCard key={"slot_"+i} slotIndex={i} onClick={onAddPattern}/>)}
         </div>
       ):(
@@ -2943,7 +3191,7 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
           {filteredAll.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.ink3,fontSize:13}}>No patterns yet. Add your first!</div>}
           {filteredAll.map((p,i)=>(
             <div key={p.id} className="fu" onClick={()=>openDetail(p)} style={{display:"flex",gap:12,background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:10,cursor:"pointer",animationDelay:i*.04+"s",boxShadow:T.shadow}}>
-              <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",flexShrink:0,background:T.linen}}><Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+              <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",flexShrink:0,background:T.linen}}><Photo src={p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:T.serif,fontSize:14,fontWeight:500,color:T.ink,lineHeight:1.3}}>{p.title}</div>
                 <div style={{fontSize:11,color:T.ink3,marginTop:2}}>{p.cat}{pct(p)>0?" · "+pct(p)+"%":""}{p.isStarter?" · Free Starter":""}</div>
@@ -3431,10 +3679,6 @@ const ChangelogPage = () => {
 export default function YarnHive() {
   const navigate = useNavigate();
   const location = useLocation();
-  // Private route: /master-doc (includes changelog tab)
-  if(location.pathname==="/master-doc") return <MasterDocView/>;
-  // Redirect old /changelog URL to /master-doc
-  if(location.pathname==="/changelog") return <Navigate to="/master-doc" replace/>;
   const [authed,setAuthed]=useState(false),[isPro,setIsPro]=useState(false);
   const [authChecked,setAuthChecked]=useState(false);
   const [userPatterns,setUserPatterns]=useState([]);
@@ -3451,6 +3695,7 @@ export default function YarnHive() {
   const [createdPattern,setCreatedPattern]=useState(null);
   const [readyPromptPattern,setReadyPromptPattern]=useState(null);
   const [deleteTarget,setDeleteTarget]=useState(null);
+  const [coverPickerTarget,setCoverPickerTarget]=useState(null);
   const{isTablet,isDesktop}=useBreakpoint();
   const allPatterns = [...userPatterns,...starterPatterns];
   const userStarterCount=userPatterns.filter(p=>p.isStarter).length;
@@ -3542,6 +3787,18 @@ export default function YarnHive() {
               isStarter:!!r.is_starter,is_ai_generated:!!r.is_ai_generated,difficulty:r.difficulty||"",tags:r.tags||[],started:r.status==="in_progress",
               source_file_url:r.source_file_url||"",source_file_name:r.source_file_name||"",source_file_type:r.source_file_type||"",
             }));
+            // Backfill known patterns missing cover images
+            const MARINA_COVER="https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406086/l0rdxjgszsdkctqrnyeh.png";
+            patterns.forEach(p=>{
+              if(!p.cover_image_url&&p.title&&p.title.toLowerCase().includes("marina")){
+                p.cover_image_url=MARINA_COVER;p.photo=MARINA_COVER;
+                // Also persist to Supabase
+                const pid=p._supabaseId||p.id;
+                if(user&&session&&typeof pid==="string"){
+                  fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({cover_image_url:MARINA_COVER})}).catch(()=>{});
+                }
+              }
+            });
             setUserPatterns(prev=>{
               // Keep local-only patterns (starters, unsaved) that aren't in Supabase
               const supaIds=new Set(patterns.map(p=>p.id));
@@ -3659,6 +3916,10 @@ export default function YarnHive() {
     showEmailBannerIfNeeded();
   };
 
+  // Private route: /master-doc (includes changelog tab) — rendered before auth check
+  if(location.pathname==="/master-doc") return <MasterDocView/>;
+  // Redirect old /changelog URL to /master-doc
+  if(location.pathname==="/changelog") return <Navigate to="/master-doc" replace/>;
   // Show nothing until session is validated against Supabase
   if(!authChecked) return <><CSS/><div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div className="spinner" style={{width:28,height:28,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%"}}/></div></>;
   if(!authed) {
@@ -3765,6 +4026,25 @@ export default function YarnHive() {
   const handleDeletePattern=(p)=>setDeleteTarget(p);
   const confirmDelete=()=>{if(deleteTarget){updatePatternStatus(deleteTarget,"deleted");setDeleteTarget(null);}};
   const parkInsteadOfDelete=()=>{if(deleteTarget){updatePatternStatus(deleteTarget,"parked");setDeleteTarget(null);}};
+  const handleCoverChange=(p)=>setCoverPickerTarget(p);
+  const handleCoverConfirm=async(imageUrl)=>{
+    const p=coverPickerTarget;if(!p)return;
+    let finalUrl=imageUrl;
+    // Optimistic UI update
+    const update=pat=>pat.id===p.id?{...pat,cover_image_url:finalUrl,photo:finalUrl||pat.photo}:pat;
+    setUserPatterns(prev=>prev.map(update));
+    if(selected&&selected.id===p.id)setSelected(prev=>prev?{...prev,cover_image_url:finalUrl,photo:finalUrl||prev.photo}:prev);
+    setCoverPickerTarget(null);
+    // Persist to Supabase
+    const user=supabaseAuth.getUser();const session=getSession();
+    const pid=p._supabaseId||p.id;
+    if(user&&session&&typeof pid==="string"&&!pid.startsWith("local_")&&!pid.startsWith("starter_")){
+      fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
+        method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+        body:JSON.stringify({cover_image_url:finalUrl,updated_at:new Date().toISOString()}),
+      }).then(r=>{if(r.ok)console.log("[YarnHive] Cover image updated for",pid);else r.text().then(t=>console.error("[YarnHive] Cover PATCH error:",t));}).catch(e=>console.error("[YarnHive] Cover save error:",e));
+    }
+  };
   const inProgress=allPatterns.filter(p=>{const v=pct(p);return !p.isStarter&&p.status!=="deleted"&&p.status!=="parked"&&((p.status==="in_progress"&&v<100)||(p.started&&v<100)||(v>0&&v<100));});
   const TITLE_MAP={collection:"Your Hive",wip:"Builds in Progress",browse:"Browse Sites",stash:"Yarn Stash",calculator:"Calculators",shopping:"Shopping List",profile:"Profile & Settings"};
 
@@ -3778,6 +4058,7 @@ export default function YarnHive() {
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
+      {coverPickerTarget&&<CoverImagePicker pattern={coverPickerTarget} onConfirm={handleCoverConfirm} onClose={()=>setCoverPickerTarget(null)}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       <SidebarNav view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} onAddPattern={openAddModal} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)} userPatterns={userPatterns} allPatterns={allPatterns}/>
       <div style={{flex:1,minWidth:0,overflowY:"auto",display:"flex",flexDirection:"column"}}>
@@ -3791,8 +4072,8 @@ export default function YarnHive() {
           </div>
         </div>
         <div style={{flex:1,padding:"0 40px"}}>
-          {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
-          {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:T.ink3}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=>{const v=pct(p),done=p.rows.filter(r=>r.done).length;return(<div key={p.id} className="card fu" onClick={()=>openDetail(p)} style={{background:T.card,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,cursor:"pointer",animationDelay:i*.06+"s"}}><div style={{position:"relative",height:140,overflow:"hidden",background:T.linen}}><Photo src={p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color="rgba(255,255,255,.85)" h={4} bg="rgba(0,0,0,.2)"/></div>{p.isStarter&&<div style={{position:"absolute",top:8,left:8,background:"rgba(184,144,44,.9)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>}</div><div style={{padding:"12px 14px 14px"}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3}}>{p.cat}</div><div style={{fontFamily:T.serif,fontSize:14,fontWeight:500,color:T.ink,lineHeight:1.3,marginBottom:6}}>{p.title}</div><div style={{fontSize:11,color:T.ink3,marginBottom:8}}>{done} of {p.rows.length} rows complete</div><button style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Continue →</button></div></div>);})}</div>}</div>}
+          {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange}/>}
+          {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:T.ink3}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=>{const v=pct(p),done=p.rows.filter(r=>r.done).length;return(<div key={p.id} className="card fu" onClick={()=>openDetail(p)} style={{background:T.card,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,cursor:"pointer",animationDelay:i*.06+"s"}}><div style={{position:"relative",height:140,overflow:"hidden",background:T.linen}}><Photo src={p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/><div style={{position:"absolute",bottom:0,left:0,right:0}}><Bar val={v} color="rgba(255,255,255,.85)" h={4} bg="rgba(0,0,0,.2)"/></div>{p.isStarter&&<div style={{position:"absolute",top:8,left:8,background:"rgba(184,144,44,.9)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>}</div><div style={{padding:"12px 14px 14px"}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:3}}>{p.cat}</div><div style={{fontFamily:T.serif,fontSize:14,fontWeight:500,color:T.ink,lineHeight:1.3,marginBottom:6}}>{p.title}</div><div style={{fontSize:11,color:T.ink3,marginBottom:8}}>{done} of {p.rows.length} rows complete</div><button style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Continue →</button></div></div>);})}</div>}</div>}
           {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave}/></div>}
           {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
@@ -3824,7 +4105,7 @@ export default function YarnHive() {
         <button onClick={openAddModal} style={{background:T.terra,border:"none",borderRadius:9,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(184,90,60,.4)"}}>+</button>
       </div>
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
-        {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern}/>}
+        {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,color:T.ink2,marginBottom:8}}>Nothing in progress</div><div style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)}/>)}</div>}</div>}
         {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
