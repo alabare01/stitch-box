@@ -2885,10 +2885,11 @@ const Detail = ({p,onBack,onSave}) => {
     const wasChecked=r.done;
     let next;
     if(wasChecked){
-      // Unchecking: cascade — uncheck this row and ALL rows after it in this section
+      // Unchecking: cascade all rows AFTER the tapped row, but uncheck tapped row separately
+      // so it remains the frontier (all prior rows still done = immediately re-checkable)
       const sec=linearSections[secIdx];
       const idxInSec=sec.rows.findIndex(sr=>sr._gi===globalIdx);
-      const toUncheck=new Set(sec.rows.slice(idxInSec).map(sr=>sr._gi));
+      const toUncheck=new Set(sec.rows.slice(idxInSec+1).map(sr=>sr._gi));
       // Also cascade to dependent sections: if this section was complete and now won't be,
       // uncheck all rows in sections that depend on it (non-independent subsequent + assembly)
       const wasComplete=isSectionComplete(sec);
@@ -2897,12 +2898,17 @@ const Detail = ({p,onBack,onSave}) => {
           if(si2===secIdx)continue;
           const s2=linearSections[si2];
           if(isSectionIndependent(s2))continue;
-          // Assembly depends on all; others depend on previous non-independent
           const dependsOnThis=isAssemblySection(s2)||(si2>secIdx&&(()=>{for(let k=si2-1;k>=0;k--){if(!isSectionIndependent(linearSections[k]))return k===secIdx;}return false;})());
           if(dependsOnThis)s2.rows.forEach(sr=>toUncheck.add(sr._gi));
         }
       }
       next=rows.map((row,i)=>{
+        // Tapped row: uncheck it separately (not in the cascade set)
+        if(i===globalIdx){
+          const updated={...row,done:false};
+          if(row.dot_state){const rb=(row.repeat_brackets||[]).find(b=>b.count>1);updated.dot_state=Array(rb?rb.count:0).fill(null);}
+          return updated;
+        }
         if(!toUncheck.has(i))return row;
         const updated={...row,done:false};
         if(row.dot_state){const rb=(row.repeat_brackets||[]).find(b=>b.count>1);updated.dot_state=Array(rb?rb.count:0).fill(null);}
