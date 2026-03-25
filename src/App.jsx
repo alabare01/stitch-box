@@ -37,19 +37,19 @@ const PILL = [PHOTOS.blanket, PHOTOS.cardigan, PHOTOS.granny, PHOTOS.tote, PHOTO
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const APP_ORIGIN = typeof window !== "undefined" ? window.location.origin : "https://yarnhive.app";
+const APP_ORIGIN = typeof window !== "undefined" ? window.location.origin : "https://wovely.app";
 const saveSession = (s) => { try { if(s) localStorage.setItem("yh_session",JSON.stringify(s)); else localStorage.removeItem("yh_session"); } catch{} };
 const getSession = () => { try { const r=localStorage.getItem("yh_session"); return r?JSON.parse(r):null; } catch{return null;} };
 
 const supabaseAuth = {
   signUp: async (email, password) => {
-    console.log("[YarnHive] Signup request:", {supabaseUrl:SUPABASE_URL, redirectTo:APP_ORIGIN});
+    console.log("[Wovely] Signup request:", {supabaseUrl:SUPABASE_URL, redirectTo:APP_ORIGIN});
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method:"POST", headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
       body: JSON.stringify({email, password, options:{emailRedirectTo:APP_ORIGIN}}),
     });
     const data = await res.json();
-    console.log("[YarnHive] Signup response:", {status:res.status, hasSession:!!data.session, confirmationSentAt:data.confirmation_sent_at||"none"});
+    console.log("[Wovely] Signup response:", {status:res.status, hasSession:!!data.session, confirmationSentAt:data.confirmation_sent_at||"none"});
     if(!res.ok) return {error: data};
     if(data.session) saveSession(data.session);
     return {data};
@@ -173,7 +173,7 @@ const CSS = () => (
 const pct = p => { const checkable=(p.rows||[]).filter(r=>!r.isHeader); return checkable.length ? Math.round(checkable.filter(r=>r.done).length/checkable.length*100) : 0; };
 
 const DEFAULT_STARTERS = [
-  {id:"starter_granny",title:"Granny Square",cat:"Blankets",hook:"5.0mm",weight:"Worsted",yardage:120,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:12,height:12},isStarter:true,rows:[
+  {id:"starter_granny",title:"Granny Square",cat:"Blankets",hook:"5.0mm",weight:"Worsted",yardage:120,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:12,height:12},isStarter:true,rows:[
     {id:1,text:"Magic ring, ch 3 (counts as first dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times, sl st to top of ch-3 to join.",done:false,note:""},
     {id:2,text:"Sl st to ch-2 sp, ch 3, 2 dc in same sp, ch 1, [3 dc, ch 2, 3 dc in next ch-2 sp, ch 1] 3 times, 3 dc in first sp, ch 2, sl st to join.",done:false,note:""},
     {id:3,text:"Sl st to ch-2 corner sp, ch 3, 2 dc in same sp, ch 2, 3 dc in same sp, ch 1, 3 dc in ch-1 sp, ch 1, [corner, ch 1, 3 dc in ch-1 sp, ch 1] repeat, sl st to join.",done:false,note:""},
@@ -181,7 +181,7 @@ const DEFAULT_STARTERS = [
     {id:5,text:"Repeat Row 4 to expand square one more round.",done:false,note:""},
     {id:6,text:"Final round: sc evenly around entire square, working 3 sc in each corner. Fasten off and weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_amigurumi",title:"Amigurumi Ball",cat:"Amigurumi",hook:"3.5mm",weight:"DK",yardage:40,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:4,height:4},isStarter:true,rows:[
+  {id:"starter_amigurumi",title:"Amigurumi Ball",cat:"Amigurumi",hook:"3.5mm",weight:"DK",yardage:40,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:4,height:4},isStarter:true,rows:[
     {id:11,text:"Magic ring, 6 sc in ring. (6)",done:false,note:""},
     {id:12,text:"2 sc in each st around. (12)",done:false,note:""},
     {id:13,text:"[ Sc in next st, 2 sc in next st ] repeat around. (18)",done:false,note:""},
@@ -189,7 +189,7 @@ const DEFAULT_STARTERS = [
     {id:15,text:"[ Sc in next st, sc2tog ] repeat around. (12) — stuff with fiberfill now.",done:false,note:""},
     {id:16,text:"Sc2tog around. (6) — fasten off, close opening, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_beanie",title:"Basic Beanie",cat:"Wearables",hook:"5.0mm",weight:"Worsted",yardage:150,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:10,height:8},isStarter:true,rows:[
+  {id:"starter_beanie",title:"Basic Beanie",cat:"Wearables",hook:"5.0mm",weight:"Worsted",yardage:150,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:10,height:8},isStarter:true,rows:[
     {id:21,text:"Magic ring, 6 sc. (6)",done:false,note:""},
     {id:22,text:"2 sc in each st. (12)",done:false,note:""},
     {id:23,text:"[ Sc, 2 sc in next ] repeat. (18)",done:false,note:""},
@@ -199,13 +199,13 @@ const DEFAULT_STARTERS = [
     {id:27,text:"Continue even rounds until beanie measures 7.5 inches total.",done:false,note:""},
     {id:28,text:"Last round: sl st in each st around. Fasten off, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_dishcloth",title:"Simple Dishcloth",cat:"Home",hook:"5.0mm",weight:"Cotton",yardage:80,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:8,height:8},isStarter:true,rows:[
+  {id:"starter_dishcloth",title:"Simple Dishcloth",cat:"Home",hook:"5.0mm",weight:"Cotton",yardage:80,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:8,height:8},isStarter:true,rows:[
     {id:31,text:"Ch 25. Sc in 2nd ch from hook and in each ch across. (24 sc)",done:false,note:""},
     {id:32,text:"Ch 1, turn. Sc in each st across. (24)",done:false,note:""},
     {id:33,text:"Repeat Row 2. Continue until piece is roughly square.",done:false,note:""},
     {id:34,text:"Final row: ch 1, turn, sc across. Fasten off, weave in ends.",done:false,note:""},
   ]},
-  {id:"starter_magicring",title:"Magic Ring Practice Swatch",cat:"Amigurumi",hook:"4.0mm",weight:"Worsted",yardage:30,notes:"",source:"YarnHive Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:5,height:5},isStarter:true,rows:[
+  {id:"starter_magicring",title:"Magic Ring Practice Swatch",cat:"Amigurumi",hook:"4.0mm",weight:"Worsted",yardage:30,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:5,height:5},isStarter:true,rows:[
     {id:41,text:"Make a magic ring. Ch 1, work 6 sc into ring, pull tight to close. (6)",done:false,note:""},
     {id:42,text:"2 sc in each st around. (12)",done:false,note:""},
     {id:43,text:"[ Sc in next st, 2 sc in next ] repeat around. (18)",done:false,note:""},
@@ -232,7 +232,7 @@ const uploadPatternFile = async (file, onProgress) => {
     return { url: data.secure_url, filename: data.original_filename + "." + (data.format||"pdf"), type: file.type };
   } catch (e) {
     if(onProgress) onProgress("error");
-    console.error("[YarnHive] File upload error:", e);
+    console.error("[Wovely] File upload error:", e);
     return null;
   }
 };
@@ -263,7 +263,7 @@ const extractTextFromPDF = async (file) => {
         }
         const typedArray = new Uint8Array(e.target.result);
         const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise;
-        console.log("[YarnHive] PDF loaded, pages:", pdf.numPages);
+        console.log("[Wovely] PDF loaded, pages:", pdf.numPages);
         let fullText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -271,10 +271,10 @@ const extractTextFromPDF = async (file) => {
           const pageText = content.items.map(item => item.str).join(" ");
           fullText += `\n--- PAGE ${i} ---\n${pageText}`;
         }
-        console.log("[YarnHive] PDF text extracted, chars:", fullText.length);
+        console.log("[Wovely] PDF text extracted, chars:", fullText.length);
         resolve(fullText);
       } catch (err) {
-        console.error("[YarnHive] pdf.js text extraction failed:", err);
+        console.error("[Wovely] pdf.js text extraction failed:", err);
         reject(err);
       }
     };
@@ -307,10 +307,10 @@ const renderPDFCoverImage = async (file) => {
         const ctx = canvas.getContext("2d");
         await page.render({ canvasContext: ctx, viewport }).promise;
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        console.log("[YarnHive] PDF page 1 rendered for cover, size:", dataUrl.length);
+        console.log("[Wovely] PDF page 1 rendered for cover, size:", dataUrl.length);
         resolve(dataUrl);
       } catch (err) {
-        console.warn("[YarnHive] PDF cover render failed:", err);
+        console.warn("[Wovely] PDF cover render failed:", err);
         resolve(null);
       }
     };
@@ -320,8 +320,8 @@ const renderPDFCoverImage = async (file) => {
 };
 
 const extractPatternFromPDF = async (textOrBase64, filename, mimeType, isTextMode) => {
-  console.log("[YarnHive] Gemini extraction starting, mode:", isTextMode ? "text" : "base64", "mime:", mimeType);
-  if (!GEMINI_API_KEY) { console.error("[YarnHive] No Gemini API key"); throw new Error("Gemini API key not configured"); }
+  console.log("[Wovely] Gemini extraction starting, mode:", isTextMode ? "text" : "base64", "mime:", mimeType);
+  if (!GEMINI_API_KEY) { console.error("[Wovely] No Gemini API key"); throw new Error("Gemini API key not configured"); }
 
   const prompt = `You are a crochet pattern extraction specialist. Analyze this crochet pattern and extract all structured data. Return ONLY valid JSON with no markdown, no backticks, no explanation.
 
@@ -359,7 +359,7 @@ Be thorough -- extract every component, every round, every material. Ensure the 
     generationConfig: { temperature: 0.1, maxOutputTokens: 65536 }
   };
 
-  console.log("[YarnHive] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.5-flash");
+  console.log("[Wovely] Sending Gemini request, parts:", body.contents[0].parts.length, "model: gemini-2.5-flash");
   const geminiCall = async (model) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 90000);
@@ -381,38 +381,38 @@ Be thorough -- extract every component, every round, every material. Ensure the 
   try {
     res = await geminiCall("gemini-2.5-flash");
   } catch (e) {
-    console.error("[YarnHive] Gemini first attempt failed:", e.name === "AbortError" ? "timeout (90s)" : e.message);
-    console.log("[YarnHive] Retrying Gemini extraction...");
+    console.error("[Wovely] Gemini first attempt failed:", e.name === "AbortError" ? "timeout (90s)" : e.message);
+    console.log("[Wovely] Retrying Gemini extraction...");
     await new Promise(r => setTimeout(r, 2000));
     try {
       res = await geminiCall("gemini-2.5-flash");
     } catch (e2) {
-      console.error("[YarnHive] Gemini retry also failed:", e2.message);
-      console.log("[YarnHive] Falling back to gemini-2.0-flash-lite...");
+      console.error("[Wovely] Gemini retry also failed:", e2.message);
+      console.log("[Wovely] Falling back to gemini-2.0-flash-lite...");
       res = await geminiCall("gemini-2.0-flash-lite");
     }
   }
 
-  console.log("[YarnHive] Gemini raw response status:", res.status);
+  console.log("[Wovely] Gemini raw response status:", res.status);
   const rawText = await res.text();
-  console.log("[YarnHive] Gemini raw response body:", rawText.substring(0, 500));
+  console.log("[Wovely] Gemini raw response body:", rawText.substring(0, 500));
 
   if (!res.ok) {
-    console.error("[YarnHive] Gemini API error:", res.status, rawText);
+    console.error("[Wovely] Gemini API error:", res.status, rawText);
     // If 2.5 flash failed, try 1.5 flash
     if (res.status === 404 || res.status === 400) {
-      console.log("[YarnHive] Retrying with gemini-2.0-flash-lite...");
+      console.log("[Wovely] Retrying with gemini-2.0-flash-lite...");
       const res2 = await geminiCall("gemini-2.0-flash-lite");
-      console.log("[YarnHive] Fallback response status:", res2.status);
+      console.log("[Wovely] Fallback response status:", res2.status);
       if (!res2.ok) {
         const err2 = await res2.text();
-        console.error("[YarnHive] Fallback also failed:", err2.substring(0, 300));
+        console.error("[Wovely] Fallback also failed:", err2.substring(0, 300));
         throw new Error("Gemini extraction failed: " + res2.status);
       }
       const data2 = await res2.json();
       const text2 = data2.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const cleaned2 = text2.replace(/```json/g, "").replace(/```/g, "").trim();
-      console.log("[YarnHive] Fallback extracted text:", cleaned2.substring(0, 200));
+      console.log("[Wovely] Fallback extracted text:", cleaned2.substring(0, 200));
       return JSON.parse(cleaned2);
     }
     throw new Error("Gemini extraction failed: " + res.status);
@@ -420,23 +420,23 @@ Be thorough -- extract every component, every round, every material. Ensure the 
 
   let data;
   try { data = JSON.parse(rawText); } catch (e) {
-    console.error("[YarnHive] Response is not valid JSON wrapper:", e);
+    console.error("[Wovely] Response is not valid JSON wrapper:", e);
     throw new Error("Invalid Gemini response format");
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  console.log("[YarnHive] Gemini extracted text length:", text.length);
-  console.log("[YarnHive] Gemini extracted text preview:", text.substring(0, 300));
+  console.log("[Wovely] Gemini extracted text length:", text.length);
+  console.log("[Wovely] Gemini extracted text preview:", text.substring(0, 300));
 
   // Strip markdown fences thoroughly
   const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
   try {
     const parsed = JSON.parse(cleaned);
-    console.log("[YarnHive] Extraction successful:", parsed.title, "—", (parsed.components||[]).length, "components");
+    console.log("[Wovely] Extraction successful:", parsed.title, "—", (parsed.components||[]).length, "components");
     return parsed;
   } catch (e) {
-    console.error("[YarnHive] JSON parse failed. Cleaned text:", cleaned.substring(0, 300));
-    console.error("[YarnHive] Parse error:", e.message);
+    console.error("[Wovely] JSON parse failed. Cleaned text:", cleaned.substring(0, 300));
+    console.error("[Wovely] Parse error:", e.message);
     throw new Error("Could not parse extraction results");
   }
 };
@@ -853,7 +853,7 @@ const PaywallGate = ({onClose,onUpgrade,patternCount}) => (
       <div style={{background:`linear-gradient(135deg,${T.terra},#7A2E14)`,borderRadius:18,padding:"20px",marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
           <div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>YarnHive Pro</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:4}}>Wovely Pro</div>
             <div style={{fontFamily:T.serif,fontSize:28,color:"#fff",fontWeight:700}}>$9.99<span style={{fontSize:14,fontWeight:400,opacity:.7}}>/month</span></div>
             <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:2}}>or $74.99/year — save 37%</div>
           </div>
@@ -1307,10 +1307,12 @@ const PDFUploadForm = ({onSave}) => {
   const [editDesigner,setEditDesigner]=useState("");
   const [editHook,setEditHook]=useState("");
   const [editWeight,setEditWeight]=useState("");
-  const [coverTab,setCoverTab]=useState("pdf");
+  const [coverTab,setCoverTab]=useState("photo");
   const [coverUrl,setCoverUrl]=useState(null);
   const [coverFailed,setCoverFailed]=useState(false);
   const [coverUploading,setCoverUploading]=useState(false);
+  const [complexity,setComplexity]=useState(null); // null | "simple" | "detailed" | "complex"
+  const [complexityStats,setComplexityStats]=useState(null); // {pages, textLen}
   const coverFileRef=useRef(null);
   const handleFile=async(e)=>{
     const f=e.target.files?.[0];if(!f)return;
@@ -1319,7 +1321,7 @@ const PDFUploadForm = ({onSave}) => {
     try{
       const fileMime=f.type||"application/pdf";
       const isPDF=fileMime==="application/pdf"||f.name.toLowerCase().endsWith(".pdf");
-      console.log("[YarnHive] File:", f.name, f.type, (f.size/1024).toFixed(0)+"KB", "isPDF:", isPDF);
+      console.log("[Wovely] File:", f.name, f.type, (f.size/1024).toFixed(0)+"KB", "isPDF:", isPDF);
       // Stage 1: Upload to Cloudinary + render cover (parallel)
       setStage("uploading");setStageText("Uploading your pattern...");setProgress(10);
       const intv1=setInterval(()=>setProgress(p=>Math.min(p+3,30)),200);
@@ -1330,14 +1332,18 @@ const PDFUploadForm = ({onSave}) => {
       ]);
       clearInterval(intv1);
       if(!uploaded){setStage("error");setErrorMsg("Upload failed — check your connection and try again.");return;}
-      // Upload PDF cover image to Cloudinary if we rendered one
+      // Upload PDF cover image to Cloudinary using yarnhive_patterns preset
       let coverCloudinaryUrl=null;
       if(pdfCoverDataUrl){
         try{
-          const coverUpload=await uploadToCloudinary(pdfCoverDataUrl,"yarnhive_covers");
-          if(coverUpload) coverCloudinaryUrl=coverUpload.url;
-          console.log("[YarnHive] PDF cover uploaded:", coverCloudinaryUrl);
-        }catch(e){console.warn("[YarnHive] Cover upload failed:",e);}
+          const coverFd=new FormData();
+          coverFd.append("file", pdfCoverDataUrl);
+          coverFd.append("upload_preset","yarnhive_patterns");
+          coverFd.append("folder","covers");
+          const coverRes=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:coverFd});
+          if(coverRes.ok){const cd=await coverRes.json();coverCloudinaryUrl=cd.secure_url;console.log("[Wovely] PDF cover uploaded:",coverCloudinaryUrl);}
+          else{console.warn("[Wovely] Cover upload failed:",coverRes.status);}
+        }catch(e){console.warn("[Wovely] Cover upload failed:",e);}
       }
       setFileInfo({url:uploaded.url,name:uploaded.filename,type:uploaded.type,coverUrl:coverCloudinaryUrl});setProgress(33);
       // Stage 2: Extract — text mode for PDFs (fast), base64 for images
@@ -1346,22 +1352,31 @@ const PDFUploadForm = ({onSave}) => {
       let result;
       try{
         if(isPDF){
-          console.log("[YarnHive] Using pdf.js text extraction for PDF...");
+          console.log("[Wovely] Using pdf.js text extraction for PDF...");
           const pdfText=await extractTextFromPDF(f);
+          // Detect complexity from page count + text density
+          const pageMatches=(pdfText.match(/--- PAGE \d+ ---/g)||[]).length;
+          const textLen=pdfText.replace(/--- PAGE \d+ ---/g,"").replace(/\s+/g," ").trim().length;
+          const avgTextPerPage=pageMatches>0?textLen/pageMatches:textLen;
+          let lvl="simple";
+          if(pageMatches>=20||avgTextPerPage<200) lvl="complex";
+          else if(pageMatches>=8||avgTextPerPage<500) lvl="detailed";
+          console.log("[Wovely] Complexity:",lvl,"pages:",pageMatches,"avgText/page:",Math.round(avgTextPerPage));
+          setComplexity(lvl);setComplexityStats({pages:pageMatches,textLen});
           result=await extractPatternFromPDF(pdfText,f.name,fileMime,true);
         } else {
-          console.log("[YarnHive] Using base64 extraction for image...");
+          console.log("[Wovely] Using base64 extraction for image...");
           const base64Data=await fileToBase64(f);
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);console.error("[YarnHive] Extraction failed:",ex);setStage("error");setErrorMsg("We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      catch(ex){clearInterval(intv2);console.error("[Wovely] Extraction failed:",ex);setStage("error");setErrorMsg("We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
       clearInterval(intv2);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
       setExtracted(result);setEditTitle(result.title||"");setEditDesigner(result.designer||"");setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
       await new Promise(r=>setTimeout(r,400));setStage("review");
-    }catch(ex){console.error("[YarnHive] PDF import error:",ex);setStage("error");setErrorMsg("Something went wrong. Try again or use manual entry.");}
+    }catch(ex){console.error("[Wovely] PDF import error:",ex);setStage("error");setErrorMsg("Something went wrong. Try again or use manual entry.");}
   };
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
@@ -1376,12 +1391,27 @@ const PDFUploadForm = ({onSave}) => {
       <label style={{display:"block",cursor:"pointer"}}><div style={{border:`2px dashed ${T.border}`,borderRadius:16,padding:"36px 20px",textAlign:"center",background:T.linen,transition:"border-color .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.terra} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}><div style={{fontSize:40,marginBottom:10}}>📄</div><div style={{fontFamily:T.serif,fontSize:17,color:T.ink,marginBottom:6}}>Upload your pattern</div><div style={{fontSize:13,color:T.ink3,marginBottom:14}}>PDF or photo — we'll read it and set up your workspace</div><div style={{background:T.terra,color:"#fff",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,display:"inline-block"}}>Choose File</div></div><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} style={{display:"none"}}/></label>
     </div>
   );
+  // Complexity-aware loading messages
+  const complexityMsg = complexity==="complex"
+    ? {emoji:"🐝🐝🐝", headline:"Big pattern. Our bees are going all in.", sub:`${complexityStats?.pages||"Many"} pages of pure craft. Every round, every stitch, every note. Grab your hook — this might take a minute.`, barSpeed:80}
+    : complexity==="detailed"
+    ? {emoji:"🐝🐝", headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
+    : {emoji:"🔎", headline:stageText, sub:null, barSpeed:300};
+  const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:null, barSpeed:300};
   if(stage==="uploading"||stage==="extracting"||stage==="building") return (
-    <div style={{padding:"40px 0",textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:16}}>{stage==="building"?"✓":"🔎"}</div>
-      <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:8}}>{stageText}</div>
-      {stage==="extracting"&&<div style={{fontSize:12,color:T.ink3,marginBottom:16}}>This may take 30–60 seconds for detailed patterns</div>}
-      <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden",margin:"0 auto",maxWidth:300}}><div className={stage==="extracting"?"progress-bar-fill":""} style={{height:"100%",width:progress+"%",background:stage==="building"?T.sage:T.terra,borderRadius:99,transition:"width .4s ease"}}/></div>
+    <div style={{padding:"40px 0 32px",textAlign:"center"}}>
+      <div style={{fontSize:stage==="extracting"&&complexity==="complex"?44:36,marginBottom:14,transition:"font-size .3s"}}>{loadingInfo.emoji}</div>
+      <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:8,lineHeight:1.4}}>{loadingInfo.headline}</div>
+      {loadingInfo.sub&&(
+        <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:20,maxWidth:280,margin:"0 auto 20px",padding:"0 8px"}}>
+          {loadingInfo.sub}
+        </div>
+      )}
+      {!loadingInfo.sub&&stage==="extracting"&&<div style={{fontSize:12,color:T.ink3,marginBottom:16}}>Reading your pattern...</div>}
+      <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden",margin:"0 auto",maxWidth:300}}><div className={stage==="extracting"?"progress-bar-fill":""} style={{height:"100%",width:progress+"%",background:stage==="building"?T.sage:T.terra,borderRadius:99,transition:`width ${stage==="extracting"&&complexity==="complex"?"1.2s":"0.4s"} ease`}}/></div>
+      {stage==="extracting"&&complexity==="complex"&&(
+        <div style={{marginTop:16,fontSize:11,color:T.ink3,letterSpacing:".05em"}}>WORKING HARD 🍯</div>
+      )}
     </div>
   );
   if(stage==="error") return (
@@ -1401,7 +1431,7 @@ const PDFUploadForm = ({onSave}) => {
         </div>
       )}
       {fileInfo&&<Btn onClick={handleFallbackSave}>Start building — view PDF as I go</Btn>}
-      <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");}}>Try a different file</Btn></div>
+      <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");setComplexity(null);setComplexityStats(null);}}>Try a different file</Btn></div>
     </div>
   );
   const totalRows=(extracted?.components||[]).reduce((s,c)=>(s+(c.rows||[]).length),0);
@@ -1577,9 +1607,9 @@ const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrad
   return (
     <div style={{width:260,background:T.surface,borderRight:`1px solid ${T.border}`,height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div onClick={()=>onNavigate("collection")} style={{position:"relative",height:160,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-        <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+        <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="Wovely bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.85) 0%,rgba(20,14,10,.2) 100%)"}}/>
-        <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
+        <div style={{position:"absolute",bottom:18,left:20}}><div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:"#fff",lineHeight:1}}>Wovely</div><div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:4}}>Your crochet hive</div></div>
       </div>
       <div style={{padding:"16px 16px 8px"}}><button onClick={onAddPattern} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.4)",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>+</span> Add Pattern</button></div>
       <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
@@ -1601,7 +1631,7 @@ const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrad
         );})()}
       </div>
       <div style={{padding:"0 16px 24px"}}>
-        {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
+        {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Wovely Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
         :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision, cloud sync.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
         {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"none",border:"1px solid "+T.border,borderRadius:10,padding:"8px",fontSize:12,color:T.ink3,cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
       </div>
@@ -1620,9 +1650,9 @@ const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}
       <div className={closing?"dim-out":"dim-in"} onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.52)",backdropFilter:"blur(3px)"}}/>
       <div className={closing?"nav-close":"nav-open"} style={{position:"absolute",top:0,left:0,bottom:0,width:"80%",maxWidth:320,background:T.surface,display:"flex",flexDirection:"column",boxShadow:"6px 0 40px rgba(28,23,20,.2)"}}>
         <div onClick={()=>go("collection")} style={{position:"relative",height:130,overflow:"hidden",flexShrink:0,cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-          <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="YarnHive bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          <Photo src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,g_center,w_400,h_320,z_0.7/v1774123693/yarnhive_sidebar_bee.jpg" alt="Wovely bee" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.8) 0%,rgba(20,14,10,.2) 100%)"}}/>
-          <div style={{position:"absolute",bottom:16,left:18}}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>YarnHive</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
+          <div style={{position:"absolute",bottom:16,left:18}}><div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:"#fff",lineHeight:1}}>Wovely</div><div style={{fontSize:11,color:"rgba(255,255,255,.65)",marginTop:3}}>Your crochet hive</div></div>
         </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:6}}>
           {ITEMS.map(item=>{const active=view===item.key;return(
@@ -1643,7 +1673,7 @@ const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}
           );})()}
         </div>
         <div style={{padding:"0 18px 36px"}}>
-          {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
+          {isPro?<div style={{background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Wovely Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
           :<div style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,borderRadius:12,padding:"14px 16px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Hive Vision.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:8,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$9.99/mo</div></div>}
           {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"none",border:"1px solid "+T.border,borderRadius:10,padding:"8px",fontSize:12,color:T.ink3,cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
         </div>
@@ -1730,7 +1760,7 @@ const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,confirmPass,se
       </>}
       {!isSignup&&<div style={{textAlign:"right",marginBottom:16}}><span style={{fontSize:12,color:T.terra,cursor:"pointer",fontWeight:500}}>Forgot password?</span></div>}
       {authError&&<div style={{background:T.terraLt,border:"1px solid rgba(184,90,60,.2)",borderRadius:10,padding:"10px 14px",fontSize:12,color:T.terra,lineHeight:1.5,marginBottom:8}}>{authError}</div>}
-      <button onClick={handleAuth} disabled={loading||(isSignup&&signupDisabled)} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8,opacity:(loading||(isSignup&&signupDisabled))?.5:1}}>{loading?"Please wait…":isSignup?"Create my YarnHive":"Sign in"}</button>
+      <button onClick={handleAuth} disabled={loading||(isSignup&&signupDisabled)} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7A2E14)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 24px rgba(184,90,60,.45)",marginTop:8,opacity:(loading||(isSignup&&signupDisabled))?.5:1}}>{loading?"Please wait…":isSignup?"Create my Wovely":"Sign in"}</button>
     </div>
   </div>
   );
@@ -1788,7 +1818,7 @@ const ProInfoModal = ({onClose}) => {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
             </div>
             <div style={{flex:1,minWidth:0,paddingTop:2}}>
-              <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,lineHeight:1.15,marginBottom:4}}>YarnHive Pro</div>
+              <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,lineHeight:1.15,marginBottom:4}}>Wovely Pro</div>
               <div style={{fontSize:13,color:T.ink3,lineHeight:1.55,fontWeight:300}}>Unlimited everything. Built for makers who are serious about their craft.</div>
             </div>
           </div>
@@ -1920,20 +1950,20 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
     setResending(true); setResendMsg(null);
     try {
       const payload = {type:"signup",email:user.email,options:{emailRedirectTo:APP_ORIGIN}};
-      console.log("[YarnHive] Resend confirmation request:", {url:`${SUPABASE_URL}/auth/v1/resend`, payload, supabaseUrl:SUPABASE_URL});
+      console.log("[Wovely] Resend confirmation request:", {url:`${SUPABASE_URL}/auth/v1/resend`, payload, supabaseUrl:SUPABASE_URL});
       const res = await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
         method:"POST",
         headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
         body:JSON.stringify(payload),
       });
       const body = await res.text();
-      console.log("[YarnHive] Resend confirmation response:", {status:res.status, ok:res.ok, body});
+      console.log("[Wovely] Resend confirmation response:", {status:res.status, ok:res.ok, body});
       if (res.ok) {
         setResendMsg({type:"ok",text:"Confirmation email sent. Check spam if you don't see it."});
       } else {
         setResendMsg({type:"error",text:`Failed to send (${res.status}). SMTP may not be configured in Supabase dashboard.`});
       }
-    } catch (e) { console.error("[YarnHive] Resend confirmation error:", e); setResendMsg({type:"error",text:"Network error."}); }
+    } catch (e) { console.error("[Wovely] Resend confirmation error:", e); setResendMsg({type:"error",text:"Network error."}); }
     setResending(false);
   };
 
@@ -2026,7 +2056,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
       {isPro
         ? <div style={{...SECTION,background:`linear-gradient(135deg,${T.sage},#3D5E3F)`,border:"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:14,fontWeight:700,color:"#fff"}}>YarnHive Pro</div><div style={{fontSize:12,color:"rgba(255,255,255,.7)",marginTop:2}}>All features active</div></div></div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:14,fontWeight:700,color:"#fff"}}>Wovely Pro</div><div style={{fontSize:12,color:"rgba(255,255,255,.7)",marginTop:2}}>All features active</div></div></div>
           </div>
         : <div style={{...SECTION,background:`linear-gradient(135deg,${T.terra},#8B3A22)`,border:"none"}}>
             <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:4}}>✨ Upgrade to Pro</div>
@@ -2192,7 +2222,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       icon: ICON.sparkle,
       iconBg: `linear-gradient(145deg,${T.terra},#6B2410)`,
       iconColor: "#fff",
-      title:"YarnHive Pro",
+      title:"Wovely Pro",
       subtitle:"Unlimited everything. Built for makers who are serious about their craft.",
       gradient: `linear-gradient(145deg,${T.terra},#6B2410)`,
       features:[
@@ -2212,8 +2242,8 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       icon: ICON.apple,
       iconBg: "#000",
       iconColor: "#fff",
-      title:"YarnHive for iPhone",
-      subtitle:"The full YarnHive experience in your pocket — coming to the App Store.",
+      title:"Wovely for iPhone",
+      subtitle:"The full Wovely experience in your pocket — coming to the App Store.",
       gradient: null,
       features:[
         {label:"Camera-first Hive Vision",sub:"Point, tap, get a pattern — right from your camera"},
@@ -2230,7 +2260,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       icon: ICON.googleplay,
       iconBg: "#fff",
       iconColor: "#000",
-      title:"YarnHive for Android",
+      title:"Wovely for Android",
       subtitle:"Everything iPhone gets, built natively for Android — coming to Google Play.",
       gradient: null,
       features:[
@@ -2296,7 +2326,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       <div style={{textAlign:"center",marginBottom:24}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:9,background:"rgba(184,90,60,.09)",borderRadius:14,padding:"7px 16px",border:"1px solid rgba(184,90,60,.18)"}}>
           <span style={{fontSize:18}}>🐝</span>
-          <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>YarnHive</div>
+          <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>Wovely</div>
         </div>
       </div>
       <div style={{textAlign:"center",marginBottom:28}}>
@@ -2346,7 +2376,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
         .card-rise { animation: cardRise .6s cubic-bezier(.22,.68,0,1.05) .2s both; }
       `}</style>
       <div className="world-bg" style={{position:"fixed",inset:"-5%",zIndex:0}}>
-        <img src={BG} alt="YarnHive world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}/>
+        <img src={BG} alt="Wovely world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}/>
         <div style={{position:"absolute",inset:0,background:isDesktop
           ?"radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.58) 100%)"
           :"radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 100%)"
@@ -2535,7 +2565,7 @@ const BrowseSitesView = ({onSavePattern}) => {
         <button onClick={()=>window.open(currentUrl||activeSite.url,"_blank","noopener,noreferrer")} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 10px",fontSize:15,cursor:"pointer",flexShrink:0,color:"rgba(255,255,255,.7)"}}>↗</button>
       </div>
       <div style={{background:"rgba(28,23,20,.06)",borderBottom:`1px solid ${T.border}`,padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-        <div style={{width:6,height:6,borderRadius:99,background:T.terra,flexShrink:0}}/><div style={{fontSize:10,color:T.ink3,fontWeight:500}}>Browsing {activeSite.name} inside YarnHive</div><div style={{flex:1}}/><div style={{fontSize:10,color:T.ink3,opacity:.6}}>Tap "Save This Pattern" when ready</div>
+        <div style={{width:6,height:6,borderRadius:99,background:T.terra,flexShrink:0}}/><div style={{fontSize:10,color:T.ink3,fontWeight:500}}>Browsing {activeSite.name} inside Wovely</div><div style={{flex:1}}/><div style={{fontSize:10,color:T.ink3,opacity:.6}}>Tap "Save This Pattern" when ready</div>
       </div>
       <div style={{flex:1,position:"relative",overflow:"hidden"}}><iframe ref={iframeRef} src={activeSite.url} onLoad={handleIframeLoad} style={{width:"100%",height:"100%",border:"none"}} title={activeSite.name} sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/></div>
       <div style={{background:T.surface,borderTop:`2px solid ${T.terra}`,padding:"12px 16px",flexShrink:0}}>
@@ -2619,7 +2649,7 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,delay=0})
         <div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>{p.cat}</div>
         <div style={{fontFamily:T.serif,fontSize:15,fontWeight:500,color:T.ink,lineHeight:1.3,marginBottom:7}}>{p.title}</div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><Stars val={p.rating} ro/><span style={{fontSize:11,color:T.ink3}}>{p.source}</span></div>
-        {p.isStarter&&<div style={{fontSize:10,color:T.ink3,opacity:.6,marginTop:6,fontStyle:"italic"}}>A gift from YarnHive — yours to keep</div>}
+        {p.isStarter&&<div style={{fontSize:10,color:T.ink3,opacity:.6,marginTop:6,fontStyle:"italic"}}>A gift from Wovely — yours to keep</div>}
       </div>
     </div>
   );
@@ -2690,10 +2720,10 @@ const ShareCardModal = ({pattern,onClose}) => {
   const done=pct(pattern),isComplete=done===100;
   const [caption,setCaption]=useState(isComplete?"Just finished \""+pattern.title+"\"! 🧶 So happy with how this turned out.":"Working on \""+pattern.title+"\" — "+done+"% done! 🪡 Making progress!");
   const [shared,setShared]=useState(false);
-  const shareText=caption+"\n\nMade with YarnHive 📱 #crochet #yarnhive #crochetlife";
+  const shareText=caption+"\n\nMade with Wovely 📱 #crochet #wovely #crochetlife";
   const doShare=async(platformId)=>{
-    if(platformId==="native"){if(navigator.share){try{await navigator.share({title:pattern.title,text:shareText,url:"https://yarnhive.app"});setShared(true);}catch(e){}}else{navigator.clipboard?.writeText(shareText);setShared(true);}}
-    else{const e=encodeURIComponent(shareText),u=encodeURIComponent("https://yarnhive.app");const urls={twitter:"https://twitter.com/intent/tweet?text="+e,facebook:"https://www.facebook.com/sharer/sharer.php?u="+u+"&quote="+e,pinterest:"https://pinterest.com/pin/create/button/?description="+e+"&url="+u,instagram:"https://www.instagram.com/"};window.open(urls[platformId],"_blank","noopener,noreferrer,width=600,height=500");setShared(true);}
+    if(platformId==="native"){if(navigator.share){try{await navigator.share({title:pattern.title,text:shareText,url:"https://wovely.app"});setShared(true);}catch(e){}}else{navigator.clipboard?.writeText(shareText);setShared(true);}}
+    else{const e=encodeURIComponent(shareText),u=encodeURIComponent("https://wovely.app");const urls={twitter:"https://twitter.com/intent/tweet?text="+e,facebook:"https://www.facebook.com/sharer/sharer.php?u="+u+"&quote="+e,pinterest:"https://pinterest.com/pin/create/button/?description="+e+"&url="+u,instagram:"https://www.instagram.com/"};window.open(urls[platformId],"_blank","noopener,noreferrer,width=600,height=500");setShared(true);}
   };
   return (
     <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
@@ -2707,7 +2737,7 @@ const ShareCardModal = ({pattern,onClose}) => {
             <div style={{fontSize:12,color:"rgba(255,255,255,.65)",marginBottom:12}}>{[pattern.hook&&"Hook "+pattern.hook,pattern.weight,pattern.cat].filter(Boolean).join(" · ")}</div>
             {!isComplete&&<div style={{background:"rgba(255,255,255,.15)",borderRadius:99,height:6,overflow:"hidden",marginBottom:10}}><div style={{width:done+"%",height:"100%",background:"#fff",borderRadius:99}}/></div>}
             {isComplete&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.2)",borderRadius:99,padding:"5px 12px",fontSize:12,color:"#fff",fontWeight:600}}>✓ Complete</div>}
-            <div style={{marginTop:12,fontSize:10,color:"rgba(255,255,255,.4)",letterSpacing:".08em"}}>YARNHIVE · yarnhive.app</div>
+            <div style={{marginTop:12,fontSize:10,color:"rgba(255,255,255,.4)",letterSpacing:".08em"}}>WOVELY · wovely.app</div>
           </div>
         </div>
         <div style={{marginBottom:16}}>
@@ -2786,7 +2816,7 @@ const Detail = ({p,onBack,onSave}) => {
     fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
       method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
       body:JSON.stringify({cover_image_url:thumb}),
-    }).then(r=>{if(r.ok){console.log("[YarnHive] Backfilled cover_image_url for",pid);onSave({...p,rows,cover_image_url:thumb,photo:thumb});}}).catch(()=>{});
+    }).then(r=>{if(r.ok){console.log("[Wovely] Backfilled cover_image_url for",pid);onSave({...p,rows,cover_image_url:thumb,photo:thumb});}}).catch(()=>{});
   },[]);
   const handleDotTap=(globalIdx,dotIdx)=>{
     const row=rows[globalIdx];if(!row)return;
@@ -3081,30 +3111,230 @@ const YarnStash = () => {
 };
 
 const Calculators = () => {
-  const [active,setActive]=useState("gauge"),[stitches,setStitches]=useState("20"),[rows,setRows]=useState("24"),[swatchSize,setSwatchSize]=useState("4"),[targetW,setTargetW]=useState("50"),[targetH,setTargetH]=useState("60"),[projW,setProjW]=useState("50"),[projH,setProjH]=useState("60"),[stPer4,setStPer4]=useState("12"),[ydsPerSt,setYdsPerSt]=useState("0.5"),[origW,setOrigW]=useState("40"),[origH,setOrigH]=useState("50"),[newW,setNewW]=useState("50"),[newH,setNewH]=useState("60");
-  const stPerInch=parseFloat(stitches)/parseFloat(swatchSize)||0,roPerInch=parseFloat(rows)/parseFloat(swatchSize)||0;
-  const castOn=Math.round(stPerInch*parseFloat(targetW)||0),totalRows=Math.round(roPerInch*parseFloat(targetH)||0);
-  const totalSt=Math.round((parseFloat(stPer4)/4)*(parseFloat(projW)||0)*(parseFloat(projH)||0)*(parseFloat(roPerInch)||4));
+  const [active,setActive]=useState("gauge");
+  // Gauge calc state
+  const [stitches,setStitches]=useState("20"),[rows,setRows]=useState("24"),[swatchSize,setSwatchSize]=useState("4");
+  const [targetW,setTargetW]=useState("50"),[targetH,setTargetH]=useState("60");
+  // Yardage calc state
+  const [projW,setProjW]=useState("50"),[projH,setProjH]=useState("60"),[stPer4,setStPer4]=useState("12"),[ydsPerSt,setYdsPerSt]=useState("0.5");
+  // Resize calc state
+  const [patSt,setPatSt]=useState("18"),[patRows,setPatRows]=useState("20"),[patSwatchIn,setPatSwatchIn]=useState("4");
+  const [mySt,setMySt]=useState("14"),[myRows,setMyRows]=useState("16"),[mySwatchIn,setMySwatchIn]=useState("4");
+  const [origCount,setOrigCount]=useState("24"),[origDesc,setOrigDesc]=useState("(4 sc, inc) x 4");
+  const [showRepeat,setShowRepeat]=useState(false);
+
+  // Gauge calculator
+  const stPerInch=parseFloat(stitches)/parseFloat(swatchSize)||0;
+  const roPerInch=parseFloat(rows)/parseFloat(swatchSize)||0;
+  const castOn=Math.round(stPerInch*parseFloat(targetW)||0);
+  const totalRowsCalc=Math.round(roPerInch*parseFloat(targetH)||0);
+  // Yardage calculator
+  const totalSt=Math.round((parseFloat(stPer4)/4)*(parseFloat(projW)||0)*(parseFloat(projH)||0)*(roPerInch||4));
   const yardage=Math.round(totalSt*(parseFloat(ydsPerSt)||0.5));
-  const scaleW=(parseFloat(newW)||1)/(parseFloat(origW)||1),scaleH=(parseFloat(newH)||1)/(parseFloat(origH)||1);
-  const{isDesktop:isDk}=useBreakpoint();
+
+  // ── SCALING ENGINE ──────────────────────────────────────────────
+  // Scale factor = pattern gauge / my gauge (per axis)
+  const patStPerIn = parseFloat(patSt)/parseFloat(patSwatchIn)||0;
+  const myStPerIn  = parseFloat(mySt)/parseFloat(mySwatchIn)||0;
+  const patRowPerIn= parseFloat(patRows)/parseFloat(patSwatchIn)||0;
+  const myRowPerIn = parseFloat(myRows)/parseFloat(mySwatchIn)||0;
+  // If my gauge is looser (fewer stitches per inch), pieces come out bigger → scale DOWN stitch counts
+  // Scale factor for stitches: how many of MY stitches = 1 pattern stitch → myStPerIn/patStPerIn
+  const stScale = (patStPerIn>0&&myStPerIn>0) ? patStPerIn/myStPerIn : 1;
+  const rowScale= (patRowPerIn>0&&myRowPerIn>0) ? patRowPerIn/myRowPerIn : 1;
+  const sizeChangeW = stScale>0 ? (1/stScale) : 1; // actual size change factor
+  const sizeChangeH = rowScale>0 ? (1/rowScale) : 1;
+
+  // Scale a single stitch count
+  const scaleCount = (n,axis="st") => {
+    const factor = axis==="row" ? stScale : stScale;
+    const scaled = Math.round(n * factor);
+    const error = Math.abs(scaled - n*factor) / (n*factor||1);
+    return { scaled, error, flagged: error > 0.05 };
+  };
+
+  // Parse and scale a stitch count from the input
+  const rawCount = parseInt(origCount)||0;
+  const scaledResult = scaleCount(rawCount);
+
+  // Scale a repeat pattern like "(4 sc, inc) x 4 — 24 sts"
+  // Rule: scale the repeat COUNT, keep the sequence (stitch types don't change)
+  // Then recalculate total stitch count from the scaled repeat
+  const scaleRepeat = (desc, totalSts) => {
+    // Try to extract repeat count from patterns like "x 4", "x4", "* 8 times"
+    const repeatMatch = desc.match(/[xX×*]\s*(\d+)/);
+    const seqMatch = desc.match(/\(([^)]+)\)/);
+    if (!repeatMatch || !seqMatch) return null;
+    const origRepeat = parseInt(repeatMatch[1]);
+    const scaledRepeat = Math.round(origRepeat * stScale);
+    // Count stitches in the sequence to get new total
+    const seqText = seqMatch[1];
+    const seqStCount = (seqText.match(/\b(sc|hdc|dc|tr|inc|dec|sl st|ch)\b/gi)||[]).length || 1;
+    const newTotal = scaledRepeat * seqStCount;
+    const newDesc = desc.replace(repeatMatch[0], `x ${scaledRepeat}`);
+    return { newDesc, scaledRepeat, newTotal, origRepeat };
+  };
+  const repeatResult = showRepeat ? scaleRepeat(origDesc, rawCount) : null;
+  const {isDesktop:isDk}=useBreakpoint();
+
+  const Input = ({label,val,set,step="1"}) => (
+    <div>
+      <div style={{fontSize:10,color:T.ink3,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>{label}</div>
+      <input value={val} onChange={e=>set(e.target.value)} type="number" step={step}
+        style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}
+        onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+    </div>
+  );
+  const ResultCard = ({label,val,flag}) => (
+    <div style={{background:flag?"rgba(255,220,200,.5)":"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px",border:flag?`1px solid ${T.terra}`:"none"}}>
+      <div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div>
+      <div style={{fontSize:28,fontWeight:700,fontFamily:T.serif,color:flag?T.terra:T.ink}}>{val}</div>
+      {flag&&<div style={{fontSize:10,color:T.terra,marginTop:2}}>⚠ rounding error &gt;5%</div>}
+    </div>
+  );
+
   return (
     <div style={{padding:isDk?"0 0 100px":"0 18px 100px"}}>
       <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:4}}>Crochet Calculators</div>
       <div style={{fontSize:13,color:T.ink3,marginBottom:16}}>Essential tools for planning your projects.</div>
       <div style={{display:"flex",gap:6,marginBottom:8}}>
-        {[["gauge","Gauge"],["yardage","Yardage"],["resize","Resize"]].map(([key,label])=>(
+        {[["gauge","Gauge"],["yardage","Yardage"],["resize","Scale"]].map(([key,label])=>(
           <button key={key} onClick={()=>setActive(key)} style={{flex:1,padding:"10px",border:"1.5px solid "+(active===key?T.terra:T.border),background:active===key?T.terraLt:T.card,color:active===key?T.terra:T.ink3,borderRadius:10,cursor:"pointer",fontSize:12,fontWeight:active===key?600:400}}>{label}</button>
         ))}
       </div>
-      <div style={{fontSize:12,color:T.ink3,marginBottom:20,lineHeight:1.5}}>{active==="gauge"?"Use when your swatch doesn't match the pattern. Tells you how to adjust your stitch count.":active==="yardage"?"Estimate how much yarn you need before starting a project.":"Scale any pattern up or down to your target size."}</div>
-      {active==="gauge"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Gauge Swatch</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>{[["Stitches",stitches,setStitches],["Rows",rows,setRows],["Swatch (in)",swatchSize,setSwatchSize]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Target Dimensions</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",targetW,setTargetW],["Height (in)",targetH,setTargetH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Results</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Cast on (sts)",castOn],["Total rows",totalRows],["Stitches/inch",stPerInch.toFixed(1)],["Rows/inch",roPerInch.toFixed(1)]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:32,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
-      {active==="yardage"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Project Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",projW,setProjW],["Height (in)",projH,setProjH],["Sts per 4in",stPer4,setStPer4],["Yds per stitch",ydsPerSt,setYdsPerSt]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Estimated Yardage</div><div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontFamily:T.serif,fontSize:48,fontWeight:700,color:T.terra}}>{yardage.toLocaleString()}</div><div style={{fontSize:14,color:T.ink3,marginTop:4}}>yards needed</div><div style={{fontSize:13,color:T.ink2,marginTop:8}}>approx. {Math.ceil(yardage/200)} skeins at 200 yds each</div></div></div></>}
-      {active==="resize"&&<><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Original Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",origW,setOrigW],["Height (in)",origH,setOrigH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:16}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>New Size</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width (in)",newW,setNewW],["Height (in)",newH,setNewH]].map(([label,val,set])=><div key={label}><div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div><input value={val} onChange={e=>set(e.target.value)} type="number" style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:15,fontWeight:600,color:T.ink,textAlign:"center",outline:"none"}}/></div>)}</div></div><div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}><div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Scale Factors</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[["Width scale","x"+scaleW.toFixed(2)],["Height scale","x"+scaleH.toFixed(2)],["Stitch mult.",(scaleW*100).toFixed(0)+"%"],["Yardage mult.",(scaleW*scaleH*100).toFixed(0)+"%"]].map(([label,val])=><div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:32,fontWeight:700,fontFamily:T.serif,color:T.terra}}>{val}</div></div>)}</div></div></>}
+
+      {/* ── GAUGE ── */}
+      {active==="gauge"&&<>
+        <div style={{fontSize:12,color:T.ink3,marginBottom:16,lineHeight:1.5}}>Use when your swatch doesn't match the pattern. Tells you how to adjust your stitch count.</div>
+        <div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:12}}>
+          <div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Your Swatch</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            <Input label="Stitches" val={stitches} set={setStitches}/>
+            <Input label="Rows" val={rows} set={setRows}/>
+            <Input label="Swatch (in)" val={swatchSize} set={setSwatchSize}/>
+          </div>
+        </div>
+        <div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:12}}>
+          <div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Target Dimensions</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Input label="Width (in)" val={targetW} set={setTargetW}/>
+            <Input label="Height (in)" val={targetH} set={setTargetH}/>
+          </div>
+        </div>
+        <div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"16px",border:`1px solid ${T.border}`}}>
+          <div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Results</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <ResultCard label="Cast on (sts)" val={castOn}/>
+            <ResultCard label="Total rows" val={totalRowsCalc}/>
+            <ResultCard label="Sts/inch" val={stPerInch.toFixed(1)}/>
+            <ResultCard label="Rows/inch" val={roPerInch.toFixed(1)}/>
+          </div>
+        </div>
+      </>}
+
+      {/* ── YARDAGE ── */}
+      {active==="yardage"&&<>
+        <div style={{fontSize:12,color:T.ink3,marginBottom:16,lineHeight:1.5}}>Estimate how much yarn you need before starting a project.</div>
+        <div style={{background:T.linen,borderRadius:14,padding:"16px",marginBottom:12}}>
+          <div style={{fontFamily:T.serif,fontSize:15,color:T.ink,marginBottom:12}}>Project Details</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Input label="Width (in)" val={projW} set={setProjW}/>
+            <Input label="Height (in)" val={projH} set={setProjH}/>
+            <Input label="Sts per 4in" val={stPer4} set={setStPer4}/>
+            <Input label="Yds per stitch" val={ydsPerSt} set={setYdsPerSt} step="0.1"/>
+          </div>
+        </div>
+        <div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"20px",border:`1px solid ${T.border}`,textAlign:"center"}}>
+          <div style={{fontFamily:T.serif,fontSize:48,fontWeight:700,color:T.terra}}>{yardage.toLocaleString()}</div>
+          <div style={{fontSize:14,color:T.ink3,marginTop:4}}>yards needed</div>
+          <div style={{fontSize:13,color:T.ink2,marginTop:8}}>approx. {Math.ceil(yardage/200)} skeins at 200 yds each</div>
+        </div>
+      </>}
+
+      {/* ── SCALE ── */}
+      {active==="resize"&&<>
+        <div style={{fontSize:12,color:T.ink3,marginBottom:16,lineHeight:1.6}}>
+          Enter the pattern's gauge and your gauge. We'll calculate exact scaled stitch counts — not just a multiplier.
+        </div>
+
+        {/* Gauge inputs side by side */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div style={{background:T.linen,borderRadius:14,padding:"14px"}}>
+            <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>Pattern Gauge</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <Input label="Sts" val={patSt} set={setPatSt}/>
+              <Input label="Rows" val={patRows} set={setPatRows}/>
+            </div>
+            <Input label="Swatch (in)" val={patSwatchIn} set={setPatSwatchIn}/>
+          </div>
+          <div style={{background:T.linen,borderRadius:14,padding:"14px"}}>
+            <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>My Gauge</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <Input label="Sts" val={mySt} set={setMySt}/>
+              <Input label="Rows" val={myRows} set={setMyRows}/>
+            </div>
+            <Input label="Swatch (in)" val={mySwatchIn} set={setMySwatchIn}/>
+          </div>
+        </div>
+
+        {/* Scale factor summary */}
+        <div style={{background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"16px",marginBottom:12,border:`1px solid ${T.border}`}}>
+          <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>Your Scale Factors</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <ResultCard label="Stitch mult." val={`×${stScale.toFixed(2)}`}/>
+            <ResultCard label="Width result" val={`${(sizeChangeW*100).toFixed(0)}%`} flag={Math.abs(sizeChangeW-1)>0.3}/>
+            <ResultCard label="Yardage mult." val={`${(sizeChangeW*sizeChangeH*100).toFixed(0)}%`}/>
+          </div>
+          {Math.abs(stScale-1)<0.03&&<div style={{marginTop:10,fontSize:12,color:T.sage,fontWeight:600,textAlign:"center"}}>✓ Gauges match — no scaling needed</div>}
+          {stScale!==1&&<div style={{marginTop:10,fontSize:12,color:T.ink2,lineHeight:1.6}}>
+            {stScale>1?"Your gauge is tighter — multiply stitch counts to get the same finished size.":"Your gauge is looser — reduce stitch counts to get the same finished size."}
+          </div>}
+        </div>
+
+        {/* Single stitch count scaler */}
+        <div style={{background:T.linen,borderRadius:14,padding:"14px",marginBottom:10}}>
+          <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>Scale a Stitch Count</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
+            <Input label="Pattern calls for" val={origCount} set={setOrigCount}/>
+            <div>
+              <div style={{fontSize:10,color:T.ink3,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>You should work</div>
+              <div style={{padding:"10px",background:scaledResult.flagged?"rgba(255,220,200,.6)":"rgba(255,255,255,.9)",border:`1.5px solid ${scaledResult.flagged?T.terra:T.sage}`,borderRadius:8,textAlign:"center"}}>
+                <span style={{fontSize:22,fontWeight:700,fontFamily:T.serif,color:scaledResult.flagged?T.terra:T.sage}}>{scaledResult.scaled}</span>
+                <span style={{fontSize:11,color:T.ink3,marginLeft:4}}>sts</span>
+              </div>
+              {scaledResult.flagged&&<div style={{fontSize:10,color:T.terra,marginTop:4}}>⚠ {(scaledResult.error*100).toFixed(1)}% rounding error</div>}
+            </div>
+          </div>
+
+          {/* Repeat pattern scaler toggle */}
+          <button onClick={()=>setShowRepeat(r=>!r)} style={{fontSize:11,color:T.terra,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>
+            {showRepeat?"▾ Hide repeat scaler":"▸ Scale a repeat pattern like (sc, inc) x 4"}
+          </button>
+          {showRepeat&&<>
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:10,color:T.ink3,marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Repeat instruction</div>
+              <input value={origDesc} onChange={e=>setOrigDesc(e.target.value)}
+                placeholder="e.g. (4 sc, inc) x 4"
+                style={{width:"100%",padding:"10px",background:"rgba(250,247,243,0.96)",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,color:T.ink,outline:"none"}}
+                onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
+            </div>
+            {repeatResult&&<div style={{marginTop:10,background:"rgba(255,255,255,.8)",borderRadius:9,padding:"10px 12px"}}>
+              <div style={{fontSize:11,color:T.ink3,marginBottom:4}}>SCALED INSTRUCTION</div>
+              <div style={{fontSize:14,fontWeight:600,color:T.ink,fontFamily:T.serif}}>{repeatResult.newDesc}</div>
+              <div style={{fontSize:11,color:T.ink3,marginTop:4}}>{repeatResult.origRepeat} repeats → {repeatResult.scaledRepeat} repeats</div>
+            </div>}
+            {showRepeat&&!repeatResult&&origDesc.length>3&&<div style={{marginTop:8,fontSize:11,color:T.ink3}}>Couldn't parse that pattern. Try: (4 sc, inc) x 4</div>}
+          </>}
+        </div>
+
+        {/* Sizing note */}
+        <div style={{background:T.sageLt,borderRadius:12,padding:"12px 14px",fontSize:12,color:T.sage,lineHeight:1.6}}>
+          <strong>Pro tip:</strong> For amigurumi, scaling via hook size + yarn weight change is often easier than adjusting every stitch count. A 5mm hook with bulky yarn instead of 3.5mm with DK roughly doubles your finished size with zero math.
+        </div>
+      </>}
     </div>
   );
 };
-
 const SEED_SHOPPING=[
   {id:1,name:"Lion Brand Pound of Love — Antique White",qty:2,unit:"skeins",checked:false},
   {id:2,name:"Clover Amour Crochet Hook Set — 5 sizes",qty:1,unit:"set",checked:false},
@@ -3315,7 +3545,7 @@ const WelcomeToast = ({visible}) => (
 
 const WelcomeBanner = ({visible}) => (
   <div style={{background:T.terra,padding:"10px 16px",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,maxHeight:visible?50:0,overflow:"hidden",transition:"opacity .4s ease, max-height .4s ease"}}>
-    <span style={{fontSize:13,color:"#fff",fontWeight:500,lineHeight:1.4}}>Welcome to YarnHive! 🐝 Your starter patterns are ready — start exploring.</span>
+    <span style={{fontSize:13,color:"#fff",fontWeight:500,lineHeight:1.4}}>Welcome to Wovely! 🐝 Your starter patterns are ready — start exploring.</span>
   </div>
 );
 
@@ -3404,7 +3634,7 @@ const OnboardingScreen = ({onComplete,onBackToAuth}) => {
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0 14px"}}>
             <div>
-              <div style={{fontSize:13,color:T.ink2,fontWeight:500}}>Text me updates from YarnHive</div>
+              <div style={{fontSize:13,color:T.ink2,fontWeight:500}}>Text me updates from Wovely</div>
               <div style={{fontSize:11,color:T.ink3,marginTop:2}}>Pattern drops, community updates, and more.</div>
             </div>
             <button onClick={()=>setSmsOptIn(!smsOptIn)} style={{width:44,height:26,borderRadius:13,background:smsOptIn?T.sage:T.border,border:"none",position:"relative",cursor:"pointer",transition:"background .2s ease",flexShrink:0}}>
@@ -3476,7 +3706,7 @@ const MasterDocView = () => {
         {/* Hero */}
         <div style={{textAlign:"center",marginBottom:48}}>
           <div style={{fontSize:14,color:T.terra,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Release Notes</div>
-          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in YarnHive</h1>
+          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in Wovely</h1>
           <p style={{fontSize:15,color:T.ink3,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>Every stitch of progress, documented. Follow along as we build the crochet companion you deserve.</p>
         </div>
         {/* Coming Soon card */}
@@ -3561,7 +3791,7 @@ const MasterDocView = () => {
       <div style={{maxWidth:900,margin:"0 auto",padding:"40px 24px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
           <div>
-            <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:28,fontWeight:700,color:"#1C1714"}}>YarnHive Admin</div>
+            <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:28,fontWeight:700,color:"#1C1714"}}>Wovely Admin</div>
             <div style={{fontSize:13,color:"#9E8E82",marginTop:4}}>{doc?`Version ${doc.version} · Updated ${new Date(doc.updated_at).toLocaleDateString()}`:""}</div>
           </div>
           <button onClick={()=>{sessionStorage.removeItem("yh_master_pw");setDoc(null);setAuthed(false);setPw("");}} style={{background:"#F0EBE3",border:"1px solid #E2D8CC",borderRadius:8,padding:"8px 16px",fontSize:13,color:"#5C4F44",cursor:"pointer"}}>Lock</button>
@@ -3583,7 +3813,7 @@ const MasterDocView = () => {
       <div style={{width:"100%",maxWidth:380,padding:"40px 32px",background:"#FAF7F3",borderRadius:20,border:"1px solid #E2D8CC",boxShadow:"0 8px 32px rgba(139,90,60,.08)"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:40,marginBottom:12}}>🐝</div>
-          <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:22,fontWeight:700,color:"#1C1714"}}>YarnHive Admin</div>
+          <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:22,fontWeight:700,color:"#1C1714"}}>Wovely Admin</div>
           <div style={{fontSize:13,color:"#9E8E82",marginTop:6}}>Enter password to view</div>
         </div>
         <input value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchDoc(pw)} type="password" placeholder="Password" style={{width:"100%",padding:"13px 16px",background:"#EDE8E0",border:"1.5px solid #E2D8CC",borderRadius:12,color:"#1C1714",fontSize:15,marginBottom:12,outline:"none"}}/>
@@ -3638,7 +3868,7 @@ const CHANGELOG_ENTRIES = [
     version: "v1.3.x", date: "March 20, 2026", major: true,
     changes: {
       "New": [
-        "YarnHive brand launch — retired Stitch Box",
+        "Wovely brand launch — retired Stitch Box",
         "Smart Import URL pipeline with og:image extraction",
         "Hive Vision (Snap to Pattern) with Gemini Vision",
         "Social sharing with milestone banners and share cards",
@@ -3670,14 +3900,14 @@ const ChangelogPage = () => {
   const {isDesktop} = useBreakpoint();
 
   useEffect(() => {
-    document.title = "YarnHive Changelog";
+    document.title = "Wovely Changelog";
     let ogTitle = document.querySelector('meta[property="og:title"]');
     let ogDesc = document.querySelector('meta[property="og:description"]');
     if (!ogTitle) { ogTitle = document.createElement("meta"); ogTitle.setAttribute("property","og:title"); document.head.appendChild(ogTitle); }
     if (!ogDesc) { ogDesc = document.createElement("meta"); ogDesc.setAttribute("property","og:description"); document.head.appendChild(ogDesc); }
-    ogTitle.setAttribute("content", "YarnHive Changelog");
-    ogDesc.setAttribute("content", "What's new in YarnHive");
-    return () => { document.title = "YarnHive"; };
+    ogTitle.setAttribute("content", "Wovely Changelog");
+    ogDesc.setAttribute("content", "What's new in Wovely");
+    return () => { document.title = "Wovely"; };
   }, []);
 
   const pad = isDesktop ? "0 60px" : "0 20px";
@@ -3690,7 +3920,7 @@ const ChangelogPage = () => {
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 24px",height:60,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>navigate("/")}>
           <span style={{fontSize:22}}>🐝</span>
-          <span style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>YarnHive</span>
+          <span style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>Wovely</span>
         </div>
         <div style={{fontSize:12,color:T.ink3,fontWeight:500,letterSpacing:".04em",textTransform:"uppercase"}}>Changelog</div>
       </div>
@@ -3699,7 +3929,7 @@ const ChangelogPage = () => {
         {/* Hero */}
         <div style={{textAlign:"center",marginBottom:48}}>
           <div style={{fontSize:14,color:T.terra,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Release Notes</div>
-          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in YarnHive</h1>
+          <h1 style={{fontFamily:T.serif,fontSize:isDesktop?38:28,fontWeight:700,color:T.ink,lineHeight:1.2,margin:"0 0 12px"}}>What's New in Wovely</h1>
           <p style={{fontSize:15,color:T.ink3,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>Every stitch of progress, documented. Follow along as we build the crochet companion you deserve.</p>
         </div>
 
@@ -3769,7 +3999,7 @@ const ChangelogPage = () => {
           <div style={{width:40,height:1,background:T.border,margin:"0 auto 20px"}}/>
           <p style={{fontSize:13,color:T.ink3,lineHeight:1.6}}>That's everything so far. More stitches coming soon.</p>
           <div style={{marginTop:16}}>
-            <button onClick={()=>navigate("/")} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>Open YarnHive</button>
+            <button onClick={()=>navigate("/")} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 28px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)"}}>Open Wovely</button>
           </div>
         </div>
       </div>
@@ -3777,7 +4007,7 @@ const ChangelogPage = () => {
   );
 };
 
-export default function YarnHive() {
+export default function Wovely() {
   const navigate = useNavigate();
   const location = useLocation();
   const [authed,setAuthed]=useState(false),[isPro,setIsPro]=useState(false);
@@ -3863,11 +4093,11 @@ export default function YarnHive() {
 
   // Fetch user's saved patterns from Supabase on login
   useEffect(()=>{
-    console.log("[YarnHive] Pattern fetch triggered, authed:", authed, "authChecked:", authChecked);
+    console.log("[Wovely] Pattern fetch triggered, authed:", authed, "authChecked:", authChecked);
     if(!authed||!authChecked) return;
     const user=supabaseAuth.getUser();
     const session=getSession();
-    console.log("[YarnHive] Pattern fetch user id:", user?.id);
+    console.log("[Wovely] Pattern fetch user id:", user?.id);
     if(!user||!session) return;
     (async()=>{
       try{
@@ -3876,8 +4106,8 @@ export default function YarnHive() {
         });
         if(res.ok){
           const data=await res.json();
-          console.log("[YarnHive] Pattern fetch raw response:", JSON.stringify(data));
-          console.log("[YarnHive] Pattern fetch count:", data.length);
+          console.log("[Wovely] Pattern fetch raw response:", JSON.stringify(data));
+          console.log("[Wovely] Pattern fetch count:", data.length);
           if(data.length>0){
             const patterns=data.map(r=>({
               id:r.id,_supabaseId:r.id,title:r.title||"",cat:r.cat||"",source:r.source||"",source_url:r.source_url||"",
@@ -3904,17 +4134,17 @@ export default function YarnHive() {
               // Keep local-only patterns (starters, unsaved) that aren't in Supabase
               const supaIds=new Set(patterns.map(p=>p.id));
               const localOnly=prev.filter(p=>!supaIds.has(p.id)&&!supaIds.has(p._supabaseId));
-              console.log("[YarnHive] Merge: Supabase patterns:", patterns.length, "local-only kept:", localOnly.length, localOnly.map(p=>p.title));
+              console.log("[Wovely] Merge: Supabase patterns:", patterns.length, "local-only kept:", localOnly.length, localOnly.map(p=>p.title));
               return [...patterns,...localOnly];
             });
           }else{
-            console.log("[YarnHive] No patterns in Supabase for this user, keeping local state as-is");
+            console.log("[Wovely] No patterns in Supabase for this user, keeping local state as-is");
           }
         }else{
           const errText=await res.text();
-          console.error("[YarnHive] Patterns fetch failed:", res.status, errText);
+          console.error("[Wovely] Patterns fetch failed:", res.status, errText);
         }
-      }catch(e){console.error("[YarnHive] Fetch patterns error:",e);}
+      }catch(e){console.error("[Wovely] Fetch patterns error:",e);}
     })();
   },[authed,authChecked]);
 
@@ -4042,7 +4272,7 @@ export default function YarnHive() {
         method:"PATCH",
         headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
         body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null}),
-      }).then(r=>{console.log("[YarnHive] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[YarnHive] Row PATCH error body:",t));}).catch(e=>console.error("[YarnHive] Row progress save error:",e));
+      }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
   const detailOnBack=()=>navigate(-1);
@@ -4060,7 +4290,7 @@ export default function YarnHive() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
         body:JSON.stringify({status:"in_progress"}),
-      }).catch(e=>console.error("[YarnHive] Start pattern error:",e));
+      }).catch(e=>console.error("[Wovely] Start pattern error:",e));
     }
     navigateToView("detail",p._supabaseId||p.id);
   };
@@ -4094,18 +4324,18 @@ export default function YarnHive() {
           headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=representation"},
           body:JSON.stringify({user_id:user.id,title:p.title||"",cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",cover_image_url:p.cover_image_url||null,row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null,extracted_by_ai:!!p.extracted_by_ai,components:p.components||null}),
         });
-        console.log("[YarnHive] INSERT response status:", res.status);
+        console.log("[Wovely] INSERT response status:", res.status);
         if(res.ok){
           const rows=await res.json();
-          console.log("[YarnHive] INSERT response body:", JSON.stringify(rows));
+          console.log("[Wovely] INSERT response body:", JSON.stringify(rows));
           if(rows[0]?.id){
-            console.log("[YarnHive] Pattern saved with Supabase ID:", rows[0].id);
+            console.log("[Wovely] Pattern saved with Supabase ID:", rows[0].id);
             // Update local state with Supabase ID
             setUserPatterns(prev=>prev.map(pat=>pat.id===localId?{...pat,id:rows[0].id,_supabaseId:rows[0].id}:pat));
             setCreatedPattern(prev=>prev&&prev.id===localId?{...prev,id:rows[0].id,_supabaseId:rows[0].id}:prev);
           }
-        }else{const errText=await res.text();console.error("[YarnHive] Pattern save failed:",res.status,errText);}
-      }catch(e){console.error("[YarnHive] Pattern save error:",e);}
+        }else{const errText=await res.text();console.error("[Wovely] Pattern save failed:",res.status,errText);}
+      }catch(e){console.error("[Wovely] Pattern save error:",e);}
     }
   };
   const openAddModal=()=>{if(tier.atCap){setShowPaywall(true);return;}setAddOpen(true);};
@@ -4119,7 +4349,7 @@ export default function YarnHive() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
         body:JSON.stringify({status,updated_at:new Date().toISOString()}),
-      }).catch(e=>console.error("[YarnHive] Status update error:",e));
+      }).catch(e=>console.error("[Wovely] Status update error:",e));
     }
   };
   const handleParkPattern=(p)=>updatePatternStatus(p,"parked");
@@ -4143,7 +4373,7 @@ export default function YarnHive() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
         body:JSON.stringify({cover_image_url:finalUrl,updated_at:new Date().toISOString()}),
-      }).then(r=>{if(r.ok)console.log("[YarnHive] Cover image updated for",pid);else r.text().then(t=>console.error("[YarnHive] Cover PATCH error:",t));}).catch(e=>console.error("[YarnHive] Cover save error:",e));
+      }).then(r=>{if(r.ok)console.log("[Wovely] Cover image updated for",pid);else r.text().then(t=>console.error("[Wovely] Cover PATCH error:",t));}).catch(e=>console.error("[Wovely] Cover save error:",e));
     }
   };
   const inProgress=allPatterns.filter(p=>{const v=pct(p);return !p.isStarter&&p.status!=="deleted"&&p.status!=="parked"&&((p.status==="in_progress"&&v<100)||(p.started&&v<100)||(v>0&&v<100));});
@@ -4166,7 +4396,7 @@ export default function YarnHive() {
         <WelcomeBanner visible={showWelcomeBanner}/>
         {showEmailBanner&&!showWelcomeBanner&&<EmailConfirmBanner onDismiss={handleDismissEmailBanner} onResend={handleResendEmail}/>}
         <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 40px",height:64,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
-          <div style={{fontFamily:T.serif,fontSize:24,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
+          <div style={{fontFamily:T.serif,fontSize:24,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Wovely"}</div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {isPro&&<div style={{background:T.sage,borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:700,color:"#fff"}}>✨ Pro</div>}
             <button onClick={openAddModal} style={{background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 16px rgba(184,90,60,.3)",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>+</span> Add Pattern</button>
@@ -4202,7 +4432,7 @@ export default function YarnHive() {
       {showWelcomeBanner&&<WelcomeBanner onDismiss={()=>setShowWelcomeBanner(false)}/>}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 18px",height:56,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
         <button onClick={()=>setNavOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:"8px 8px 8px 0",display:"flex",flexDirection:"column",gap:5}}><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:15,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/></button>
-        <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"YarnHive"}</div>
+        <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Wovely"}</div>
         <button onClick={openAddModal} style={{background:T.terra,border:"none",borderRadius:9,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(184,90,60,.4)"}}>+</button>
       </div>
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
