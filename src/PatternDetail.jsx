@@ -226,7 +226,8 @@ const ShareCardModal = ({pattern,onClose,pct,Btn}) => {
 };
 
 const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Photo,Stars,WireframeViewer,Btn}) => {
-  const [rows,setRows]=useState(()=>ensureRepeatBrackets(p.rows)),[tab,setTab]=useState("materials"),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
+  const VALID_TABS=["materials","rows","notes"];
+  const [rows,setRows]=useState(()=>ensureRepeatBrackets(p.rows)),[tab,setTab]=useState(()=>{const saved=localStorage.getItem("yh_last_tab");return VALID_TABS.includes(saved)?saved:"materials";}),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
   const [attachUploading,setAttachUploading]=useState(false);
 
   // Backfill cover_image_url from PDF source file
@@ -267,7 +268,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
       <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer}/>
       <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
         {[["materials","Materials"],["rows","Rows"],["notes","Notes"]].map(([key,label])=>(
-          <button key={key} onClick={()=>setTab(key)} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
+          <button key={key} onClick={()=>{setTab(key);localStorage.setItem("yh_last_tab",key);}} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
         ))}
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"4px 20px 36px",maxWidth:isDesktop?760:undefined,margin:isDesktop?"0 auto":undefined,width:"100%"}}>
