@@ -1722,6 +1722,19 @@ export default function Wovely() {
     showEmailBannerIfNeeded();
   };
 
+  // Restore last pattern URL on boot (runs once when authed on / or /hive)
+  const lastUrlRestoreRef = useRef(false);
+  useEffect(()=>{
+    if(lastUrlRestoreRef.current) return;
+    if(!authed||!authChecked) return;
+    if(location.pathname!=="/"&&location.pathname!=="/hive") return;
+    const lastUrl=localStorage.getItem("yh_last_url");
+    if(lastUrl&&lastUrl.startsWith("/hive/")){
+      lastUrlRestoreRef.current=true;
+      navigate(lastUrl, {replace:true});
+    }
+  },[authed,authChecked,location.pathname,navigate]);
+
   // Private route: /master-doc (includes changelog tab) — rendered before auth check
   if(location.pathname==="/master-doc") return <MasterDocView/>;
   // Redirect old /changelog URL to /master-doc
@@ -1733,13 +1746,8 @@ export default function Wovely() {
     if(location.pathname!=="/") return <Navigate to="/" replace/>;
     return <><CSS/><WaitlistPopup/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup}/></>;
   }
-  // Authed users on root or dashboard: restore last pattern URL if saved
-  if(location.pathname==="/"||location.pathname==="/hive"){
-    const lastUrl=localStorage.getItem("yh_last_url");
-    console.log("[Wovely] yh_last_url read:", lastUrl, "from:", location.pathname);
-    if(lastUrl&&lastUrl.startsWith("/hive/")) return <Navigate to={lastUrl} replace/>;
-    if(location.pathname==="/") return <Navigate to="/hive" replace/>;
-  }
+  // Authed users on root redirect to /hive
+  if(location.pathname==="/") return <Navigate to="/hive" replace/>;
   // Unknown routes redirect to /hive
   const knownPaths=["/hive","/builds","/browse","/stash","/tools","/shopping","/profile","/hive-vision","/master-doc"];
   if(!knownPaths.some(p=>location.pathname===p||location.pathname.startsWith("/hive/"))) return <Navigate to="/hive" replace/>;
@@ -1756,7 +1764,7 @@ export default function Wovely() {
     }
   };
   const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate(-1);};
-  if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/><div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:9999,background:"#1C1714",color:"#fff",padding:"6px 14px",fontSize:11,fontFamily:"monospace",display:"flex",gap:12,opacity:.85}}><span>path: {location.pathname}</span><span>yh_last_url: {localStorage.getItem("yh_last_url")||"(empty)"}</span><span>authed: {String(authed)}</span><span>fetched: {String(patternsFetched)}</span></div></>;
+  if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></>;
 
   const startAndOpenPattern=(p)=>{
     const updated={...p,started:true};
@@ -1926,13 +1934,6 @@ export default function Wovely() {
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
         <button onClick={openAddModal} style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:99,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(184,90,60,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
-      </div>
-      {/* DEBUG: last URL banner — remove after testing */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:9999,background:"#1C1714",color:"#fff",padding:"6px 14px",fontSize:11,fontFamily:"monospace",display:"flex",gap:12,opacity:.85}}>
-        <span>path: {location.pathname}</span>
-        <span>yh_last_url: {localStorage.getItem("yh_last_url")||"(empty)"}</span>
-        <span>authed: {String(authed)}</span>
-        <span>fetched: {String(patternsFetched)}</span>
       </div>
     </div>
   );
