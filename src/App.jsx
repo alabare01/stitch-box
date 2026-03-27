@@ -1467,9 +1467,13 @@ const ChangelogPage = () => {
 export default function Wovely() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [authed,setAuthed]=useState(false),[isPro,setIsPro]=useState(false);
-  const [authChecked,setAuthChecked]=useState(false);
+  // Instant session restore: if a local session exists, assume authed immediately
+  // to avoid login screen flicker. The async validate() will correct if expired.
+  const _hasLocalSession = !!getSession()?.access_token && !!supabaseAuth.getUser();
+  const [authed,setAuthed]=useState(_hasLocalSession),[isPro,setIsPro]=useState(false);
+  const [authChecked,setAuthChecked]=useState(_hasLocalSession);
   const [userPatterns,setUserPatterns]=useState([]);
+  const [patternsFetched,setPatternsFetched]=useState(false);
   const [starterPatterns,setStarterPatterns]=useState(()=>makeStarterPatterns());
   // Derive view from URL path instead of state
   const view = viewFromPath(location.pathname);
@@ -1534,7 +1538,7 @@ export default function Wovely() {
     validate();
   },[]);
 
-  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); navigate("/"); };
+  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); localStorage.removeItem("yh_last_url"); navigate("/"); };
 
   // Navigation helper — translates view keys to URL paths
   const navigateToView = useCallback((v, patternId) => {
@@ -1597,15 +1601,18 @@ export default function Wovely() {
           }else{
             console.log("[Wovely] No patterns in Supabase for this user, keeping local state as-is");
           }
+          setPatternsFetched(true);
         }else{
           const errText=await res.text();
           console.error("[Wovely] Patterns fetch failed:", res.status, errText);
+          setPatternsFetched(true);
         }
-      }catch(e){console.error("[Wovely] Fetch patterns error:",e);}
+      }catch(e){console.error("[Wovely] Fetch patterns error:",e);setPatternsFetched(true);}
     })();
   },[authed,authChecked]);
 
   // Deep-link resolution: when URL is /hive/:id, resolve selected pattern from loaded data
+  // Wait for patternsFetched so instant session restore doesn't redirect before patterns load
   useEffect(()=>{
     if(view!=="detail") return;
     const pid=patternIdFromPath(location.pathname);
@@ -1614,8 +1621,18 @@ export default function Wovely() {
     const allP=[...userPatterns,...starterPatterns];
     const match=allP.find(p=>String(p.id)===pid||String(p._supabaseId)===pid);
     if(match) setSelected(match);
-    else if(authed&&authChecked&&allP.length>0) navigate("/hive",{replace:true});
-  },[view,location.pathname,userPatterns,starterPatterns,authed,authChecked]);
+    else if(authed&&authChecked&&patternsFetched&&allP.length>0) navigate("/hive",{replace:true});
+  },[view,location.pathname,userPatterns,starterPatterns,authed,authChecked,patternsFetched]);
+
+  // Last URL memory: save pattern detail URLs on navigate
+  // Clearing happens only on intentional actions (sign out, explicit dashboard nav)
+  useEffect(()=>{
+    if(!authed) return;
+    if(location.pathname.startsWith("/hive/") && patternIdFromPath(location.pathname)){
+      console.log("[Wovely] yh_last_url saved:", location.pathname);
+      localStorage.setItem("yh_last_url",location.pathname);
+    }
+  },[location.pathname,authed]);
 
   // /hive-vision route: open add-pattern modal (Hive Vision tab) and redirect to /hive
   useEffect(()=>{
@@ -1698,11 +1715,25 @@ export default function Wovely() {
 
   const handleSignIn = () => {
     setAuthed(true);
-    navigate("/hive");
+    const lastUrl=localStorage.getItem("yh_last_url");
+    navigate(lastUrl&&lastUrl.startsWith("/hive/")?lastUrl:"/hive");
     setShowWelcomeToast(true);
     setTimeout(()=>setShowWelcomeToast(false),3000);
     showEmailBannerIfNeeded();
   };
+
+  // Restore last pattern URL on boot (runs once when authed on / or /hive)
+  const lastUrlRestoreRef = useRef(false);
+  useEffect(()=>{
+    if(lastUrlRestoreRef.current) return;
+    if(!authed||!authChecked) return;
+    if(location.pathname!=="/"&&location.pathname!=="/hive") return;
+    const lastUrl=localStorage.getItem("yh_last_url");
+    if(lastUrl&&lastUrl.startsWith("/hive/")){
+      lastUrlRestoreRef.current=true;
+      navigate(lastUrl, {replace:true});
+    }
+  },[authed,authChecked,location.pathname,navigate]);
 
   // Private route: /master-doc (includes changelog tab) — rendered before auth check
   if(location.pathname==="/master-doc") return <MasterDocView/>;
@@ -1732,7 +1763,7 @@ export default function Wovely() {
       }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
-  const detailOnBack=()=>navigate(-1);
+  const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate(-1);};
   if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></>;
 
   const startAndOpenPattern=(p)=>{
