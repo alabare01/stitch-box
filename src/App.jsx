@@ -1624,13 +1624,13 @@ export default function Wovely() {
     else if(authed&&authChecked&&patternsFetched&&allP.length>0) navigate("/hive",{replace:true});
   },[view,location.pathname,userPatterns,starterPatterns,authed,authChecked,patternsFetched]);
 
-  // Last URL memory: save pattern detail URLs, clear on dashboard return
+  // Last URL memory: save pattern detail URLs on navigate
+  // Clearing happens only on intentional actions (sign out, explicit dashboard nav)
   useEffect(()=>{
     if(!authed) return;
     if(location.pathname.startsWith("/hive/") && patternIdFromPath(location.pathname)){
+      console.log("[Wovely] yh_last_url saved:", location.pathname);
       localStorage.setItem("yh_last_url",location.pathname);
-    } else if(location.pathname==="/hive"){
-      localStorage.removeItem("yh_last_url");
     }
   },[location.pathname,authed]);
 
@@ -1733,11 +1733,12 @@ export default function Wovely() {
     if(location.pathname!=="/") return <Navigate to="/" replace/>;
     return <><CSS/><WaitlistPopup/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup}/></>;
   }
-  // Authed users on root redirect to last URL (pattern detail) or /hive
-  if(location.pathname==="/"){
+  // Authed users on root or dashboard: restore last pattern URL if saved
+  if(location.pathname==="/"||location.pathname==="/hive"){
     const lastUrl=localStorage.getItem("yh_last_url");
+    console.log("[Wovely] yh_last_url read:", lastUrl, "from:", location.pathname);
     if(lastUrl&&lastUrl.startsWith("/hive/")) return <Navigate to={lastUrl} replace/>;
-    return <Navigate to="/hive" replace/>;
+    if(location.pathname==="/") return <Navigate to="/hive" replace/>;
   }
   // Unknown routes redirect to /hive
   const knownPaths=["/hive","/builds","/browse","/stash","/tools","/shopping","/profile","/hive-vision","/master-doc"];
@@ -1754,7 +1755,7 @@ export default function Wovely() {
       }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
-  const detailOnBack=()=>navigate(-1);
+  const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate(-1);};
   if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></>;
 
   const startAndOpenPattern=(p)=>{
