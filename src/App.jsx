@@ -1756,7 +1756,7 @@ export default function Wovely() {
     }
   };
   const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate(-1);};
-  if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></>;
+  if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/><div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:9999,background:"#1C1714",color:"#fff",padding:"6px 14px",fontSize:11,fontFamily:"monospace",display:"flex",gap:12,opacity:.85}}><span>path: {location.pathname}</span><span>yh_last_url: {localStorage.getItem("yh_last_url")||"(empty)"}</span><span>authed: {String(authed)}</span><span>fetched: {String(patternsFetched)}</span></div></>;
 
   const startAndOpenPattern=(p)=>{
     const updated={...p,started:true};
@@ -1926,6 +1926,13 @@ export default function Wovely() {
       </div>
       <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:30,pointerEvents:"none"}}>
         <button onClick={openAddModal} style={{background:`linear-gradient(135deg,${T.terra},#8B3A22)`,color:"#fff",border:"none",borderRadius:99,padding:"13px 26px",fontSize:14,fontWeight:700,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(184,90,60,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
+      </div>
+      {/* DEBUG: last URL banner — remove after testing */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:9999,background:"#1C1714",color:"#fff",padding:"6px 14px",fontSize:11,fontFamily:"monospace",display:"flex",gap:12,opacity:.85}}>
+        <span>path: {location.pathname}</span>
+        <span>yh_last_url: {localStorage.getItem("yh_last_url")||"(empty)"}</span>
+        <span>authed: {String(authed)}</span>
+        <span>fetched: {String(patternsFetched)}</span>
       </div>
     </div>
   );
