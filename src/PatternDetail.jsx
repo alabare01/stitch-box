@@ -43,6 +43,7 @@ const YarnSummaryCard = ({label, myKey, myVal, fallback, onSave}) => {
         <span style={{fontSize:12,opacity:hover?.7:.25,transition:"opacity .15s",flexShrink:0}}>✏️</span>
       </div>
       {isOverridden&&fallback&&<div style={{fontSize:9,color:T.ink3,marginTop:2,opacity:.7}}>Pattern suggests: {fallback}</div>}
+      {!isOverridden&&<div style={{fontSize:9,color:T.ink3,marginTop:2,opacity:.5}}>Tap to log what you're using</div>}
     </div>
   );
 };
@@ -270,6 +271,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const VALID_TABS=["materials","rows","notes"];
   const [rows,setRows]=useState(()=>ensureRepeatBrackets(p.rows)),[tab,setTab]=useState(()=>{const saved=localStorage.getItem("yh_last_tab");return VALID_TABS.includes(saved)?saved:"materials";}),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
   const [attachUploading,setAttachUploading]=useState(false);
+  const [showYarnTip,setShowYarnTip]=useState(()=>!localStorage.getItem("yh_yarn_summary_tip_seen"));
 
   // Backfill cover_image_url from PDF source file
   useEffect(()=>{
@@ -323,7 +325,11 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
             </div>
           ))}
           {editing&&<button onClick={()=>setDraft({...draft,materials:[...draft.materials,{id:Date.now(),name:"",amount:"",yardage:0}]})} style={{marginTop:14,width:"100%",border:`1.5px dashed ${T.border}`,background:"none",borderRadius:11,padding:"10px",color:T.ink3,cursor:"pointer",fontSize:13}}>+ Add material</button>}
-          <div style={{marginTop:20,background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
+          {showYarnTip&&<div style={{marginTop:16,background:T.linen,borderRadius:12,padding:"12px 14px",border:`1px solid ${T.border}`,display:"flex",alignItems:"flex-start",gap:10}}>
+            <div style={{flex:1,fontSize:12,color:T.ink2,lineHeight:1.6}}>Using different yarn or hooks? Tap any card to log what you're actually using — we'll remember it every time you come back.</div>
+            <button onClick={()=>{setShowYarnTip(false);localStorage.setItem("yh_yarn_summary_tip_seen","1");}} style={{background:"none",border:"none",color:T.ink3,cursor:"pointer",fontSize:16,padding:"0 2px",flexShrink:0,lineHeight:1,opacity:.6}}>×</button>
+          </div>}
+          <div style={{marginTop:showYarnTip?12:20,background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
             <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>Yarn Summary</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <YarnSummaryCard label="Total yardage" myKey="my_yardage" myVal={p.my_yardage} fallback={yardDisplay} onSave={saveMyField}/>
