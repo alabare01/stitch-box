@@ -17,14 +17,13 @@ const ALL_CAT_ENTRIES = Object.entries(CAT_IMG);
 
 const uploadPatternFile = async (file, onProgress) => {
   const formData = new FormData();
+  const isPdf=file.type==="application/pdf"||file.name?.toLowerCase().endsWith(".pdf");
   formData.append("file", file);
   formData.append("upload_preset", "yarnhive_patterns");
-  formData.append("resource_type", "auto");
-  // Note: access_mode must be set on the Cloudinary upload preset, not here.
-  // Unsigned presets reject access_mode in the request body.
   if(onProgress) onProgress("uploading");
   try {
-    const res = await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/auto/upload", {
+    const endpoint=isPdf?"https://api.cloudinary.com/v1_1/dmaupzhcx/raw/upload":"https://api.cloudinary.com/v1_1/dmaupzhcx/auto/upload";
+    const res = await fetch(endpoint, {
       method: "POST", body: formData,
     });
     if (!res.ok) throw new Error("Upload failed: " + res.status);
