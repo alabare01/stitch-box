@@ -1578,6 +1578,7 @@ export default function Wovely() {
               gauge:r.gauge||{stitches:12,rows:16,size:4},dimensions:r.dimensions||{},
               isStarter:!!r.is_starter,is_ai_generated:!!r.is_ai_generated,difficulty:r.difficulty||"",tags:r.tags||[],started:r.status==="in_progress",
               source_file_url:r.source_file_url||"",source_file_name:r.source_file_name||"",source_file_type:r.source_file_type||"",
+              my_hook_size:r.my_hook_size||null,my_yarn_weight:r.my_yarn_weight||null,my_yardage:r.my_yardage||null,my_skeins:r.my_skeins||null,
             }));
             // Backfill known patterns missing cover images
             const MARINA_COVER="https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406086/l0rdxjgszsdkctqrnyeh.png";
@@ -1759,7 +1760,7 @@ export default function Wovely() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",
         headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null}),
+        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null,my_hook_size:u.my_hook_size||null,my_yarn_weight:u.my_yarn_weight||null,my_yardage:u.my_yardage||null,my_skeins:u.my_skeins||null}),
       }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
