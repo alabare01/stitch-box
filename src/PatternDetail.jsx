@@ -277,6 +277,9 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const [showYarnTip,setShowYarnTip]=useState(()=>!localStorage.getItem("yh_yarn_summary_tip_seen"));
   const [showPdfViewer,setShowPdfViewer]=useState(false);
   const isMobileDevice=typeof navigator!=="undefined"&&/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // source_file_url is always a full https://res.cloudinary.com/... URL.
+  // Note: iframe viewer may 401 on Vercel preview deployments due to auth gate.
+  // This works correctly on production (wovely.app) where there's no auth wall.
   const handleViewSource=()=>{
     if(!p.source_file_url)return;
     if(isMobileDevice) setShowPdfViewer(true);
