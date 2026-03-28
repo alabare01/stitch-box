@@ -81,11 +81,11 @@ const PatternHeader = ({
         </div>
       ) : (
         /* ── STANDARD PHOTO HERO — blurred backdrop treatment ── */
-        <div style={{position:"relative",flexShrink:0,height:isDesktop?260:220,overflow:"hidden",background:"#1C1714",marginTop:milestone?56:0,transition:"margin .3s"}}>
+        <div style={{position:"relative",flexShrink:0,height:isDesktop?260:220,overflow:"hidden",background:T.terra,marginTop:milestone?56:0,transition:"margin .3s"}}>
           {/* Layer 1: blurred backdrop */}
-          <img src={detailPhoto} alt="" style={{position:"absolute",width:"100%",height:"100%",objectFit:"cover",filter:"blur(20px) saturate(1.2) brightness(0.6)",transform:"scale(1.1)",pointerEvents:"none"}}/>
+          {(detailPhoto||p.photo)&&<img src={detailPhoto||p.photo} alt="" style={{position:"absolute",width:"100%",height:"100%",objectFit:"cover",filter:"blur(20px) saturate(1.2) brightness(0.6)",transform:"scale(1.1)",pointerEvents:"none"}}/>}
           {/* Layer 2: sharp centered image */}
-          <img src={detailPhoto} alt={p.title} style={{position:"absolute",left:"50%",transform:"translateX(-50%)",height:"100%",width:"auto",objectFit:"contain",zIndex:1}}/>
+          {detailPhoto&&<img src={detailPhoto} alt={p.title} style={{position:"absolute",left:"50%",transform:"translateX(-50%)",height:"100%",width:"auto",objectFit:"contain",zIndex:1}}/>}
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.88) 0%,rgba(20,14,10,.2) 50%,rgba(20,14,10,.05) 100%)",zIndex:2}}/>
           <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",justifyContent:"space-between",zIndex:3}}>
             <button onClick={onBack} style={{background:"rgba(15,10,8,.45)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 16px",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:500}}>← Back</button>
