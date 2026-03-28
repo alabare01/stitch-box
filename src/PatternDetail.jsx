@@ -277,13 +277,12 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const [showYarnTip,setShowYarnTip]=useState(()=>!localStorage.getItem("yh_yarn_summary_tip_seen"));
   const [showPdfViewer,setShowPdfViewer]=useState(false);
   const isMobileDevice=typeof navigator!=="undefined"&&/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  // source_file_url is always a full https://res.cloudinary.com/... URL.
-  // Note: iframe viewer may 401 on Vercel preview deployments due to auth gate.
-  // This works correctly on production (wovely.app) where there's no auth wall.
+  // Wrap Cloudinary PDF URL in Google Docs viewer for cross-platform rendering
+  const pdfViewerUrl=p.source_file_url?`https://docs.google.com/viewer?url=${encodeURIComponent(p.source_file_url)}&embedded=true`:null;
   const handleViewSource=()=>{
-    if(!p.source_file_url)return;
+    if(!pdfViewerUrl)return;
     if(isMobileDevice) setShowPdfViewer(true);
-    else window.open(p.source_file_url,"_blank","noopener,noreferrer");
+    else window.open(pdfViewerUrl,"_blank","noopener,noreferrer");
   };
 
   // PDF thumb URL used for display fallback only — not persisted to Supabase
@@ -318,7 +317,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
             <div style={{fontSize:13,fontWeight:600,color:T.ink}}>{p.source_file_name||"Source Pattern"}</div>
             <button onClick={()=>setShowPdfViewer(false)} style={{background:T.linen,border:"none",borderRadius:99,width:32,height:32,cursor:"pointer",fontSize:18,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
           </div>
-          <iframe src={p.source_file_url} title="Source Pattern" style={{flex:1,border:"none",width:"100%"}}/>
+          <iframe src={pdfViewerUrl} title="Source Pattern" style={{flex:1,border:"none",width:"100%"}}/>
         </div>
       )}
       <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
