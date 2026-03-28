@@ -90,7 +90,7 @@ const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,confirmPass,se
 export const WaitlistPopup = () => {
   const [show,setShow]=useState(false),[wlEmail,setWlEmail]=useState(""),[wlPhone,setWlPhone]=useState(""),[submitted,setSubmitted]=useState(false),[saving,setSaving]=useState(false);
   useEffect(()=>{
-    if(localStorage.getItem("yh_session")) return;
+    if(document.cookie.includes("wovely_authed=1")) return;
     const last=parseInt(localStorage.getItem("yh_popup_last_shown")||"0",10);
     if(Date.now()-last<86400000) return;
     const t=setTimeout(()=>{setShow(true);localStorage.setItem("yh_popup_last_shown",String(Date.now()));},3000);

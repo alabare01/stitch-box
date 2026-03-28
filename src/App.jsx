@@ -1513,7 +1513,7 @@ export default function Wovely() {
         if (res.ok) {
           const ns = await res.json();
           saveSession(ns);
-          setAuthed(true);
+          setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
           // Check if onboarding was completed
           try {
             const uid = (() => { try { const p=JSON.parse(atob(ns.access_token.split(".")[1])); return p.sub; } catch { return null; } })();
@@ -1538,7 +1538,7 @@ export default function Wovely() {
     validate();
   },[]);
 
-  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); localStorage.removeItem("yh_last_url"); navigate("/"); };
+  const handleSignOut = async () => { await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); localStorage.removeItem("yh_last_url"); document.cookie="wovely_authed=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"; navigate("/"); };
 
   // Navigation helper — translates view keys to URL paths
   const navigateToView = useCallback((v, patternId) => {
@@ -1704,7 +1704,7 @@ export default function Wovely() {
   };
 
   const handleNewSignup = () => {
-    setAuthed(true);
+    setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
     navigate("/hive");
     setShowOnboarding(true);
     setShowWelcomeBanner(true);
@@ -1715,7 +1715,7 @@ export default function Wovely() {
   };
 
   const handleSignIn = () => {
-    setAuthed(true);
+    setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
     const lastUrl=localStorage.getItem("yh_last_url");
     navigate(lastUrl&&lastUrl.startsWith("/hive/")?lastUrl:"/hive");
     setShowWelcomeToast(true);

@@ -270,9 +270,21 @@ const ShareCardModal = ({pattern,onClose,pct,Btn}) => {
 
 const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Photo,Stars,WireframeViewer,Btn}) => {
   const VALID_TABS=["materials","rows","notes"];
-  const [rows,setRows]=useState(()=>ensureRepeatBrackets(p.rows)),[tab,setTab]=useState(()=>{const saved=localStorage.getItem("yh_last_tab");return VALID_TABS.includes(saved)?saved:"materials";}),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
+  const _initRows=ensureRepeatBrackets(p.rows);
+  const _isFreshPattern=_initRows.filter(r=>!r.isHeader).every(r=>!r.done);
+  const [rows,setRows]=useState(_initRows),[tab,setTab]=useState(()=>{if(_isFreshPattern) return "materials";const saved=localStorage.getItem("yh_last_tab");return VALID_TABS.includes(saved)?saved:"materials";}),[editing,setEditing]=useState(false),[draft,setDraft]=useState({...p}),[showScale,setShowScale]=useState(false),[showShare,setShowShare]=useState(false),[milestone,setMilestone]=useState(null);
   const [attachUploading,setAttachUploading]=useState(false);
   const [showYarnTip,setShowYarnTip]=useState(()=>!localStorage.getItem("yh_yarn_summary_tip_seen"));
+  const [showPdfViewer,setShowPdfViewer]=useState(false);
+  const isMobileDevice=typeof navigator!=="undefined"&&/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  // source_file_url is always a full https://res.cloudinary.com/... URL.
+  // Note: iframe viewer may 401 on Vercel preview deployments due to auth gate.
+  // This works correctly on production (wovely.app) where there's no auth wall.
+  const handleViewSource=()=>{
+    if(!p.source_file_url)return;
+    if(isMobileDevice) setShowPdfViewer(true);
+    else window.open(p.source_file_url,"_blank","noopener,noreferrer");
+  };
 
   // PDF thumb URL used for display fallback only — not persisted to Supabase
   // (Cloudinary on-the-fly PDF rendering is unreliable across plans)
@@ -300,7 +312,16 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
       <CSS/>
       {showScale&&<ScaleModal pattern={p} onClose={()=>setShowScale(false)} Btn={Btn}/>}
       {showShare&&<ShareCardModal pattern={{...p,rows}} onClose={()=>setShowShare(false)} pct={pct} Btn={Btn}/>}
-      <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer}/>
+      {showPdfViewer&&p.source_file_url&&(
+        <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",flexDirection:"column",background:T.bg}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:`1px solid ${T.border}`,flexShrink:0,background:T.surface}}>
+            <div style={{fontSize:13,fontWeight:600,color:T.ink}}>{p.source_file_name||"Source Pattern"}</div>
+            <button onClick={()=>setShowPdfViewer(false)} style={{background:T.linen,border:"none",borderRadius:99,width:32,height:32,cursor:"pointer",fontSize:18,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>
+          <iframe src={p.source_file_url} title="Source Pattern" style={{flex:1,border:"none",width:"100%"}}/>
+        </div>
+      )}
+      <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
       <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
         {[["materials","Materials"],["rows","Rows"],["notes","Notes"]].map(([key,label])=>(
           <button key={key} onClick={()=>{setTab(key);localStorage.setItem("yh_last_tab",key);}} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
@@ -331,7 +352,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
             <button onClick={()=>setShowScale(true)} style={{marginTop:12,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer"}}>⚖️ Scale pattern to different size →</button>
           </div>
         </>)}
-        {tab==="rows"&&<RowManager p={p} rows={rows} setRows={setRows} onSave={onSave} editing={editing} setEditing={setEditing} setMilestone={setMilestone} Bar={Bar}/>}
+        {tab==="rows"&&<RowManager p={p} rows={rows} setRows={setRows} onSave={onSave} editing={editing} setEditing={setEditing} setMilestone={setMilestone} Bar={Bar} onViewSource={handleViewSource}/>}
         {/* Source file direct link */}
         {tab==="materials"&&(
           <div style={{marginTop:16,borderTop:`1px solid ${T.border}`,paddingTop:14}}>
