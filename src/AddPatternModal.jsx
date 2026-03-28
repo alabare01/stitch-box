@@ -917,27 +917,21 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
         {/* Left: cover image + buttons */}
         <div style={{flexShrink:0,width:120}}>
           <div style={{fontSize:11,color:T.ink2,textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Cover</div>
-          {coverUrl&&<div style={{marginBottom:8,borderRadius:10,overflow:"hidden",border:`2px solid ${T.terra}`,width:120,height:120}}><img src={coverUrl} alt="Cover" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
-          {!coverUrl&&fileInfo?.coverUrl&&!coverFailed&&<div style={{marginBottom:8,borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,width:120,height:120}}><img src={fileInfo.coverUrl} alt="PDF cover" onError={()=>setCoverFailed(true)} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>}
-          {!coverUrl&&coverFailed&&<div style={{marginBottom:8,width:120,height:120,borderRadius:10,background:T.linen,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:11,color:T.ink3,textAlign:"center",padding:8}}>No preview</span></div>}
+          {coverUrl?<div onClick={()=>coverTab==="photo"&&coverFileRef.current?.click()} style={{marginBottom:8,borderRadius:10,overflow:"hidden",border:`2px solid ${T.terra}`,width:120,height:120,cursor:coverTab==="photo"?"pointer":"default"}}><img src={coverUrl} alt="Cover" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>
+          :fileInfo?.coverUrl&&!coverFailed?<div onClick={()=>coverTab==="photo"&&coverFileRef.current?.click()} style={{marginBottom:8,borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,width:120,height:120,cursor:coverTab==="photo"?"pointer":"default"}}><img src={fileInfo.coverUrl} alt="PDF cover" onError={()=>setCoverFailed(true)} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>
+          :<div onClick={()=>coverFileRef.current?.click()} style={{marginBottom:8,width:120,height:120,borderRadius:10,background:T.linen,border:`1.5px dashed ${T.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}><span style={{fontSize:20}}>📷</span><span style={{fontSize:10,color:T.ink3}}>Add cover</span></div>}
           <div style={{display:"flex",gap:4,marginBottom:6,flexWrap:"wrap"}}>
             {["photo","library"].map(t=>(
               <button key={t} onClick={()=>setCoverTab(t)} style={{background:coverTab===t?T.terra:"transparent",color:coverTab===t?"#fff":T.ink3,border:`1px solid ${coverTab===t?T.terra:T.border}`,borderRadius:6,padding:"4px 8px",fontSize:10,fontWeight:coverTab===t?600:400,cursor:"pointer"}}>{t==="photo"?"📷 Photo":"🖼️ Library"}</button>
             ))}
           </div>
-          {coverTab==="photo"&&<>
-            <input ref={coverFileRef} type="file" accept="image/*" capture="environment" onChange={async(e)=>{
-              const f=e.target.files?.[0];if(!f)return;
-              setCoverUploading(true);
-              const fd=new FormData();fd.append("file",f);fd.append("upload_preset","yarnhive_patterns");fd.append("transformation","c_fill,g_auto,ar_16:9");
-              try{const res=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:fd});if(res.ok){const d=await res.json();setCoverUrl(d.secure_url);}}catch{}
-              setCoverUploading(false);
-            }} style={{display:"none"}}/>
-            <div onClick={()=>coverFileRef.current?.click()} style={{width:120,height:120,borderRadius:10,background:T.linen,border:`1.5px dashed ${T.terra}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4,marginBottom:8}}>
-              <span style={{fontSize:20}}>{coverUploading?"⏳":"📷"}</span>
-              <span style={{fontSize:10,color:T.terra,fontWeight:500}}>{coverUploading?"Uploading...":"Tap to choose"}</span>
-            </div>
-          </>}
+          <input ref={coverFileRef} type="file" accept="image/*" capture="environment" onChange={async(e)=>{
+            const f=e.target.files?.[0];if(!f)return;
+            setCoverUploading(true);
+            const fd=new FormData();fd.append("file",f);fd.append("upload_preset","yarnhive_patterns");fd.append("transformation","c_fill,g_auto,ar_16:9");
+            try{const res=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:fd});if(res.ok){const d=await res.json();setCoverUrl(d.secure_url);}}catch{}
+            setCoverUploading(false);
+          }} style={{display:"none"}}/>
           {coverTab==="library"&&<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
             {ALL_CAT_ENTRIES.map(([cat,url])=>(
               <div key={cat} onClick={()=>setCoverUrl(url)} style={{width:36,height:36,borderRadius:6,overflow:"hidden",cursor:"pointer",border:coverUrl===url?`2px solid ${T.terra}`:`1px solid ${T.border}`,flexShrink:0}}>
@@ -971,39 +965,46 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
               <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:12,fontWeight:600,padding:0,textDecoration:"underline",textAlign:"left"}}>View Full Report →</button>
             </div>
           ):(
-            /* ── FREE: teaser result ── */
+            /* ── FREE: frosted-glass teaser ── */
             <div style={{flex:1,background:badgeForScore(validationReport.score).bg,border:`1.5px solid ${badgeForScore(validationReport.score).color}`,borderRadius:12,overflow:"hidden",display:"flex",flexDirection:"column"}}>
               <div style={{padding:"12px 14px",flex:1}}>
-                {/* Category label */}
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                {/* Row 1: category label — fully visible */}
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
                   <span style={{fontSize:14}}>{badgeForScore(validationReport.score).emoji}</span>
                   <span style={{fontSize:12,fontWeight:700,color:badgeForScore(validationReport.score).color}}>{badgeForScore(validationReport.score).label}</span>
                 </div>
-                {/* Blurred score bar */}
-                <div style={{position:"relative",marginBottom:8}}>
-                  <div style={{height:6,background:T.border,borderRadius:99,overflow:"hidden"}}>
-                    <div style={{width:validationReport.score+"%",height:"100%",background:badgeForScore(validationReport.score).color,borderRadius:99}}/>
+                {/* Row 2: score bar visible, number frosted */}
+                <div style={{marginBottom:10}}>
+                  <div style={{height:6,background:T.border,borderRadius:99,overflow:"hidden",marginBottom:4}}>
+                    <div style={{width:validationReport.score+"%",height:"100%",background:badgeForScore(validationReport.score).color,borderRadius:99,transition:"width .4s ease"}}/>
                   </div>
-                  <div style={{fontSize:16,fontWeight:700,fontFamily:T.serif,color:badgeForScore(validationReport.score).color,filter:"blur(4px)",userSelect:"none",marginTop:2}}>{validationReport.score}%</div>
+                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:badgeForScore(validationReport.score).color,filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none"}}>{validationReport.score}%</span>
                 </div>
-                {/* First check visible, rest locked */}
+                {/* Row 3: first check — truncated with fade */}
                 {validationReport.checks?.slice(0,1).map(c=>(
-                  <div key={c.id} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}>
-                    <span style={{fontSize:11,flexShrink:0}}>{CHECK_ICON[c.status]||"❓"}</span>
-                    <div style={{fontSize:10,color:T.ink2,lineHeight:1.4,overflow:"hidden",position:"relative",maxHeight:28}}>{c.label}: {c.detail?.substring(0,60)}<div style={{position:"absolute",right:0,top:0,bottom:0,width:40,background:`linear-gradient(to right,transparent,${badgeForScore(validationReport.score).bg})`}}/></div>
+                  <div key={c.id} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:6}}>
+                    <span style={{fontSize:11,flexShrink:0,marginTop:1}}>{CHECK_ICON[c.status]||"❓"}</span>
+                    <div style={{fontSize:10,color:T.ink2,lineHeight:1.5,overflow:"hidden",position:"relative",maxHeight:30}}>
+                      <span style={{fontWeight:600}}>{c.label}:</span> {c.detail?.substring(0,50)}
+                      <div style={{position:"absolute",right:0,top:0,bottom:0,width:50,background:`linear-gradient(to right,transparent,${badgeForScore(validationReport.score).bg})`}}/>
+                    </div>
                   </div>
                 ))}
+                {/* Row 4: locked checks with dot placeholders */}
                 {validationReport.checks?.slice(1,3).map((c,i)=>(
-                  <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:2,opacity:.4}}>
-                    <span style={{fontSize:10}}>🔒</span>
-                    <div style={{fontSize:10,color:T.ink3,filter:"blur(2px)",userSelect:"none"}}>{c.label}</div>
+                  <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
+                    <span style={{fontSize:10,color:T.ink3,flexShrink:0}}>{CHECK_ICON[c.status]||"❓"}</span>
+                    <span style={{fontSize:10,fontWeight:600,color:T.ink3}}>{c.label}</span>
+                    <span style={{fontSize:10,color:T.border,flex:1}}>••••••••••••</span>
+                    <span style={{fontSize:9}}>🔒</span>
                   </div>
                 ))}
               </div>
-              {/* Upgrade CTA */}
-              <div style={{padding:"8px 14px 12px",borderTop:`1px solid ${T.border}`,background:"rgba(255,255,255,.5)"}}>
-                <div style={{fontSize:10,color:T.ink2,marginBottom:4,lineHeight:1.4}}>🔒 See exactly what we found before you pick up your hook.</div>
-                <button onClick={onUpgrade} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"7px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
+              {/* Row 5: CTA */}
+              <div style={{padding:"10px 14px 12px",borderTop:`1px solid ${T.border}`,background:"rgba(255,255,255,.4)"}}>
+                <div style={{fontSize:10,fontWeight:600,color:T.ink,marginBottom:2}}>🔒 Unlock your full Stitch Check report</div>
+                <div style={{fontSize:10,color:T.ink3,marginBottom:6,lineHeight:1.4}}>See exactly what we found — upgrade to Pro</div>
+                <button onClick={onUpgrade} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:8,padding:"8px",fontSize:11,fontWeight:600,cursor:"pointer",boxShadow:"0 2px 8px rgba(184,90,60,.25)"}}>Upgrade to Pro — $9.99/mo</button>
               </div>
             </div>
           )):(
