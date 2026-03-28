@@ -20,6 +20,7 @@ const uploadPatternFile = async (file, onProgress) => {
   formData.append("file", file);
   formData.append("upload_preset", "yarnhive_patterns");
   formData.append("resource_type", "auto");
+  formData.append("access_mode", "public");
   if(onProgress) onProgress("uploading");
   try {
     const res = await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/auto/upload", {
