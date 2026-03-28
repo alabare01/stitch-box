@@ -6,6 +6,47 @@ import PatternHeader from "./PatternHeader.jsx";
 import RowManager, { ensureRepeatBrackets } from "./RowManager.jsx";
 import { uploadPatternFile } from "./AddPatternModal.jsx";
 
+const YarnSummaryCard = ({label, myKey, myVal, fallback, onSave}) => {
+  const display = myVal || fallback;
+  const isOverridden = !!myVal;
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(display);
+  const [hover, setHover] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(()=>{ if(editing && inputRef.current) inputRef.current.focus(); },[editing]);
+
+  const commit = () => {
+    const trimmed = val.trim();
+    if(trimmed && trimmed !== fallback) onSave(myKey, trimmed);
+    else onSave(myKey, null);
+    setEditing(false);
+  };
+  const cancel = () => { setVal(display); setEditing(false); };
+  const onKey = e => { if(e.key==="Enter") commit(); if(e.key==="Escape") cancel(); };
+
+  if(editing) return (
+    <div style={{background:"#fff",borderRadius:9,padding:"9px 11px",border:`1.5px solid ${T.terra}`}}>
+      <div style={{fontSize:10,color:T.ink3,marginBottom:4}}>{label}</div>
+      <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)} onBlur={commit} onKeyDown={onKey}
+        style={{width:"100%",fontSize:16,fontWeight:700,fontFamily:T.serif,color:T.ink,border:"none",outline:"none",background:"transparent",padding:0}}/>
+      {fallback&&<div style={{fontSize:9,color:T.ink3,marginTop:4,opacity:.7}}>Pattern suggests: {fallback}</div>}
+    </div>
+  );
+
+  return (
+    <div onClick={()=>{setVal(display);setEditing(true);}} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
+      style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"9px 11px",cursor:"pointer",position:"relative",transition:"border-color .15s",border:hover?`1.5px solid ${T.terra}`:"1.5px solid transparent"}}>
+      <div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <div style={{fontSize:16,fontWeight:700,fontFamily:T.serif,color:isOverridden?T.terra:T.ink,flex:1}}>{display}</div>
+        <span style={{fontSize:12,opacity:hover?.7:.25,transition:"opacity .15s",flexShrink:0}}>✏️</span>
+      </div>
+      {isOverridden&&fallback&&<div style={{fontSize:9,color:T.ink3,marginTop:2,opacity:.7}}>Pattern suggests: {fallback}</div>}
+    </div>
+  );
+};
+
 const CoverImagePicker = ({pattern, onConfirm, onClose, pdfThumbUrl, CAT_IMG, ALL_CAT_ENTRIES}) => {
   const [tab,setTab]=useState("import");
   const [selected,setSelected]=useState(null);
@@ -259,6 +300,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const save=()=>{onSave({...draft,rows});setEditing(false);};
   const yardDisplay=estYards(p)>0?"~"+estYards(p)+(p.yardage>0?" yds":" yds (est.)"):"Not listed";
   const skeinDisplay=estSkeins(p)>0?"~"+estSkeins(p)+(p.skeins>0?" skeins":" skeins (est.)"):"Not listed";
+  const saveMyField=(key,val)=>{const updated={...p,rows,[key]:val||null};onSave(updated);};
   const detailPhoto=p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,overflow:"hidden"}}>
@@ -284,9 +326,10 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
           <div style={{marginTop:20,background:`linear-gradient(135deg,${T.terraLt},${T.card})`,borderRadius:14,padding:"14px 16px",border:`1px solid ${T.border}`}}>
             <div style={{fontFamily:T.serif,fontSize:14,color:T.ink,marginBottom:10}}>Yarn Summary</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[["Total yardage",yardDisplay],["Skeins needed",skeinDisplay],["Hook size",p.hook||"??"],["Yarn weight",p.weight||"??"]].map(([label,val])=>(
-                <div key={label} style={{background:"rgba(255,255,255,.8)",borderRadius:9,padding:"9px 11px"}}><div style={{fontSize:10,color:T.ink3,marginBottom:2}}>{label}</div><div style={{fontSize:16,fontWeight:700,fontFamily:T.serif,color:T.ink}}>{val}</div></div>
-              ))}
+              <YarnSummaryCard label="Total yardage" myKey="my_yardage" myVal={p.my_yardage} fallback={yardDisplay} onSave={saveMyField}/>
+              <YarnSummaryCard label="Skeins needed" myKey="my_skeins" myVal={p.my_skeins} fallback={skeinDisplay} onSave={saveMyField}/>
+              <YarnSummaryCard label="Hook size" myKey="my_hook_size" myVal={p.my_hook_size} fallback={p.hook||"??"} onSave={saveMyField}/>
+              <YarnSummaryCard label="Yarn weight" myKey="my_yarn_weight" myVal={p.my_yarn_weight} fallback={p.weight||"??"} onSave={saveMyField}/>
             </div>
             <button onClick={()=>setShowScale(true)} style={{marginTop:12,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer"}}>⚖️ Scale pattern to different size →</button>
           </div>
