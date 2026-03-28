@@ -74,18 +74,25 @@ const StitchCheck = () => {
     const intv = setInterval(() => setProgress(p => Math.min(p + 2, 85)), 200);
     try {
       setPhase("Running Stitch Check…");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
       const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: VALIDATION_PROMPT + "\n\nPATTERN TEXT:\n" + patternText }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 65536 },
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       clearInterval(intv); setProgress(90); setPhase("Reading results…");
-      if (!res.ok) throw new Error("Gemini API error: " + res.status);
-      const data = await res.json();
+      const rawText = await res.text();
+      console.log("[Wovely] Stitch Check response status:", res.status, "body preview:", rawText.substring(0, 500));
+      if (!res.ok) throw new Error("Gemini API error: " + res.status + " — " + rawText.substring(0, 200));
+      let data; try { data = JSON.parse(rawText); } catch (e) { throw new Error("Invalid JSON wrapper: " + rawText.substring(0, 200)); }
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      console.log("[Wovely] Stitch Check extracted text:", raw.substring(0, 300));
       const cleaned = raw.replace(/```json/g, "").replace(/```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       setProgress(100); setPhase("Done");
