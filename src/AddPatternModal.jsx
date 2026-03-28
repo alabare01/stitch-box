@@ -761,7 +761,6 @@ const PDFUploadForm = ({onSave,Btn}) => {
           coverFd.append("file", pdfCoverDataUrl);
           coverFd.append("upload_preset","yarnhive_patterns");
           coverFd.append("folder","covers");
-          coverFd.append("transformation","c_fill,g_auto,ar_16:9");
           const coverRes=await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload",{method:"POST",body:coverFd});
           if(coverRes.ok){const cd=await coverRes.json();coverCloudinaryUrl=cd.secure_url;console.log("[Wovely] PDF cover uploaded:",coverCloudinaryUrl);}
           else{console.warn("[Wovely] Cover upload failed:",coverRes.status);}
