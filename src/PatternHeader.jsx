@@ -49,7 +49,7 @@ const PatternHeader = ({
           <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr 1fr",height:isDesktop?340:240,position:"relative"}}>
             {/* left: photo — contain so full subject always visible */}
             <div style={{position:"relative",overflow:"hidden",background:"#0E0A08"}}>
-              <Photo src={detailPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"contain",objectPosition:"center center"}}/>
+              <Photo src={detailPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}/>
               <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(14,10,8,.85) 0%,transparent 45%)"}}/>
               <div style={{position:"absolute",bottom:14,left:14,right:0}}>
                 <div style={{fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:3}}>{p.cat} · {p.weight}</div>
@@ -80,11 +80,14 @@ const PatternHeader = ({
           </div>
         </div>
       ) : (
-        /* ── STANDARD PHOTO HERO ── */
-        <div style={{position:"relative",flexShrink:0,height:isDesktop?260:220,overflow:"hidden",background:T.linen,marginTop:milestone?56:0,transition:"margin .3s"}}>
-          <Photo src={detailPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 20%"}}/>
-          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.92) 0%,rgba(20,14,10,.3) 50%,rgba(20,14,10,.05) 100%)"}}/>
-          <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",justifyContent:"space-between"}}>
+        /* ── STANDARD PHOTO HERO — blurred backdrop treatment ── */
+        <div style={{position:"relative",flexShrink:0,height:isDesktop?260:220,overflow:"hidden",background:T.terra,marginTop:milestone?56:0,transition:"margin .3s"}}>
+          {/* Layer 1: blurred backdrop */}
+          {(detailPhoto||p.photo)&&<img src={detailPhoto||p.photo} alt="" style={{position:"absolute",width:"100%",height:"100%",objectFit:"cover",filter:"blur(20px) saturate(1.2) brightness(0.6)",transform:"scale(1.1)",pointerEvents:"none"}}/>}
+          {/* Layer 2: sharp centered image */}
+          {detailPhoto&&<img src={detailPhoto} alt={p.title} style={{position:"absolute",left:"50%",transform:"translateX(-50%)",height:"100%",width:"auto",objectFit:"contain",zIndex:1}}/>}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.88) 0%,rgba(20,14,10,.2) 50%,rgba(20,14,10,.05) 100%)",zIndex:2}}/>
+          <div style={{position:"absolute",top:0,left:0,right:0,padding:"14px 18px",display:"flex",justifyContent:"space-between",zIndex:3}}>
             <button onClick={onBack} style={{background:"rgba(15,10,8,.45)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 16px",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:500}}>← Back</button>
             <div style={{display:"flex",gap:8}}>
               {p.source_file_url&&<button onClick={()=>window.open(p.source_file_url,"_blank","noopener,noreferrer")} style={{background:"rgba(15,10,8,.45)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 14px",color:"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>📄 Source</button>}
@@ -93,7 +96,7 @@ const PatternHeader = ({
               <button onClick={onEdit} style={{background:editing?T.terra:"rgba(15,10,8,.45)",backdropFilter:"blur(8px)",border:"1px solid "+(editing?T.terra:"rgba(255,255,255,.15)"),borderRadius:10,padding:"7px 16px",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>{editing?"Save":"Edit"}</button>
             </div>
           </div>
-          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 20px 14px"}}>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 20px 14px",zIndex:3}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:".09em",marginBottom:4}}>{p.cat} · Hook {p.hook} · {p.weight}</div>
             {editing
               ?<input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} style={{width:"100%",background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:19,fontFamily:T.serif,outline:"none"}}/>
