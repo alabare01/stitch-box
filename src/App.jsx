@@ -829,10 +829,9 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
 
 
-const BrowseSitesView = ({onSavePattern}) => {
+const BrowseSitesView = () => {
   const{isDesktop}=useBreakpoint();
-  const [activeSite,setActiveSite]=useState(null),[currentUrl,setCurrentUrl]=useState(""),[importing,setImporting]=useState(false),[importErr,setImportErr]=useState(null),[importOk,setImportOk]=useState(false);
-  const iframeRef=useRef(null);
+  const [toast,setToast]=useState(null);
   const SITES=[
     {name:"AllFreeCrochet",desc:"The largest free crochet pattern library.",url:"https://www.allfreecrochet.com",tags:["Blankets","Amigurumi","Wearables"],free:true,photo:PILL[4]},
     {name:"Drops Design",desc:"Free international patterns.",url:"https://www.garnstudio.com",tags:["Garments","Accessories"],free:true,photo:PILL[0]},
@@ -840,56 +839,30 @@ const BrowseSitesView = ({onSavePattern}) => {
     {name:"Sarah Maker",desc:"Modern, well-photographed patterns.",url:"https://sarahmaker.com/crochet-patterns/",tags:["Modern","Beginner","Amigurumi"],free:true,photo:PILL[2]},
     {name:"Hopeful Honey",desc:"Beloved amigurumi patterns.",url:"https://www.hopefulhoney.com/p/free-crochet-patterns.html",tags:["Amigurumi","Toys"],free:true,photo:PILL[5]},
     {name:"The Woobles",desc:"Amigurumi kits and free beginner tutorials.",url:"https://thewoobles.com/pages/free-crochet-patterns",tags:["Amigurumi","Beginner"],free:true,photo:PILL[1]},
-    {name:"Ravelry",desc:"World's largest pattern database.",url:"https://www.ravelry.com/patterns/library#craft=crochet",tags:["All categories","Free + Paid"],free:false,photo:PILL[0],note:"Log in on your device, then browse and save any pattern."},
+    {name:"Ravelry",desc:"World's largest pattern database.",url:"https://www.ravelry.com/patterns/library#craft=crochet",tags:["All categories","Free + Paid"],free:false,photo:PILL[0]},
     {name:"LoveCrafts",desc:"Quality free and paid patterns.",url:"https://www.lovecrafts.com/en-us/l/crochet/crochet-patterns?price=free",tags:["Garments","Modern"],free:false,photo:PILL[2]},
   ];
-  const handleIframeLoad=()=>{try{const u=iframeRef.current?.contentWindow?.location?.href;if(u&&u!=="about:blank"){setCurrentUrl(u);setImportErr(null);setImportOk(false);}}catch(e){}};
-  const closeSite=()=>{setActiveSite(null);setCurrentUrl("");setImportErr(null);setImportOk(false);};
-  const doImport=async()=>{
-    const urlToImport=currentUrl||activeSite?.url; if(!urlToImport) return;
-    setImporting(true);setImportErr(null);setImportOk(false);
-    try{
-      const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:urlToImport})});
-      const data=await res.json(); if(!res.ok||data.error) throw new Error(data.error||"Could not read that page");
-      const rows=(data.rows||[]).map((r,i)=>({id:Date.now()+i,text:r.text,done:false,note:""}));
-      onSavePattern&&onSavePattern({id:Date.now(),photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},...data,rows});
-      setImportOk(true); setTimeout(closeSite,1800);
-    }catch(e){setImportErr("Couldn't read this page. Try navigating directly to the pattern and tapping Save again.");}
-    finally{setImporting(false);}
+  const openSite=(s)=>{
+    window.open(s.url,"_blank","noopener,noreferrer");
+    setToast("Opening "+s.name+" — find a pattern, copy the URL, then use Add Pattern → Paste a Link to import it.");
+    setTimeout(()=>setToast(null),6000);
   };
-  if(activeSite) return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",background:T.bg}}>
-      <div style={{background:"#1A1A2E",padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <button onClick={closeSite} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,color:"#fff",cursor:"pointer",flexShrink:0}}>← Back</button>
-        <div style={{flex:1,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 12px",display:"flex",alignItems:"center",gap:7,minWidth:0}}><span style={{fontSize:10,color:"rgba(255,255,255,.4)",flexShrink:0}}>🌐</span><div style={{fontSize:11,color:"rgba(255,255,255,.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,fontFamily:"monospace"}}>{currentUrl||activeSite.url}</div></div>
-        <button onClick={()=>window.open(currentUrl||activeSite.url,"_blank","noopener,noreferrer")} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 10px",fontSize:15,cursor:"pointer",flexShrink:0,color:"rgba(255,255,255,.7)"}}>↗</button>
-      </div>
-      <div style={{background:"rgba(28,23,20,.06)",borderBottom:`1px solid ${T.border}`,padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-        <div style={{width:6,height:6,borderRadius:99,background:T.terra,flexShrink:0}}/><div style={{fontSize:10,color:T.ink3,fontWeight:500}}>Browsing {activeSite.name} inside Wovely</div><div style={{flex:1}}/><div style={{fontSize:10,color:T.ink3,opacity:.6}}>Tap "Save This Pattern" when ready</div>
-      </div>
-      <div style={{flex:1,position:"relative",overflow:"hidden"}}><iframe ref={iframeRef} src={activeSite.url} onLoad={handleIframeLoad} style={{width:"100%",height:"100%",border:"none"}} title={activeSite.name} sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/></div>
-      <div style={{background:T.surface,borderTop:`2px solid ${T.terra}`,padding:"12px 16px",flexShrink:0}}>
-        {activeSite.note&&<div style={{fontSize:11,color:T.terra,marginBottom:8,display:"flex",gap:6,alignItems:"flex-start"}}><span style={{flexShrink:0}}>ℹ️</span><span>{activeSite.note}</span></div>}
-        {importOk?<div style={{background:T.sageLt,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✅</span><div style={{fontSize:13,fontWeight:600,color:T.sage}}>Pattern saved to My Wovely!</div></div>
-        :<><button onClick={doImport} disabled={importing} style={{width:"100%",background:importing?T.ink3:`linear-gradient(135deg,#2D3A7C,${T.terra})`,color:"#fff",border:"none",borderRadius:14,padding:"15px 20px",fontSize:15,fontWeight:700,cursor:importing?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:importing?"none":"0 4px 20px rgba(155,126,200,.4)",transition:"all .15s",marginBottom:6}}>{importing?<><div className="spinner" style={{width:16,height:16,border:"2px solid rgba(255,255,255,.3)",borderTop:"2px solid #fff",borderRadius:"50%"}}/> Reading pattern…</>:<><span style={{fontSize:18}}>🧶</span> Save This Pattern</>}</button>
-        <div style={{fontSize:10,color:T.ink3,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",padding:"0 8px"}}>{currentUrl&&currentUrl!==activeSite.url?"Will import: "+currentUrl:"Navigate to a pattern page, then tap Save"}</div>
-        {importErr&&<div style={{marginTop:8,background:"#FFF0EE",borderRadius:8,padding:"8px 12px",border:"1px solid #F5C6BB"}}><div style={{fontSize:12,color:"#C0392B"}}>{importErr}</div></div>}</>}
-      </div>
-    </div>
-  );
   return (
     <div style={{padding:isDesktop?"24px 0 80px":"16px 18px 100px"}}>
-      <div style={{marginBottom:20}}><div style={{fontSize:13,color:T.ink2,lineHeight:1.7}}>Choose a source below. Browse for a pattern, then paste its URL to import it directly into your collection.</div></div>
+      {toast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:900,background:"#2D3A7C",color:"#fff",borderRadius:14,padding:"12px 20px",fontSize:13,fontWeight:500,lineHeight:1.5,boxShadow:"0 8px 24px rgba(0,0,0,.2)",maxWidth:400,textAlign:"center"}}>{toast}</div>}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:14,color:T.ink2,lineHeight:1.6}}>Browse these sites to find your next pattern. When you find one you love, copy the URL and use <strong>Add Pattern → Paste a Link</strong> to import it into Wovely.</div>
+      </div>
       <div style={{display:"grid",gap:14,gridTemplateColumns:isDesktop?"1fr 1fr":"1fr"}}>
         {SITES.map(s=>(
-          <div key={s.name} style={{background:T.surface,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,boxShadow:"0 2px 8px rgba(28,23,20,.05)"}}>
+          <div key={s.name} style={{background:T.surface,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,boxShadow:T.shadow}}>
             <div style={{height:110,position:"relative",overflow:"hidden"}}><Photo src={s.photo} alt={s.name} style={{width:"100%",height:"100%"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.75) 0%,transparent 60%)"}}/>
-              <div style={{position:"absolute",bottom:10,left:12,right:12,display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}><div style={{fontFamily:T.serif,fontSize:17,fontWeight:700,color:"#fff"}}>{s.name}</div><div style={{background:s.free?"rgba(92,122,94,.9)":"rgba(155,126,200,.9)",borderRadius:7,padding:"3px 8px",fontSize:10,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
+              <div style={{position:"absolute",bottom:10,left:12,right:12,display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}><div style={{fontFamily:T.serif,fontSize:17,fontWeight:700,color:"#fff"}}>{s.name}</div><div style={{background:s.free?"rgba(92,158,122,.9)":"rgba(155,126,200,.9)",borderRadius:9999,padding:"3px 8px",fontSize:10,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
             </div>
             <div style={{padding:"12px 14px"}}>
               <div style={{fontSize:12,color:T.ink2,lineHeight:1.6,marginBottom:8}}>{s.desc}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>{s.tags.map(t=><div key={t} style={{background:T.linen,borderRadius:99,padding:"2px 9px",fontSize:10,color:T.ink2,border:`1px solid ${T.border}`}}>{t}</div>)}</div>
-              <button onClick={()=>setActiveSite(s)} style={{width:"100%",background:`linear-gradient(135deg,#2D3A7C,${T.terra})`,color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span>🌐</span> Browse {s.name}</button>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>{s.tags.map(t=><div key={t} style={{background:T.terraLt,borderRadius:9999,padding:"2px 9px",fontSize:10,color:T.terra,border:"none"}}>{t}</div>)}</div>
+              <button onClick={()=>openSite(s)} style={{width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:9999,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span>↗</span> Visit {s.name}</button>
             </div>
           </div>
         ))}
@@ -1959,7 +1932,7 @@ export default function Wovely() {
           {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
           {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
           {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></div>}
-          {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
+          {view==="browse"&&<BrowseSitesView/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="stitch-check"&&<div style={{paddingTop:24}}><StitchCheck/></div>}
@@ -1992,7 +1965,7 @@ export default function Wovely() {
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
         {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
-        {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
+        {view==="browse"&&<BrowseSitesView/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="stitch-check"&&<div style={{paddingTop:18}}><StitchCheck/></div>}
