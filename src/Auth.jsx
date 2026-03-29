@@ -70,7 +70,7 @@ const FormCard = ({cardStyle,isSignup,email,setEmail,pass,setPass,confirmPass,se
     <div style={{textAlign:"center",marginBottom:8}}>
       {isSignup&&<div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:6}}>Step 1 of 2</div>}
       <div style={{fontFamily:T.serif,fontSize:26,color:T.ink,letterSpacing:"-.02em",fontWeight:700}}>{isSignup?"Create account":"Welcome back"}</div>
-      <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your hive is waiting"}</p>
+      <p style={{fontSize:13,color:T.ink3,marginTop:4,fontWeight:300}}>{isSignup?"Start your pattern collection":"Your Wovely is waiting"}</p>
     </div>
     <div style={{marginTop:20}} onKeyDown={onKey}>
       <Field label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} type="email"/>
@@ -219,7 +219,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       gradient: null,
       features:[
         {label:"5 pattern slots",sub:"Save your favorite patterns and track progress"},
-        {label:"Hive Vision scans",sub:"3 free photo-to-pattern scans per month"},
+        {label:"Snap & Stitch scans",sub:"3 free photo-to-pattern scans per month"},
         {label:"Full calculator suite",sub:"Gauge, yardage, resize — all unlocked"},
         {label:"Yarn stash tracker",sub:"Know exactly what you have before you buy"},
         {label:"All import methods",sub:"URL, PDF, manual entry — use them all"},
@@ -237,9 +237,9 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       gradient: `linear-gradient(145deg,${T.terra},#5A3F8F)`,
       features:[
         {label:"Unlimited patterns",sub:"No cap. Save every pattern you'll ever make"},
-        {label:"Unlimited Hive Vision",sub:"Scan as many finished objects as you want"},
+        {label:"Unlimited Snap & Stitch",sub:"Scan as many finished objects as you want"},
         {label:"Cloud sync",sub:"Access your hive on every device, always in sync"},
-        {label:"Pattern Help AI",sub:"Get AI-powered help for any row you're stuck on"},
+        {label:"Ask Bev",sub:"Get AI-powered help for any row you're stuck on"},
         {label:"Advanced analytics",sub:"Track your making history and stash usage"},
         {label:"Early access",sub:"First to get every new feature we ship"},
       ],
@@ -256,7 +256,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       subtitle:"The full Wovely experience in your pocket — coming to the App Store.",
       gradient: null,
       features:[
-        {label:"Camera-first Hive Vision",sub:"Point, tap, get a pattern — right from your camera"},
+        {label:"Camera-first Snap & Stitch",sub:"Point, tap, get a pattern — right from your camera"},
         {label:"Row reminders",sub:"Never lose your place with smart row notifications"},
         {label:"Offline mode",sub:"Access your patterns anywhere, no signal needed"},
         {label:"Seamless sync",sub:"Start on web, continue on mobile — everything syncs"},
@@ -274,7 +274,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       subtitle:"Everything iPhone gets, built natively for Android — coming to Google Play.",
       gradient: null,
       features:[
-        {label:"Native camera scanner",sub:"Hive Vision built right into the Android experience"},
+        {label:"Native camera scanner",sub:"Snap & Stitch built right into the Android experience"},
         {label:"Row reminders",sub:"Smart notifications keep you on track"},
         {label:"Offline mode",sub:"Your patterns are always available, signal or not"},
         {label:"Cross-device sync",sub:"Web, iOS, Android — one hive everywhere"},
@@ -345,7 +345,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
           <span style={{fontStyle:"italic",fontWeight:400,color:T.terra}}>you've been</span><br/>
           looking for.
         </div>
-        <p style={{fontSize:13,color:T.ink3,lineHeight:1.65,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Hive Vision.</p>
+        <p style={{fontSize:13,color:T.ink3,lineHeight:1.65,fontWeight:300,margin:0}}>Save every pattern. Track every row.<br/>Scan anything with Snap & Stitch.</p>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:14}}>
         <button onClick={()=>setScreen("signup")} style={{width:"100%",background:`linear-gradient(135deg,${T.terra} 0%,#6B52A3 100%)`,color:"#fff",border:"none",borderRadius:14,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(155,126,200,.5), 0 1px 0 rgba(255,255,255,.2) inset",letterSpacing:".01em",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 14px 36px rgba(155,126,200,.6), 0 1px 0 rgba(255,255,255,.2) inset";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 28px rgba(155,126,200,.5), 0 1px 0 rgba(255,255,255,.2) inset";}}>Create free account</button>
@@ -361,7 +361,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
         </div>
         <div onClick={()=>setActiveModal('pro')} style={{background:`linear-gradient(145deg,${T.terra},#5A3F8F)`,borderRadius:14,padding:"12px 14px",textAlign:"center",boxShadow:"0 6px 20px rgba(155,126,200,.5)",position:"relative",overflow:"hidden",cursor:"pointer",transition:"transform .15s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
           <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(135deg,rgba(255,255,255,0) 30%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0) 70%)",pointerEvents:"none"}}/>
-          <div style={{position:"absolute",top:10,right:-20,background:"rgba(255,255,255,0.18)",padding:"3px 28px",transform:"rotate(35deg)",fontSize:7,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",whiteSpace:"nowrap"}}>HIVE VISION</div>
+          <div style={{position:"absolute",top:10,right:-20,background:"rgba(255,255,255,0.18)",padding:"3px 28px",transform:"rotate(35deg)",fontSize:7,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",whiteSpace:"nowrap"}}>SNAP & STITCH</div>
           <div style={{fontFamily:T.serif,fontSize:20,color:"#fff",fontWeight:700,lineHeight:1,position:"relative"}}>Pro</div>
           <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:4,lineHeight:1.4,position:"relative"}}>$9.99/mo<br/>Unlimited everything</div>
           <div style={{fontSize:9,color:"rgba(255,255,255,.75)",marginTop:6,fontWeight:600,letterSpacing:".05em",position:"relative"}}>SEE WHAT'S INCLUDED →</div>
@@ -392,7 +392,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
         }}/>
       </div>
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
-        <BeeAnimator visible={!showForm && !activeModal} isDesktop={isDesktop}/>
+        {/* BeeAnimator removed — Bev character coming soon */}
         <div className="card-rise" style={{width:"100%",maxWidth:isDesktop?420:360}}>
           {showForm ? <FormCard cardStyle={CARD_STYLE} isSignup={isSignup} email={email} setEmail={setEmail} pass={pass} setPass={setPass} confirmPass={confirmPass} setConfirmPass={setConfirmPass} authError={authError} handleAuth={handleAuth} loading={loading} onBack={()=>setScreen("welcome")}/> : <WelcomeCard/>}
         </div>

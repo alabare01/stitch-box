@@ -416,7 +416,7 @@ const buildComponentRows = (comp,rowIdStart) => {
 };
 
 const buildStarterPattern = (analysis) => {
-  if(!analysis?.components?.length) return {title:"Hive Vision — Review Needed",hook:"5.0mm",weight:"Worsted",yardage:200,notes:"Pattern needs more information. Try a clearer photo.",materials:[{id:1,name:"Worsted weight yarn",amount:"~200 yds",yardage:200},{id:2,name:"5.0mm crochet hook",amount:"1"}],rows:[{id:1,text:"Retake photo with better lighting for best results.",done:false,note:""}]};
+  if(!analysis?.components?.length) return {title:"Snap & Stitch — Review Needed",hook:"5.0mm",weight:"Worsted",yardage:200,notes:"Pattern needs more information. Try a clearer photo.",materials:[{id:1,name:"Worsted weight yarn",amount:"~200 yds",yardage:200},{id:2,name:"5.0mm crochet hook",amount:"1"}],rows:[{id:1,text:"Retake photo with better lighting for best results.",done:false,note:""}]};
   const components=analysis.components, isAmigurumi=analysis.object_category==="amigurumi";
   const objectName=analysis.object_name||analysis.object_category||"Crochet Object";
   const colorInfo=analysis.color_structure?.primary_color||"your chosen color";
@@ -432,13 +432,13 @@ const buildStarterPattern = (analysis) => {
   const colorMap={}; components.forEach(c=>{ const col=c.color||colorInfo; if(!colorMap[col]) colorMap[col]=0; colorMap[col]+=Math.round((c.construction?.increase_to||24)*((c.construction?.even_rounds||6)+4)*0.025); });
   const yarnMaterials=Object.entries(colorMap).map(([color,yds],i)=>({id:i+1,name:"Worsted yarn — "+color,amount:"~"+Math.max(20,yds)+" yds",yardage:Math.max(20,yds)}));
   const materials=[...yarnMaterials,{id:yarnMaterials.length+1,name:"5.0mm crochet hook",amount:"1"},{id:yarnMaterials.length+2,name:"Yarn needle",amount:"1"},...(isAmigurumi?[{id:yarnMaterials.length+3,name:"Safety eyes (9mm)",amount:"2"},{id:yarnMaterials.length+4,name:"Polyfill stuffing",amount:"small bag"}]:[])];
-  return {title:"Hive Vision — "+objectName.charAt(0).toUpperCase()+objectName.slice(1),hook:"5.0mm",weight:"Worsted",yardage:Math.max(150,totalYards),notes:["Scanned from photo of a "+objectName+".",colorCount>1?colorCount+" colors: "+(analysis.color_structure?.accent_colors||[]).concat([colorInfo]).join(", ")+".":"Primary color: "+colorInfo+".","Stitch counts estimated from photo proportions — adjust to match your gauge.",components.length+" components identified."].join(" "),materials,rows:allRows};
+  return {title:"Snap & Stitch — "+objectName.charAt(0).toUpperCase()+objectName.slice(1),hook:"5.0mm",weight:"Worsted",yardage:Math.max(150,totalYards),notes:["Scanned from photo of a "+objectName+".",colorCount>1?colorCount+" colors: "+(analysis.color_structure?.accent_colors||[]).concat([colorInfo]).join(", ")+".":"Primary color: "+colorInfo+".","Stitch counts estimated from photo proportions — adjust to match your gauge.",components.length+" components identified."].join(" "),materials,rows:allRows};
 };
 
 const useSnapProgress = (active) => {
   const [progress,setProgress]=useState(0),[phase,setPhase]=useState("");
   const intervalRef=useRef(null),stageRef=useRef(0);
-  const PHASES=[{label:"Preparing image…",target:20},{label:"Sending to Hive Vision…",target:35},{label:"Identifying components…",target:70},{label:"Calculating stitch math…",target:88},{label:"Assembling pattern…",target:96}];
+  const PHASES=[{label:"Preparing image…",target:20},{label:"Sending to Snap & Stitch…",target:35},{label:"Identifying components…",target:70},{label:"Calculating stitch math…",target:88},{label:"Assembling pattern…",target:96}];
   useEffect(()=>{
     if(!active){clearInterval(intervalRef.current);return;}
     stageRef.current=0; setProgress(0); setPhase(PHASES[0].label);
@@ -494,7 +494,7 @@ const HiveVisionForm = ({onSave,Btn,Bar,WireframeViewer}) => {
         </div>
       )}
       <div style={{background:`linear-gradient(135deg,${T.terraLt},#FFF8F5)`,borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${T.border}`}}>
-        <div style={{fontSize:12,color:T.terra,fontWeight:600,marginBottom:3}}>🐝 Hive Vision — 3 free scans/month</div>
+        <div style={{fontSize:12,color:T.terra,fontWeight:600,marginBottom:3}}>🐝 Snap & Stitch — 3 free scans/month</div>
         <div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>Photograph any finished crochet object. We identify the components and build a starter pattern to recreate it.</div>
       </div>
       {!file&&(
@@ -526,7 +526,7 @@ const HiveVisionForm = ({onSave,Btn,Bar,WireframeViewer}) => {
               <div className="progress-bar-fill" style={{width:progress+"%",height:6,borderRadius:99,transition:"width .3s ease"}}/>
             </div>
             <div style={{fontSize:11,color:T.ink3,textAlign:"center"}}>
-              {progress<35&&"Reading image data…"}{progress>=35&&progress<70&&"Hive Vision is identifying components…"}{progress>=70&&progress<90&&"Running stitch count math…"}{progress>=90&&"Finalizing your pattern…"}
+              {progress<35&&"Reading image data…"}{progress>=35&&progress<70&&"Snap & Stitch is identifying components…"}{progress>=70&&progress<90&&"Running stitch count math…"}{progress>=90&&"Finalizing your pattern…"}
             </div>
           </div>
         </div>
@@ -599,7 +599,7 @@ const HiveVisionForm = ({onSave,Btn,Bar,WireframeViewer}) => {
             <div style={{fontSize:12,color:T.ink3,marginBottom:10}}>Hook {preview.hook} · {preview.weight} · ~{preview.yardage} yds · {preview.rows.length} steps</div>
             <div style={{fontSize:12,color:T.ink2,lineHeight:1.6,marginBottom:12}}>{preview.notes}</div>
             <div style={{fontSize:11,color:T.ink3,fontStyle:"italic",marginBottom:12}}>Review the steps after saving — adjust stitch counts to match your gauge and yarn weight.</div>
-            <Btn onClick={()=>onSave({id:Date.now(),photo:imgSrc||PILL[0],source:"Hive Vision",cat:analysis.object_category==="amigurumi"?"Amigurumi":"Uncategorized",rating:0,skeins:2,skeinYards:200,gauge:{stitches:16,rows:20,size:4},dimensions:{width:20,height:20},snapConfidence:confidence,snapComponents:analysis.components||[],snapObjectName:analysis.object_name||"",...preview})}>Save to Your Hive</Btn>
+            <Btn onClick={()=>onSave({id:Date.now(),photo:imgSrc||PILL[0],source:"Snap & Stitch",cat:analysis.object_category==="amigurumi"?"Amigurumi":"Uncategorized",rating:0,skeins:2,skeinYards:200,gauge:{stitches:16,rows:20,size:4},dimensions:{width:20,height:20},snapConfidence:confidence,snapComponents:analysis.components||[],snapObjectName:analysis.object_name||"",...preview})}>Save to My Wovely</Btn>
             <div style={{marginTop:8}}><Btn variant="ghost" onClick={reset}>Try different photo</Btn></div>
           </div>
         </div>
@@ -725,7 +725,7 @@ const URLImportForm = ({onSave,Btn,Photo}) => {
             {preview.smartNote&&<div style={{background:T.sageLt,borderRadius:8,padding:"8px 12px",marginBottom:10,display:"flex",gap:8}}><span>✨</span><span style={{fontSize:12,color:T.sage}}>{preview.smartNote}</span></div>}
             {preview.qualityNote&&<div style={{background:"#FFF8EC",borderRadius:8,padding:"8px 12px",marginBottom:12,border:"1px solid #F0D9A8",display:"flex",gap:8,alignItems:"flex-start"}}><span style={{fontSize:13,flexShrink:0}}>⚠️</span><span style={{fontSize:11,color:"#8B6914",lineHeight:1.6}}>{preview.qualityNote}</span></div>}
             {preview.rows?.length>0&&<div style={{background:T.surface,borderRadius:10,padding:"10px 12px",marginBottom:12,maxHeight:160,overflowY:"auto",border:`1px solid ${T.border}`}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,fontWeight:600}}>Preview — {preview.rows.length} steps</div>{preview.rows.slice(0,5).map((r,i)=><div key={i} style={{fontSize:12,color:T.ink2,padding:"4px 0",borderBottom:i<4?`1px solid ${T.border}`:"none",lineHeight:1.5}}>{r.text}</div>)}{preview.rows.length>5&&<div style={{fontSize:11,color:T.ink3,marginTop:6}}>+{preview.rows.length-5} more steps…</div>}</div>}
-            <Btn onClick={()=>onSave({id:Date.now(),rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},...preview})}>Save to Your Hive</Btn>
+            <Btn onClick={()=>onSave({id:Date.now(),rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},...preview})}>Save to My Wovely</Btn>
             <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setPreview(null);setUrl("");}}>Try different URL</Btn></div>
           </div>
         </div>
@@ -1116,7 +1116,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     {key:"url",icon:"🔗",label:"Smart Import",sub:"Paste any pattern link"},
     {key:"pdf",icon:"📄",label:"PDF / Document",sub:"Upload & extract"},
     {key:"browser",icon:"🌐",label:"Browse Sites",sub:"AllFreeCrochet, Drops & more"},
-    {key:"snap",icon:"🐝",label:"Hive Vision",sub:"Photograph any finished object — 3 free scans/mo"},
+    {key:"snap",icon:"🐝",label:"Snap & Stitch",sub:"Photograph any finished object — 3 free scans/mo"},
   ];
   const MethodList=()=>(
     <>
@@ -1132,7 +1132,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
       <div onClick={()=>setMethod("snap")} style={{background:"linear-gradient(135deg,#9B7EC8 0%,#8B3A2C 100%)",borderRadius:16,padding:20,cursor:"pointer",position:"relative",overflow:"hidden",transition:"transform .15s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
         <div style={{position:"absolute",top:10,right:12,background:"rgba(255,255,255,.2)",borderRadius:99,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff"}}>3 free scans/mo</div>
         <div style={{fontSize:32,marginBottom:8}}>🐝</div>
-        <div style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:4}}>Hive Vision — Point. Click. Stitch.</div>
+        <div style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:4}}>Snap & Stitch — Point. Click. Stitch.</div>
         <div style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.5}}>Photograph any finished object. Get the complete pattern instantly.</div>
       </div>
     </>

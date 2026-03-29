@@ -32,9 +32,9 @@ const PatternHeader = ({
           <button onClick={()=>setMilestone(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,.6)",fontSize:18,cursor:"pointer",flexShrink:0,padding:"4px"}}>×</button>
         </div>
       )}
-      {/* ── HERO: Hive Vision patterns get split photo+wireframe, others get clean fixed-height photo ── */}
+      {/* ── HERO: Snap & Stitch patterns get split photo+wireframe, others get clean fixed-height photo ── */}
       {p.snapConfidence&&p.snapComponents?.length ? (
-        /* ── HIVE VISION SPLIT HERO ── */
+        /* ── SNAP & STITCH SPLIT HERO ── */
         <div style={{flexShrink:0,background:"#1C1714",marginTop:milestone?56:0,transition:"margin .3s"}}>
           {/* top bar */}
           <div style={{position:"relative",zIndex:2,padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -58,9 +58,9 @@ const PatternHeader = ({
                   ?<input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} style={{width:"90%",background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.3)",borderRadius:8,padding:"5px 8px",color:"#fff",fontSize:16,fontFamily:T.serif,outline:"none"}}/>
                   :<div style={{fontFamily:T.serif,fontSize:isDesktop?20:15,fontWeight:700,color:"#fff",lineHeight:1.2,paddingRight:8}}>{p.title}</div>}
               </div>
-              {/* Hive Vision badge */}
+              {/* Snap & Stitch badge */}
               <div style={{position:"absolute",top:10,left:10,background:"rgba(155,126,200,.9)",borderRadius:8,padding:"3px 9px",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
-                🐝 Hive Vision · {p.snapConfidence}%
+                🐝 Snap & Stitch · {p.snapConfidence}%
               </div>
             </div>
             {/* right: interactive wireframe */}
