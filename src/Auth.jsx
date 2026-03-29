@@ -157,7 +157,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
 
   const isSignup=screen==="signup";
   const showForm=screen==="signup"||screen==="signin";
-  const BG = PHOTOS.world;
+  const BG = "/wovely_landing_bg_v1.png";
 
   const CARD_STYLE = {
     background: isDesktop ? "rgba(250,247,243,0.88)" : "rgba(250,247,243,0.78)",
@@ -386,10 +386,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
       `}</style>
       <div className="world-bg" style={{position:"fixed",inset:"-5%",zIndex:0}}>
         <img src={BG} alt="Wovely world" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",filter:"saturate(1.25) brightness(0.92) contrast(1.05)"}}/>
-        <div style={{position:"absolute",inset:0,background:isDesktop
-          ?"radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.58) 100%)"
-          :"radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 100%)"
-        }}/>
+        <div style={{position:"absolute",inset:0,background:"rgba(250,247,242,0.75)"}}/>
       </div>
       <div style={{position:"relative",zIndex:1,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 16px"}}>
         {/* BeeAnimator removed — Bev character coming soon */}
