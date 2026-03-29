@@ -1829,8 +1829,7 @@ export default function Wovely() {
       }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
-  const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate(-1);};
-  if(view==="detail"&&selected&&!isDesktop) return <><CSS/><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></>;
+  const detailOnBack=()=>{localStorage.removeItem("yh_last_url");navigate("/hive");};
 
   const startAndOpenPattern=(p)=>{
     const updated={...p,started:true};
