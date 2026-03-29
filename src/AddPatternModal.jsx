@@ -1124,7 +1124,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
         {METHODS.filter(m=>m.key!=="snap").map(m=>(
           <div key={m.key} onClick={()=>m.key==="browser"&&onBrowse?onBrowse():setMethod(m.key)} style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:20,cursor:"pointer",transition:"all .15s",boxShadow:T.shadow}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(155,126,200,.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=T.shadow;}}>
             <div style={{fontSize:32,marginBottom:10}}>{m.icon}</div>
-            <div style={{fontSize:15,fontWeight:600,color:T.ink,marginBottom:4}}>{m.label==="Manual Entry"?"Write it yourself":m.label==="Smart Import"?"Paste a link":m.label==="PDF / Document"?"Upload a file":"Find free patterns"}</div>
+            <div style={{fontSize:15,fontWeight:600,color:T.ink,marginBottom:4}}>{m.label==="Manual Entry"?"Write it yourself":m.label==="Smart Import"?"Paste a link":m.label==="PDF / Document"?"Upload a file":"Find Patterns"}</div>
             <div style={{fontSize:12,color:T.ink3,lineHeight:1.5}}>{m.sub}</div>
           </div>
         ))}

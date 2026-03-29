@@ -877,22 +877,25 @@ const BrowseSitesView = ({onSavePattern}) => {
       </div>
     </div>
   );
+  const{isTablet}=useBreakpoint();
+  const cols=isDesktop?"repeat(3,1fr)":isTablet?"repeat(2,1fr)":"1fr";
   return (
-    <div style={{padding:isDesktop?"24px 0 80px":"16px 18px 100px"}}>
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:13,color:T.ink2,lineHeight:1.7}}>Choose a source below. Browse for a pattern, then paste its URL to import it directly into your collection.</div>
-        <div style={{fontSize:12,color:"#6B6B8A",marginTop:8,lineHeight:1.5}}>Some sites may require an account or purchase. Wovely gives you access to browse — pattern availability varies by site.</div>
+    <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF"}}>
+      <div style={{marginBottom:4}}><div style={{fontFamily:T.serif,fontSize:28,fontWeight:700,color:"#1A1A2E"}}>Find Patterns</div></div>
+      <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6,marginBottom:20}}>Browse any of these sites directly inside Wovely. Find a pattern you love, then import it in one tap.</div>
+      <div style={{background:"#EDE4F7",borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"flex-start",gap:10,marginBottom:24}}>
+        <span style={{color:"#9B7EC8",fontSize:16,flexShrink:0,marginTop:1}}>ℹ</span>
+        <div style={{fontSize:13,color:"#6B6B8A",lineHeight:1.5}}>Some sites may require an account or purchase. Wovely gives you access to browse — what's available depends on the site.</div>
       </div>
-      <div style={{display:"grid",gap:14,gridTemplateColumns:isDesktop?"1fr 1fr":"1fr"}}>
+      <div style={{display:"grid",gap:20,gridTemplateColumns:cols}}>
         {SITES.map(s=>(
-          <div key={s.name} style={{background:T.surface,borderRadius:16,overflow:"hidden",border:`1px solid ${T.border}`,boxShadow:"0 2px 8px rgba(28,23,20,.05)"}}>
-            <div style={{height:110,position:"relative",overflow:"hidden"}}><Photo src={s.photo} alt={s.name} style={{width:"100%",height:"100%"}}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(20,14,10,.75) 0%,transparent 60%)"}}/>
-              <div style={{position:"absolute",bottom:10,left:12,right:12,display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}><div style={{fontFamily:T.serif,fontSize:17,fontWeight:700,color:"#fff"}}>{s.name}</div><div style={{background:s.free?"rgba(92,122,94,.9)":"rgba(155,126,200,.9)",borderRadius:7,padding:"3px 8px",fontSize:10,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
-            </div>
-            <div style={{padding:"12px 14px"}}>
-              <div style={{fontSize:12,color:T.ink2,lineHeight:1.6,marginBottom:8}}>{s.desc}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>{s.tags.map(t=><div key={t} style={{background:T.linen,borderRadius:99,padding:"2px 9px",fontSize:10,color:T.ink2,border:`1px solid ${T.border}`}}>{t}</div>)}</div>
-              <button onClick={()=>setActiveSite(s)} style={{width:"100%",background:`linear-gradient(135deg,#2D3A7C,${T.terra})`,color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span>🌐</span> Browse {s.name}</button>
+          <div key={s.name} style={{background:"#FFFFFF",borderRadius:16,border:"1px solid #EDE4F7",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",position:"relative",transition:"transform .15s,box-shadow .15s",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(155,126,200,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.06)";}}>
+            <div style={{position:"absolute",top:12,right:12}}><div style={{background:s.free?"#5C9E7A":"#2D3A7C",borderRadius:9999,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
+            <div style={{padding:"24px 20px 16px",textAlign:"center"}}>
+              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:"#1A1A2E",marginBottom:6}}>{s.name}</div>
+              <div style={{fontSize:13,color:"#6B6B8A",lineHeight:1.5,marginBottom:12}}>{s.desc}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginBottom:16}}>{s.tags.map(t=><div key={t} style={{background:"#EDE4F7",borderRadius:9999,padding:"3px 10px",fontSize:10,fontWeight:600,color:"#9B7EC8"}}>{t}</div>)}</div>
+              <button onClick={()=>setActiveSite(s)} style={{width:"100%",background:"#9B7EC8",color:"#fff",border:"none",borderRadius:9999,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Browse {s.name}</button>
             </div>
           </div>
         ))}
