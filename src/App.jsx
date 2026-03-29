@@ -829,7 +829,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
 const BrowseSitesView = ({onSavePattern}) => {
   const{isDesktop}=useBreakpoint();
-  const [activeSite,setActiveSite]=useState(null),[currentUrl,setCurrentUrl]=useState(""),[importing,setImporting]=useState(false),[importErr,setImportErr]=useState(null),[importOk,setImportOk]=useState(false);
+  const [activeSite,setActiveSite]=useState(null),[currentUrl,setCurrentUrl]=useState(""),[importing,setImporting]=useState(false),[importErr,setImportErr]=useState(null),[importOk,setImportOk]=useState(false),[iframeLoaded,setIframeLoaded]=useState(false);
   const iframeRef=useRef(null);
   const SITES=[
     {name:"AllFreeCrochet",desc:"The largest free crochet pattern library.",url:"https://www.allfreecrochet.com",tags:["Blankets","Amigurumi","Wearables"],free:true,photo:PILL[4]},
@@ -842,8 +842,8 @@ const BrowseSitesView = ({onSavePattern}) => {
     {name:"LoveCrafts",desc:"Quality free and paid patterns.",url:"https://www.lovecrafts.com/en-us/l/crochet/crochet-patterns?price=free",tags:["Garments","Modern"],free:false,photo:PILL[2]},
   ];
   const proxyUrl=(u)=>"/api/proxy?url="+encodeURIComponent(u);
-  const handleIframeLoad=()=>{try{const raw=iframeRef.current?.contentWindow?.location?.href;if(raw&&raw!=="about:blank"){const m=raw.match(/[?&]url=([^&]+)/);const real=m?decodeURIComponent(m[1]):raw;setCurrentUrl(real);setImportErr(null);setImportOk(false);}}catch(e){}};
-  const closeSite=()=>{setActiveSite(null);setCurrentUrl("");setImportErr(null);setImportOk(false);};
+  const handleIframeLoad=()=>{setIframeLoaded(true);try{const raw=iframeRef.current?.contentWindow?.location?.href;if(raw&&raw!=="about:blank"){const m=raw.match(/[?&]url=([^&]+)/);const real=m?decodeURIComponent(m[1]):raw;setCurrentUrl(real);setImportErr(null);setImportOk(false);}}catch(e){}};
+  const closeSite=()=>{setActiveSite(null);setCurrentUrl("");setImportErr(null);setImportOk(false);setIframeLoaded(false);};
   const doImportUrl=async(url)=>{
     if(!url) return;
     setImporting(true);setImportErr(null);setImportOk(false);
@@ -875,16 +875,22 @@ const BrowseSitesView = ({onSavePattern}) => {
     finally{setImporting(false);}
   };
   if(activeSite) return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",background:T.bg}}>
-      <div style={{background:"#2D2D4E",padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+    <div style={{position:"fixed",top:0,left:0,width:"100vw",height:"100vh",zIndex:9999,display:"flex",flexDirection:"column",background:"#FFFFFF"}}>
+      <div style={{background:"#2D2D4E",padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0,height:48}}>
         <button onClick={closeSite} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,color:"#fff",cursor:"pointer",flexShrink:0}}>← Back</button>
         <div style={{flex:1,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 12px",display:"flex",alignItems:"center",gap:7,minWidth:0}}><span style={{fontSize:10,color:"rgba(255,255,255,.4)",flexShrink:0}}>🌐</span><div style={{fontSize:11,color:"rgba(255,255,255,.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,fontFamily:"monospace"}}>{currentUrl||activeSite.url}</div></div>
         <button onClick={()=>window.open(currentUrl||activeSite.url,"_blank","noopener,noreferrer")} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 10px",fontSize:15,cursor:"pointer",flexShrink:0,color:"rgba(255,255,255,.7)"}}>↗</button>
       </div>
-      <div style={{background:"rgba(28,23,20,.06)",borderBottom:`1px solid ${T.border}`,padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+      <div style={{background:"rgba(28,23,20,.06)",borderBottom:`1px solid ${T.border}`,padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexShrink:0,height:28}}>
         <div style={{width:6,height:6,borderRadius:99,background:T.terra,flexShrink:0}}/><div style={{fontSize:10,color:T.ink3,fontWeight:500}}>Browsing {activeSite.name} inside Wovely</div><div style={{flex:1}}/><div style={{fontSize:10,color:T.ink3,opacity:.6}}>Tap "Import This Pattern" when ready</div>
       </div>
-      <div style={{flex:1,position:"relative",overflow:"hidden"}}><iframe ref={iframeRef} src={proxyUrl(activeSite.url)} onLoad={handleIframeLoad} style={{width:"100%",height:"100%",border:"none"}} title={activeSite.name} sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/></div>
+      <div style={{flex:1,position:"relative",overflow:"hidden",minHeight:0}}>
+        {!iframeLoaded&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,background:"#FFFFFF",zIndex:1}}>
+          <div className="spinner" style={{width:24,height:24,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%"}}/>
+          <div style={{fontSize:13,color:T.ink3}}>Loading {activeSite.name}...</div>
+        </div>}
+        <iframe ref={iframeRef} src={proxyUrl(activeSite.url)} onLoad={handleIframeLoad} style={{width:"100%",height:"100%",border:"none",display:"block"}} title={activeSite.name} sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/>
+      </div>
       <div style={{background:T.surface,borderTop:`2px solid ${T.terra}`,padding:"12px 16px",flexShrink:0}}>
         {activeSite.note&&<div style={{fontSize:11,color:T.terra,marginBottom:8,display:"flex",gap:6,alignItems:"flex-start"}}><span style={{flexShrink:0}}>ℹ️</span><span>{activeSite.note}</span></div>}
         {importOk?<div style={{background:T.sageLt,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✅</span><div style={{fontSize:13,fontWeight:600,color:T.sage}}>Pattern saved to My Wovely!</div></div>
