@@ -828,7 +828,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
 
 const BrowseSitesView = ({onSavePattern}) => {
-  const{isDesktop}=useBreakpoint();
+  const{isDesktop,isTablet}=useBreakpoint();
   const [activeSite,setActiveSite]=useState(null),[currentUrl,setCurrentUrl]=useState(""),[importing,setImporting]=useState(false),[importErr,setImportErr]=useState(null),[importOk,setImportOk]=useState(false),[iframeLoaded,setIframeLoaded]=useState(false);
   const iframeRef=useRef(null);
   const SITES=[
@@ -900,7 +900,6 @@ const BrowseSitesView = ({onSavePattern}) => {
       </div>
     </div>
   );
-  const{isTablet}=useBreakpoint();
   return (
     <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF"}}>
       <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6,marginBottom:20}}>Browse any of these sites directly inside Wovely. Find a pattern you love, then import it in one tap.</div>
