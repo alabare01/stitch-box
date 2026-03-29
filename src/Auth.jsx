@@ -335,7 +335,7 @@ const Auth = ({onEnter,onEnterAsNew}) => {
 
       <div style={{textAlign:"center",marginBottom:24}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:9,background:"rgba(155,126,200,.09)",borderRadius:14,padding:"7px 16px",border:"1px solid rgba(155,126,200,.18)"}}>
-          <span style={{fontSize:18}}>🐝</span>
+          <img src="/bev_neutral.png" alt="Bev" style={{width:40,height:40,objectFit:"contain"}}/>
           <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>Wovely</div>
         </div>
       </div>
