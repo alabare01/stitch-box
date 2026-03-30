@@ -824,21 +824,23 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
       for(let i=1;i<rndNums.length;i++){if(rndNums[i]-rndNums[i-1]>2) flags.push("Gap detected between round "+rndNums[i-1]+" and "+rndNums[i]);}
       if(complexityStats&&complexityStats.pages>=5&&allRows.length<10) flags.push("Only "+allRows.length+" rows from a "+complexityStats.pages+"-page pattern");
       setValidationFlags(flags);
-      // Pro users: run Stitch Check in background (non-blocking)
-      if(extractedText){
+      // Run Stitch Check in background (non-blocking) — requires client-side Gemini key
+      if(extractedText&&GEMINI_API_KEY){
         setValidating(true);
+        const valText=extractedText.length>20000?extractedText.slice(0,extractedText.lastIndexOf("\n",20000)||20000):extractedText;
         (async()=>{
           try{
             const controller=new AbortController();
             const timeout=setTimeout(()=>controller.abort(),90000);
             const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{
               method:"POST",headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+extractedText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
+              body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
               signal:controller.signal,
             });
             clearTimeout(timeout);
             const rawText=await vr.text();
-            if(vr.ok){const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}
+            if(!vr.ok){console.warn("[Wovely] Stitch Check API error:",vr.status,rawText.substring(0,200));setValidating(false);return;}
+            const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);
           }catch(e){console.warn("[Wovely] Stitch Check background validation failed:",e);}
           setValidating(false);
         })();
