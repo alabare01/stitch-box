@@ -9,6 +9,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  try {
+
   const { pdfText: rawText, pageCount } = req.body || {};
   if (!rawText) return res.status(400).json({ error: "pdfText required" });
 
@@ -16,13 +18,13 @@ export default async function handler(req, res) {
   console.log("[extract-pattern] ENV:", GEMINI_KEY ? "KEY EXISTS" : "KEY MISSING", "pdfText length:", rawText.length, "pageCount:", pageCount);
   if (!GEMINI_KEY) return res.status(500).json({ error: "API key not configured on server" });
 
-  // Server-side truncation: 20k chars at a natural line break
-  const TEXT_LIMIT = 20000;
+  // Hard truncation: cap at 15k chars to prevent memory issues
+  const TEXT_LIMIT = 15000;
   let pdfText = rawText;
   if (pdfText.length > TEXT_LIMIT) {
     const lastNewline = pdfText.lastIndexOf("\n", TEXT_LIMIT);
     pdfText = pdfText.slice(0, lastNewline > 0 ? lastNewline : TEXT_LIMIT)
-      + "\n[Note: Pattern truncated at 20,000 chars for processing.]";
+      + "\n[Note: Pattern truncated at 15,000 chars for processing.]";
     console.log("[extract-pattern] Truncated from", rawText.length, "to", pdfText.length, "chars");
   }
 
@@ -140,5 +142,10 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
   } catch (e2) {
     console.error("[extract-pattern] Attempt 2 also failed:", e2.message);
     return res.status(502).json({ error: "Pattern extraction failed after 2 attempts" });
+  }
+
+  } catch (err) {
+    console.error("[extract-pattern] UNHANDLED ERROR:", err.message, err.stack);
+    return res.status(500).json({ error: "Internal server error", message: err.message });
   }
 }
