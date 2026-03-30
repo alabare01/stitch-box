@@ -116,9 +116,11 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
       console.error("[extract-pattern] Gemini returned empty text, finishReason:", finishReason, "candidates:", JSON.stringify(data.candidates?.[0]).substring(0, 300));
       throw new Error("Gemini returned empty response, finishReason: " + finishReason);
     }
-    const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    try { return JSON.parse(cleaned); } catch (parseErr) {
-      console.error("[extract-pattern] JSON parse failed, cleaned text starts:", cleaned.substring(0, 200), "ends:", cleaned.substring(cleaned.length - 200));
+    const cleaned = text.replace(/^[\s\S]*?```(?:json|JSON)?\s*\n?/i, "").replace(/\n?\s*```[\s\S]*$/, "").trim();
+    // If stripping fences removed everything or didn't find fences, fall back to raw trim
+    const toParse = cleaned.startsWith("{") || cleaned.startsWith("[") ? cleaned : text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    try { return JSON.parse(toParse); } catch (parseErr) {
+      console.error("[extract-pattern] JSON parse failed, text starts:", toParse.substring(0, 300), "ends:", toParse.substring(toParse.length - 200));
       throw new Error("JSON parse failed: " + parseErr.message);
     }
   };
@@ -141,7 +143,7 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
     return res.status(200).json(result);
   } catch (e2) {
     console.error("[extract-pattern] Attempt 2 also failed:", e2.message);
-    return res.status(502).json({ error: "Pattern extraction failed after 2 attempts" });
+    return res.status(500).json({ error: "Pattern extraction failed after 2 attempts" });
   }
 
   } catch (err) {
