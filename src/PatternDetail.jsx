@@ -270,17 +270,18 @@ const ShareCardModal = ({pattern,onClose,pct,Btn}) => {
 
 const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Photo,Stars,WireframeViewer,Btn}) => {
   const VALID_TABS=["materials","rows","notes"];
-  // Auto-hide header on scroll down, show on scroll up
+  // Auto-hide header on scroll down, show on scroll up (with iOS momentum debounce)
   const scrollRef=useRef(null);
   const lastScrollY=useRef(0);
+  const upAccum=useRef(0);
   const [headerHidden,setHeaderHidden]=useState(false);
   useEffect(()=>{
     const el=scrollRef.current;if(!el) return;
     const onScroll=()=>{
       const y=el.scrollTop;
-      if(y<=0){setHeaderHidden(false);}
-      else if(y>lastScrollY.current&&y>10){setHeaderHidden(true);}
-      else if(y<lastScrollY.current){setHeaderHidden(false);}
+      if(y<=0){upAccum.current=0;setHeaderHidden(false);}
+      else if(y>lastScrollY.current){upAccum.current=0;if(y>10) setHeaderHidden(true);}
+      else if(y<lastScrollY.current){upAccum.current+=lastScrollY.current-y;if(upAccum.current>=15) setHeaderHidden(false);}
       lastScrollY.current=y;
     };
     el.addEventListener("scroll",onScroll,{passive:true});
@@ -336,15 +337,16 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
           <iframe src={pdfViewerUrl} title="Source Pattern" style={{flex:1,border:"none",width:"100%"}}/>
         </div>
       )}
-      <div style={{flexShrink:0,transform:headerHidden?"translateY(-100%)":"translateY(0)",transition:"transform 220ms ease",zIndex:10}}>
-        <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
-        <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
-          {[["materials","Materials"],["rows","Rows"],["notes","Notes"]].map(([key,label])=>(
-            <button key={key} onClick={()=>{setTab(key);localStorage.setItem("yh_last_tab",key);}} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
-          ))}
+      <div ref={scrollRef} style={{flex:1,overflowY:"auto"}}>
+        <div style={{position:"sticky",top:0,zIndex:10,transform:headerHidden?"translateY(-100%)":"translateY(0)",transition:"transform 220ms ease"}}>
+          <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
+          <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
+            {[["materials","Materials"],["rows","Rows"],["notes","Notes"]].map(([key,label])=>(
+              <button key={key} onClick={()=>{setTab(key);localStorage.setItem("yh_last_tab",key);}} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"4px 20px 36px",maxWidth:isDesktop?760:undefined,margin:isDesktop?"0 auto":undefined,width:"100%"}}>
+        <div style={{padding:"4px 20px 36px",maxWidth:isDesktop?760:undefined,margin:isDesktop?"0 auto":undefined,width:"100%"}}>
         {tab==="materials"&&(<>
           {(editing?draft.materials:p.materials).map((m,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${T.border}`}}>
@@ -393,6 +395,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
             <div style={{marginTop:10,fontSize:12,color:T.ink3}}>Source: {p.source}</div>
           </div>
         )}
+        </div>
       </div>
       {/* Floating source pill now rendered inside RowManager */}
     </div>
