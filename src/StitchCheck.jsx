@@ -61,9 +61,14 @@ const extractTextFromPDF = async (file) => {
   });
 };
 
-const BADGE = { valid: { color: "#5C9E7A", bg: T.sageLt, emoji: "\u2705", label: "Pattern Looks Good" }, review: { color: "#C9853A", bg: "#FFF8EC", emoji: "\u26A0\uFE0F", label: "Review Suggested" }, issues: { color: "#C05A5A", bg: "#FFF0EE", emoji: "\u274C", label: "Issues Found" } };
+const BADGE = { valid: { color: "#5B9B6B", bg: T.sageLt, emoji: "\u2705", label: "Pattern Looks Good" }, review: { color: "#C9A84C", bg: "#FFF8EC", emoji: "\u26A0\uFE0F", label: "Review Suggested" }, issues: { color: "#C0544A", bg: "#FFF0EE", emoji: "\u274C", label: "Issues Found" } };
 const badgeForScore = (score) => score >= 80 ? BADGE.valid : score >= 60 ? BADGE.review : BADGE.issues;
 const CHECK_ICON = { pass: "\u2705", warn: "\u26A0\uFE0F", fail: "\u274C" };
+const displayScore = (report) => {
+  if (!report?.checks?.length) return report?.score || 0;
+  const allPass = report.checks.every(c => c.status === "pass");
+  return allPass ? 100 : report.score;
+};
 
 const CARD = {background:"#FFFFFF",borderRadius:16,padding:24,border:`1px solid ${T.border}`,boxShadow:T.shadow};
 const LABEL = {fontSize:11,fontWeight:600,color:T.ink2,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6};
@@ -135,7 +140,8 @@ const StitchCheck = () => {
 
   // Report card view
   if (report) {
-    const badge = badgeForScore(report.score);
+    const score = displayScore(report);
+    const badge = badgeForScore(score);
     return (
       <div style={{ padding: isDesktop ? "0 0 80px" : "0 18px 80px" }}>
         <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>Stitch Check Report</div>
@@ -145,9 +151,9 @@ const StitchCheck = () => {
         <div style={{ ...CARD, textAlign: "center", marginBottom: 20 }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>{badge.emoji}</div>
           <div style={{ fontFamily: T.serif, fontSize: 22, fontWeight: 700, color: badge.color, marginBottom: 4 }}>{badge.label}</div>
-          <div style={{ fontFamily: T.serif, fontSize: 48, fontWeight: 700, color: badge.color, lineHeight: 1 }}>{report.score}%</div>
+          <div style={{ fontFamily: T.serif, fontSize: 48, fontWeight: 700, color: badge.color, lineHeight: 1 }}>{score}%</div>
           <div style={{ marginTop: 16, background: T.terraLt, borderRadius: 9999, height: 6, overflow: "hidden" }}>
-            <div style={{ width: report.score + "%", height: "100%", background: badge.color, borderRadius: 9999, transition: "width .4s ease" }} />
+            <div style={{ width: score + "%", height: "100%", background: badge.color, borderRadius: 9999, transition: "width .4s ease" }} />
           </div>
         </div>
 
@@ -233,5 +239,5 @@ const StitchCheck = () => {
   );
 };
 
-export { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON };
+export { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON, displayScore };
 export default StitchCheck;

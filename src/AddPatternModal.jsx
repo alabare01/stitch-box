@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { T, useBreakpoint, Field } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
-import { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON } from "./StitchCheck.jsx";
+import { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON, displayScore } from "./StitchCheck.jsx";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -988,15 +988,15 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
             </div>
-          ):validationReport?(isPro?(
+          ):validationReport?(()=>{const scScore=displayScore(validationReport);const scBadge=badgeForScore(scScore);return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
               <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
                 <div>
-                  <div style={{fontSize:12,fontWeight:700,color:badgeForScore(validationReport.score).color,marginBottom:2}}>{badgeForScore(validationReport.score).label}</div>
+                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
                   <div style={{fontSize:10,color:T.ink3}}>Stitch Check</div>
                 </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${badgeForScore(validationReport.score).color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:badgeForScore(validationReport.score).color}}>{validationReport.score}%</span>
+                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
+                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,transition:"color .6s ease"}}>{scScore}%</span>
                 </div>
               </div>
               {(validationReport.checks||[]).slice(0,3).map(c=>(
@@ -1011,11 +1011,11 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
               <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
                 <div>
-                  <div style={{fontSize:12,fontWeight:700,color:badgeForScore(validationReport.score).color,marginBottom:2}}>{badgeForScore(validationReport.score).label}</div>
+                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
                   <div style={{fontSize:10,color:T.ink3}}>Stitch Check</div>
                 </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${badgeForScore(validationReport.score).color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:badgeForScore(validationReport.score).color,filter:"blur(8px)",WebkitFilter:"blur(8px)",userSelect:"none"}}>{validationReport.score}%</span>
+                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
+                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,filter:"blur(8px)",WebkitFilter:"blur(8px)",userSelect:"none",transition:"color .6s ease"}}>{scScore}%</span>
                 </div>
               </div>
               {validationReport.checks?.slice(0,2).map((c,i)=>(
@@ -1030,7 +1030,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
                 <button onClick={()=>setProUpgradeBanner(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:10,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
               </div>
             </div>
-          )):(
+          );})():(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",minHeight:120,fontSize:11,color:T.ink3}}>Stitch Check unavailable</div>
           )}
         </div>
@@ -1048,11 +1048,12 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
           <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"auto",padding:"24px 22px 32px"}}>
             <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:16}}>Stitch Check Report</div>
-            <div style={{background:badgeForScore(validationReport.score).bg,border:`2px solid ${badgeForScore(validationReport.score).color}`,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center"}}>
-              <div style={{fontSize:28,marginBottom:4}}>{badgeForScore(validationReport.score).emoji}</div>
-              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:badgeForScore(validationReport.score).color}}>{badgeForScore(validationReport.score).label}</div>
-              <div style={{fontFamily:T.serif,fontSize:36,fontWeight:700,color:badgeForScore(validationReport.score).color,lineHeight:1}}>{validationReport.score}%</div>
-            </div>
+            {(()=>{const frScore=displayScore(validationReport);const frBadge=badgeForScore(frScore);return(
+            <div style={{background:frBadge.bg,border:`2px solid ${frBadge.color}`,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:4}}>{frBadge.emoji}</div>
+              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:frBadge.color}}>{frBadge.label}</div>
+              <div style={{fontFamily:T.serif,fontSize:36,fontWeight:700,color:frBadge.color,lineHeight:1}}>{frScore}%</div>
+            </div>);})()}
             {(validationReport.checks||[]).map(c=>(
               <div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
                 <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"❓"}</span>
