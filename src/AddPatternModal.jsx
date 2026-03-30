@@ -867,26 +867,21 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
     : {emoji:"🔎", headline:stageText, sub:null, barSpeed:300};
   const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:null, barSpeed:300};
   if(stage==="uploading"||stage==="extracting"||stage==="building") return (
-    <div style={{padding:"40px 0 32px",textAlign:"center"}}>
-      <style>{`@keyframes pulseLavender{0%,100%{width:20%}50%{width:80%}}`}</style>
-      <div style={{fontSize:stage==="extracting"&&complexity==="complex"?44:36,marginBottom:14,transition:"font-size .3s"}}>{loadingInfo.emoji}</div>
-      <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:8,lineHeight:1.4}}>{loadingInfo.headline}</div>
+    <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
+      <style>{`@keyframes spinLoader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`}</style>
+      <div style={{width:60,height:60,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite",marginBottom:24}}/>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4}}>{loadingInfo.headline}</div>
       {loadingInfo.sub&&(
-        <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:20,maxWidth:280,margin:"0 auto 20px",padding:"0 8px"}}>
+        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:16,maxWidth:300}}>
           {loadingInfo.sub}
         </div>
       )}
-      <div style={{height:8,background:T.linen,borderRadius:99,overflow:"hidden",margin:"0 auto",maxWidth:300}}>
-        {stage==="extracting"
-          ?<div style={{height:"100%",background:"#9B7EC8",borderRadius:99,animation:"pulseLavender 3s ease-in-out infinite"}}/>
-          :<div style={{height:"100%",width:progress+"%",background:stage==="building"?T.sage:T.terra,borderRadius:99,transition:"width 0.4s ease"}}/>}
-      </div>
       {stage==="extracting"&&(
-        <div style={{marginTop:16}}>
-          <div style={{fontSize:11,color:T.ink3,letterSpacing:".05em",marginBottom:6}}>WORKING HARD ✨</div>
-          <div style={{fontSize:14,fontFamily:"Inter,sans-serif",color:"#6B6B8A"}}>{stageText}</div>
+        <div key={stageText} style={{fontSize:13,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#9B7EC8",marginTop:loadingInfo.sub?0:8,animation:"fadeInMsg .4s ease both"}}>
+          {stageText}
         </div>
       )}
+      <style>{`@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
   if(stage==="error") return (
