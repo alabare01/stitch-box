@@ -418,7 +418,7 @@ const PaywallGate = ({onClose,onUpgrade,patternCount}) => (
           </div>
           <div style={{background:"rgba(255,255,255,.15)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#fff",fontWeight:600}}>✨ Pro</div>
         </div>
-        {["Unlimited pattern storage","All import methods — URL, PDF, Snap & Stitch, browser","Snap & Stitch, Stash Check, Pattern Help","Full calculator suite","Cloud sync across all devices"].map(f=>(
+        {["Unlimited pattern storage","All import methods — URL, PDF, Snap & Stitch, browser","Snap & Stitch, Stash Check, Pattern Help","Full calculator suite"].map(f=>(
           <div key={f} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
             <div style={{width:16,height:16,borderRadius:99,background:"rgba(255,255,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:9,color:"#fff"}}>✓</span></div>
             <span style={{fontSize:13,color:"rgba(255,255,255,.85)"}}>{f}</span>
@@ -444,19 +444,19 @@ const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrad
       <div style={{padding:"0 16px 8px"}}><button onClick={onAddPattern} style={{width:"100%",background:"rgba(255,255,255,.2)",color:"#fff",border:"none",borderRadius:9999,padding:"12px",fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background .15s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.3)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.2)"}><span style={{fontSize:18}}>+</span> Add Pattern</button></div>
       <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
         {ITEMS.map(item=>{const active=view===item.key;const locked=item.proOnly&&!isPro;return(
-          <div key={item.key} className="nav-item" onClick={()=>{if(locked){onUpgrade();return;}onNavigate(item.key);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",transition:"background .12s",opacity:locked?.55:1}}>
+          <div key={item.key} className="nav-item" onClick={()=>{if(locked){onUpgrade();return;}onNavigate(item.key);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",background:active?"rgba(255,255,255,0.25)":"transparent",cursor:"pointer",transition:"background .12s",opacity:locked?.55:1}}>
             <span style={{fontSize:18,width:24,textAlign:"center"}}>{item.icon}</span>
-            <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?"#fff":"rgba(255,255,255,0.75)"}}>{item.label}</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>{item.sub}</div></div>
-            {locked&&<span style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>🔒</span>}
+            <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{item.label}</div><div style={{fontSize:11,color:"rgba(255,255,255,0.65)",marginTop:1}}>{item.sub}</div></div>
+            {locked&&<span style={{fontSize:12,color:"rgba(255,255,255,0.65)"}}>🔒</span>}
             {active&&!locked&&<div style={{width:6,height:6,borderRadius:99,background:"#fff"}}/>}
           </div>
         );})}
       </div>
       <div style={{padding:"0 0 8px"}}>
         {(()=>{const active=view==="profile";return(
-          <div className="nav-item" onClick={()=>onNavigate("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",transition:"background .12s"}}>
+          <div className="nav-item" onClick={()=>onNavigate("profile")} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",background:active?"rgba(255,255,255,0.25)":"transparent",cursor:"pointer",transition:"background .12s"}}>
             <span style={{fontSize:18,width:24,textAlign:"center"}}>👤</span>
-            <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?"#fff":"rgba(255,255,255,0.75)"}}>Profile & Settings</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>Your account</div></div>
+            <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:"#fff"}}>Profile & Settings</div><div style={{fontSize:11,color:"rgba(255,255,255,0.65)",marginTop:1}}>Your account</div></div>
             {active&&<div style={{width:6,height:6,borderRadius:99,background:"#fff"}}/>}
           </div>
         );})()}
@@ -485,19 +485,19 @@ const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}
         </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:6}}>
           {ITEMS.map(item=>{const active=view===item.key;const locked=item.proOnly&&!isPro;return(
-            <div key={item.key} className="nav-item" onClick={()=>{if(locked){onUpgrade();dismiss();return;}go(item.key);}} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",transition:"background .12s",opacity:locked?.55:1}}>
+            <div key={item.key} className="nav-item" onClick={()=>{if(locked){onUpgrade();dismiss();return;}go(item.key);}} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",background:active?"rgba(255,255,255,0.25)":"transparent",cursor:"pointer",transition:"background .12s",opacity:locked?.55:1}}>
               <span style={{fontSize:20,width:26,textAlign:"center"}}>{item.icon}</span>
-              <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?"#fff":"rgba(255,255,255,0.75)"}}>{item.label}</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>{item.sub}</div></div>
-              {locked&&<span style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>🔒</span>}
+              <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:"#fff"}}>{item.label}</div><div style={{fontSize:11,color:"rgba(255,255,255,0.65)",marginTop:1}}>{item.sub}</div></div>
+              {locked&&<span style={{fontSize:12,color:"rgba(255,255,255,0.65)"}}>🔒</span>}
               {active&&!locked&&<div style={{width:6,height:6,borderRadius:99,background:"#fff"}}/>}
             </div>
           );})}
         </div>
         <div style={{padding:"0 0 8px"}}>
           {(()=>{const active=view==="profile";return(
-            <div className="nav-item" onClick={()=>go("profile")} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",background:active?"rgba(255,255,255,0.2)":"transparent",cursor:"pointer",transition:"background .12s"}}>
+            <div className="nav-item" onClick={()=>go("profile")} style={{display:"flex",alignItems:"center",gap:13,padding:"13px 20px",background:active?"rgba(255,255,255,0.25)":"transparent",cursor:"pointer",transition:"background .12s"}}>
               <span style={{fontSize:20,width:26,textAlign:"center"}}>👤</span>
-              <div style={{flex:1}}><div style={{fontSize:14,fontWeight:active?600:400,color:active?"#fff":"rgba(255,255,255,0.75)"}}>Profile & Settings</div><div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>Your account</div></div>
+              <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:"#fff"}}>Profile & Settings</div><div style={{fontSize:11,color:"rgba(255,255,255,0.65)",marginTop:1}}>Your account</div></div>
               {active&&<div style={{width:6,height:6,borderRadius:99,background:"#fff"}}/>}
             </div>
           );})()}
@@ -534,9 +534,7 @@ const EmailConfirmBanner = ({onDismiss,onResend}) => {
 const PRO_FEATURES = [
   {label:"Unlimited patterns",sub:"No cap. Save every pattern you'll ever make"},
   {label:"Unlimited Snap & Stitch",sub:"Scan as many finished objects as you want"},
-  {label:"Cloud sync",sub:"Access your Wovely on every device, always in sync"},
   {label:"Ask Bev",sub:"Get AI-powered help for any row you're stuck on"},
-  {label:"Advanced analytics",sub:"Track your making history and stash usage"},
   {label:"Early access",sub:"First to get every new feature we ship"},
 ];
 
