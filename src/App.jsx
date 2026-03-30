@@ -1586,11 +1586,15 @@ export default function Wovely() {
               });
               if (pr.ok) {
                 const rows = await pr.json();
+                console.log("[Wovely] Profile fetch result:", JSON.stringify(rows), "uid:", uid);
                 if (rows[0]) {
                   if (!rows[0].has_completed_onboarding) setShowOnboarding(true);
-                  const proStatus = !!rows[0].is_pro;
+                  const proStatus = rows[0].is_pro === true;
+                  console.log("[Wovely] is_pro from DB:", rows[0].is_pro, "→ proStatus:", proStatus);
                   setIsPro(proStatus);
-                  localStorage.setItem("yh_is_pro", String(proStatus));
+                  localStorage.setItem("yh_is_pro", proStatus ? "true" : "false");
+                } else {
+                  console.warn("[Wovely] Profile fetch returned empty array — no user_profiles row for uid:", uid);
                 }
               } else {
                 console.warn("[Wovely] Profile fetch failed:", pr.status, "— using cached is_pro");
