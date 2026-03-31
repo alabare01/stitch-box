@@ -468,6 +468,11 @@ const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrad
         {isPro?<div style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Wovely Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
         :<div style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"14px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Snap & Stitch, cloud sync.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:9999,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$8.99/mo</div></div>}
         {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"rgba(255,255,255,.15)",border:"none",borderRadius:9999,padding:"8px",fontSize:12,color:"#fff",cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
+        <div style={{textAlign:"center",marginTop:12,fontSize:11}}>
+          <a href="/privacy" style={{color:"rgba(255,255,255,.5)",textDecoration:"none"}} onClick={e=>{e.preventDefault();onNavigate("privacy");}}>Privacy</a>
+          <span style={{margin:"0 6px",color:"rgba(255,255,255,.3)"}}>|</span>
+          <a href="/terms" style={{color:"rgba(255,255,255,.5)",textDecoration:"none"}} onClick={e=>{e.preventDefault();onNavigate("terms");}}>Terms</a>
+        </div>
       </div>
     </div>
   );
@@ -509,6 +514,11 @@ const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}
           {isPro?<div style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✨</span><div><div style={{fontSize:12,fontWeight:700,color:"#fff"}}>Wovely Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.7)"}}>All features active</div></div></div>
           :<div style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:"14px 16px"}}><div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:3}}>✨ Upgrade to Pro</div><div style={{fontSize:11,color:"rgba(255,255,255,.75)",lineHeight:1.5,marginBottom:10}}>Unlimited patterns, all imports, Snap & Stitch.</div><div onClick={onUpgrade} style={{background:"rgba(255,255,255,.2)",borderRadius:9999,padding:"8px",textAlign:"center",fontSize:12,fontWeight:700,color:"#fff",cursor:"pointer"}}>$8.99/mo</div></div>}
           {onSignOut&&<button onClick={onSignOut} style={{width:"100%",background:"rgba(255,255,255,.15)",border:"none",borderRadius:9999,padding:"8px",fontSize:12,color:"#fff",cursor:"pointer",marginTop:10,fontWeight:500}}>Sign out</button>}
+          <div style={{textAlign:"center",marginTop:12,fontSize:11}}>
+            <a href="/privacy" style={{color:"rgba(255,255,255,.5)",textDecoration:"none"}} onClick={e=>{e.preventDefault();dismiss();onNavigate("privacy");}}>Privacy</a>
+            <span style={{margin:"0 6px",color:"rgba(255,255,255,.3)"}}>|</span>
+            <a href="/terms" style={{color:"rgba(255,255,255,.5)",textDecoration:"none"}} onClick={e=>{e.preventDefault();dismiss();onNavigate("terms");}}>Terms</a>
+          </div>
         </div>
       </div>
     </div>
