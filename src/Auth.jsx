@@ -326,11 +326,9 @@ const Auth = ({onEnter,onEnterAsNew}) => {
   const WelcomeCard = () => (
     <div style={CARD_STYLE}>
 
-      <div style={{textAlign:"center",marginBottom:24}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:9,background:"rgba(155,126,200,.09)",borderRadius:14,padding:"7px 16px",border:"1px solid rgba(155,126,200,.18)"}}>
-          <img src="/bev_neutral.png" alt="Bev" style={{width:40,height:40,objectFit:"contain"}}/>
-          <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink,letterSpacing:"-.02em",lineHeight:1}}>Wovely</div>
-        </div>
+      <div style={{textAlign:"center",marginBottom:16}}>
+        <img src="/bev_large.png" alt="Bev" style={{width:110,height:110,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>
+        <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,letterSpacing:"-.02em"}}>Wovely</div>
       </div>
       <div style={{textAlign:"center",marginBottom:28}}>
         <div style={{fontFamily:T.serif,fontSize:isDesktop?34:28,fontWeight:700,color:T.ink,lineHeight:1.05,letterSpacing:"-.025em",marginBottom:8}}>
