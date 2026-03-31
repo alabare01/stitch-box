@@ -861,73 +861,88 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
 const BrowseSitesView = ({onSavePattern}) => {
   const{isDesktop,isTablet,isMobile}=useBreakpoint();
-  const [activeSite,setActiveSite]=useState(null),[currentUrl,setCurrentUrl]=useState(""),[importing,setImporting]=useState(false),[importErr,setImportErr]=useState(null),[importOk,setImportOk]=useState(false);
-  const iframeRef=useRef(null);
+  const [url,setUrl]=useState(""),[loading,setLoading]=useState(false),[error,setError]=useState(null),[preview,setPreview]=useState(null);
   const SITES=[
-    {name:"AllFreeCrochet",desc:"The largest free crochet pattern library.",url:"https://www.allfreecrochet.com",tags:["Blankets","Amigurumi","Wearables"],free:true,photo:PILL[4]},
-    {name:"Drops Design",desc:"Free international patterns.",url:"https://www.garnstudio.com",tags:["Garments","Accessories"],free:true,photo:PILL[0]},
-    {name:"Yarnspirations",desc:"Official home of Caron and Bernat patterns.",url:"https://www.yarnspirations.com/collections/crochet-patterns",tags:["Beginner","Blankets"],free:true,photo:PILL[3]},
-    {name:"Sarah Maker",desc:"Modern, well-photographed patterns.",url:"https://sarahmaker.com/crochet-patterns/",tags:["Modern","Beginner","Amigurumi"],free:true,photo:PILL[2]},
-    {name:"Hopeful Honey",desc:"Beloved amigurumi patterns.",url:"https://www.hopefulhoney.com/p/free-crochet-patterns.html",tags:["Amigurumi","Toys"],free:true,photo:PILL[5]},
-    {name:"The Woobles",desc:"Amigurumi kits and free beginner tutorials.",url:"https://thewoobles.com/pages/free-crochet-patterns",tags:["Amigurumi","Beginner"],free:true,photo:PILL[1]},
-    {name:"Ravelry",desc:"World's largest pattern database.",url:"https://www.ravelry.com/patterns/library#craft=crochet",tags:["All categories","Free + Paid"],free:false,photo:PILL[0],note:"Log in on your device, then browse and save any pattern."},
-    {name:"LoveCrafts",desc:"Quality free and paid patterns.",url:"https://www.lovecrafts.com/en-us/l/crochet/crochet-patterns?price=free",tags:["Garments","Modern"],free:false,photo:PILL[2]},
+    {name:"AllFreeCrochet",desc:"The largest free crochet pattern library.",url:"https://www.allfreecrochet.com",tags:["Blankets","Amigurumi","Wearables"],free:true},
+    {name:"Drops Design",desc:"Free international patterns.",url:"https://www.garnstudio.com",tags:["Garments","Accessories"],free:true},
+    {name:"Yarnspirations",desc:"Official home of Caron and Bernat patterns.",url:"https://www.yarnspirations.com/collections/crochet-patterns",tags:["Beginner","Blankets"],free:true},
+    {name:"Sarah Maker",desc:"Modern, well-photographed patterns.",url:"https://sarahmaker.com/crochet-patterns/",tags:["Modern","Beginner","Amigurumi"],free:true},
+    {name:"Hopeful Honey",desc:"Beloved amigurumi patterns.",url:"https://www.hopefulhoney.com/p/free-crochet-patterns.html",tags:["Amigurumi","Toys"],free:true},
+    {name:"The Woobles",desc:"Amigurumi kits and free beginner tutorials.",url:"https://thewoobles.com/pages/free-crochet-patterns",tags:["Amigurumi","Beginner"],free:true},
+    {name:"Ravelry",desc:"World's largest pattern database.",url:"https://www.ravelry.com/patterns/library#craft=crochet",tags:["All categories","Free + Paid"],free:false},
+    {name:"LoveCrafts",desc:"Quality free and paid patterns.",url:"https://www.lovecrafts.com/en-us/l/crochet/crochet-patterns?price=free",tags:["Garments","Modern"],free:false},
   ];
-  const handleIframeLoad=()=>{try{const u=iframeRef.current?.contentWindow?.location?.href;if(u&&u!=="about:blank"){setCurrentUrl(u);setImportErr(null);setImportOk(false);}}catch(e){}};
-  const closeSite=()=>{setActiveSite(null);setCurrentUrl("");setImportErr(null);setImportOk(false);};
   const doImport=async()=>{
-    const urlToImport=currentUrl||activeSite?.url; if(!urlToImport) return;
-    setImporting(true);setImportErr(null);setImportOk(false);
+    if(!url.trim()) return;
+    setLoading(true);setError(null);setPreview(null);
     try{
-      const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:urlToImport})});
-      const data=await res.json(); if(!res.ok||data.error) throw new Error(data.error||"Could not read that page");
-      const rows=(data.rows||[]).map((r,i)=>({id:Date.now()+i,text:r.text,done:false,note:""}));
-      onSavePattern&&onSavePattern({id:Date.now(),photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},...data,rows});
-      setImportOk(true); setTimeout(closeSite,1800);
-    }catch(e){setImportErr("Couldn't read this page. Try navigating directly to the pattern and tapping Save again.");}
-    finally{setImporting(false);}
+      const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.trim()})});
+      const data=await res.json();
+      if(!res.ok||data.error) throw new Error(data.error||"Could not read that page");
+      const rows=(data.rows||[]).map((r,i)=>({id:Date.now()+i,text:r.text||"",done:false,note:""}));
+      onSavePattern&&onSavePattern({id:Date.now(),title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60}});
+      setPreview(data.title||"Pattern");setUrl("");
+      setTimeout(()=>setPreview(null),3000);
+    }catch(e){setError("Couldn't extract a pattern from that URL. Make sure you're linking to a specific pattern page.");}
+    finally{setLoading(false);}
   };
-  if(activeSite) return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",background:T.bg}}>
-      <div style={{background:"#2D2D4E",padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <button onClick={closeSite} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:600,color:"#fff",cursor:"pointer",flexShrink:0}}>← Back</button>
-        <div style={{flex:1,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:10,padding:"7px 12px",display:"flex",alignItems:"center",gap:7,minWidth:0}}><span style={{fontSize:10,color:"rgba(255,255,255,.4)",flexShrink:0}}>🌐</span><div style={{fontSize:11,color:"rgba(255,255,255,.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,fontFamily:"monospace"}}>{currentUrl||activeSite.url}</div></div>
-        <button onClick={()=>window.open(currentUrl||activeSite.url,"_blank","noopener,noreferrer")} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"8px 10px",fontSize:15,cursor:"pointer",flexShrink:0,color:"rgba(255,255,255,.7)"}}>↗</button>
-      </div>
-      <div style={{background:"rgba(28,23,20,.06)",borderBottom:`1px solid ${T.border}`,padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-        <div style={{width:6,height:6,borderRadius:99,background:T.terra,flexShrink:0}}/><div style={{fontSize:10,color:T.ink3,fontWeight:500}}>Browsing {activeSite.name} inside Wovely</div><div style={{flex:1}}/><div style={{fontSize:10,color:T.ink3,opacity:.6}}>Tap "Save This Pattern" when ready</div>
-      </div>
-      <div style={{flex:1,position:"relative",overflow:"hidden"}}><iframe ref={iframeRef} src={activeSite.url} onLoad={handleIframeLoad} style={{width:"100%",height:"100%",border:"none"}} title={activeSite.name} sandbox="allow-scripts allow-same-origin allow-forms allow-popups"/></div>
-      <div style={{background:T.surface,borderTop:`2px solid ${T.terra}`,padding:"12px 16px",flexShrink:0}}>
-        {activeSite.note&&<div style={{fontSize:11,color:T.terra,marginBottom:8,display:"flex",gap:6,alignItems:"flex-start"}}><span style={{flexShrink:0}}>ℹ️</span><span>{activeSite.note}</span></div>}
-        {importOk?<div style={{background:T.sageLt,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>✅</span><div style={{fontSize:13,fontWeight:600,color:T.sage}}>Pattern saved to My Wovely!</div></div>
-        :<><button onClick={doImport} disabled={importing} style={{width:"100%",background:importing?T.ink3:`linear-gradient(135deg,#2D3A7C,${T.terra})`,color:"#fff",border:"none",borderRadius:14,padding:"15px 20px",fontSize:15,fontWeight:700,cursor:importing?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:importing?"none":"0 4px 20px rgba(155,126,200,.4)",transition:"all .15s",marginBottom:6}}>{importing?<><div className="spinner" style={{width:16,height:16,border:"2px solid rgba(255,255,255,.3)",borderTop:"2px solid #fff",borderRadius:"50%"}}/> Reading pattern…</>:<><span style={{fontSize:18}}>🧶</span> Save This Pattern</>}</button>
-        <div style={{fontSize:10,color:T.ink3,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",padding:"0 8px"}}>{currentUrl&&currentUrl!==activeSite.url?"Will import: "+currentUrl:"Navigate to a pattern page, then tap Save"}</div>
-        {importErr&&<div style={{marginTop:8,background:"#FFF0EE",borderRadius:8,padding:"8px 12px",border:"1px solid #F5C6BB"}}><div style={{fontSize:12,color:"#C0392B"}}>{importErr}</div></div>}</>}
-      </div>
-    </div>
-  );
   return (
-    <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF"}}>
-      <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6,marginBottom:20}}>Browse any of these sites directly inside Wovely. Find a pattern you love, then import it in one tap.</div>
-      <div style={{background:"#EDE4F7",borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"flex-start",gap:10,marginBottom:24}}>
-        <span style={{color:"#9B7EC8",fontSize:16,flexShrink:0,marginTop:1}}>ℹ</span>
-        <div style={{fontSize:13,color:"#6B6B8A",lineHeight:1.5}}>Some sites may require an account or purchase. Wovely gives you access to browse — what's available depends on the site.</div>
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:20,justifyContent:"center"}}>
-        {SITES.map(s=>(
-          <div key={s.name} style={{background:"#FFFFFF",borderRadius:16,border:"1px solid #EDE4F7",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",position:"relative",transition:"transform .15s,box-shadow .15s",overflow:"hidden",width:isDesktop?"calc(33.333% - 14px)":isTablet?"calc(50% - 10px)":"100%"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(155,126,200,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.06)";}}>
-            <div style={{background:"linear-gradient(135deg, #EDE4F7 0%, #F8F6FF 100%)",height:80,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:"#2D2D4E"}}>{s.name}</div>
-              <div style={{position:"absolute",top:12,right:12}}><div style={{background:s.free?"#5C9E7A":"#2D3A7C",borderRadius:9999,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
-            </div>
-            <div style={{padding:"16px 20px 20px",textAlign:"center"}}>
-              <div style={{fontSize:13,color:"#6B6B8A",lineHeight:1.5,marginBottom:12}}>{s.desc}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginBottom:16}}>{s.tags.map(t=><div key={t} style={{background:"#EDE4F7",borderRadius:9999,padding:"3px 10px",fontSize:10,fontWeight:600,color:"#9B7EC8"}}>{t}</div>)}</div>
-              <button onClick={()=>setActiveSite(s)} style={{width:"100%",background:"#9B7EC8",color:"#fff",border:"none",borderRadius:9999,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Browse {s.name}</button>
-            </div>
+    <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF",maxWidth:900,margin:"0 auto"}}>
+      {/* Section 1 — URL Import */}
+      <div style={{background:"#FFFFFF",borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"32px":"24px 20px",marginBottom:32,boxShadow:"0 2px 12px rgba(155,126,200,.06)"}}>
+        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,color:"#2D2D4E",marginBottom:8}}>Import a Pattern</div>
+        <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Find a pattern on any crochet site, copy the URL from your browser, and paste it below to import it directly into Wovely.</div>
+        <div style={{display:"flex",gap:10,flexDirection:isMobile?"column":"row"}}>
+          <div style={{flex:1,display:"flex",alignItems:"center",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"12px 16px",gap:10}}>
+            <span style={{color:T.ink3,flexShrink:0}}>🔗</span>
+            <input value={url} onChange={e=>setUrl(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doImport()} placeholder="https://allfreecrochet.com/..." style={{border:"none",background:"transparent",flex:1,fontSize:14,color:T.ink,outline:"none",minWidth:0}}/>
           </div>
-        ))}
+          <button onClick={doImport} disabled={!url.trim()||loading} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:!url.trim()||loading?"not-allowed":"pointer",opacity:!url.trim()||loading?.6:1,whiteSpace:"nowrap",flexShrink:0}}>{loading?"Importing...":"Import Pattern →"}</button>
+        </div>
+        {loading&&<div style={{marginTop:16,display:"flex",alignItems:"center",gap:10}}><div className="spinner" style={{width:18,height:18,border:`2px solid ${T.border}`,borderTopColor:"#9B7EC8",borderRadius:"50%"}}/><span style={{fontSize:13,color:"#6B6B8A"}}>Reading pattern page...</span></div>}
+        {error&&<div style={{marginTop:14,background:"#FFF0EE",borderRadius:10,padding:"12px 16px",border:"1px solid #F5C6BB",fontSize:13,color:"#C05A5A",lineHeight:1.6}}>{error}</div>}
+        {preview&&<div style={{marginTop:14,background:T.sageLt,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✅</span><span style={{fontSize:13,fontWeight:600,color:T.sage}}>"{preview}" saved to My Wovely!</span></div>}
+      </div>
+
+      {/* Section 2 — Partner Sites Grid */}
+      <div style={{marginBottom:32}}>
+        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:6}}>Browse Partner Sites</div>
+        <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Open any site below to browse their patterns. When you find one you love, copy the URL and paste it above.</div>
+        <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(3,1fr)":isTablet?"repeat(2,1fr)":"1fr",gap:16}}>
+          {SITES.map(s=>(
+            <div key={s.name} style={{background:"#FFFFFF",borderRadius:16,border:"1px solid #EDE4F7",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",overflow:"hidden",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(155,126,200,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.06)";}}>
+              <div style={{background:"linear-gradient(135deg, #EDE4F7 0%, #F8F6FF 100%)",height:72,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+                <div style={{fontFamily:T.serif,fontSize:17,fontWeight:600,color:"#2D2D4E"}}>{s.name}</div>
+                <div style={{position:"absolute",top:10,right:10}}><div style={{background:s.free?"#5C9E7A":"#2D3A7C",borderRadius:9999,padding:"2px 8px",fontSize:9,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
+              </div>
+              <div style={{padding:"14px 18px 18px"}}>
+                <div style={{fontSize:13,color:"#6B6B8A",lineHeight:1.5,marginBottom:10}}>{s.desc}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14}}>{s.tags.map(t=><div key={t} style={{background:"#EDE4F7",borderRadius:9999,padding:"2px 8px",fontSize:10,fontWeight:600,color:"#9B7EC8"}}>{t}</div>)}</div>
+                <a href={s.url} target="_blank" rel="noopener noreferrer" style={{display:"block",width:"100%",background:"#9B7EC8",color:"#fff",border:"none",borderRadius:9999,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer",textAlign:"center",textDecoration:"none",boxSizing:"border-box"}}>Visit {s.name} →</a>
+                <div style={{fontSize:11,color:"#9B9B9B",textAlign:"center",marginTop:6}}>Opens in new tab</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 3 — Coming Soon Banner */}
+      <div style={{background:"#EDE4F7",borderRadius:16,padding:isDesktop?"28px 32px":"24px 20px",display:"flex",flexDirection:isMobile?"column":"row",alignItems:isMobile?"flex-start":"center",gap:isMobile?20:32}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:28,marginBottom:10}}>🧶</div>
+          <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:8}}>Seamless browsing is coming.</div>
+          <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7}}>The Wovely app will let you browse any crochet site and save patterns with a single tap — no copying, no pasting.</div>
+        </div>
+        <div style={{display:"flex",gap:12,alignItems:"center",flexShrink:0}}>
+          <div style={{position:"relative",cursor:"default"}}>
+            <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" style={{height:40,opacity:.45,display:"block"}}/>
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{background:"#9B7EC8",color:"#fff",fontSize:9,fontWeight:700,borderRadius:99,padding:"2px 8px"}}>Coming Soon</span></div>
+          </div>
+          <div style={{position:"relative",cursor:"default"}}>
+            <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Google Play" style={{height:40,opacity:.45,display:"block"}}/>
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{background:"#9B7EC8",color:"#fff",fontSize:9,fontWeight:700,borderRadius:99,padding:"2px 8px"}}>Coming Soon</span></div>
+          </div>
+        </div>
       </div>
     </div>
   );
