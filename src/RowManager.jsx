@@ -187,7 +187,7 @@ const RowManager = ({
       </div>}
       {rows.length===0?(
         <div style={{textAlign:"center",padding:"48px 20px"}}>
-          <div style={{fontSize:40,marginBottom:14}}>🧶</div>
+          <div style={{marginBottom:14}}><img src="/bev_neutral.png" style={{width:40,height:40,objectFit:"contain"}}/></div>
           <div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:T.ink2,marginBottom:8}}>No rows added yet</div>
           <div style={{fontSize:13,color:T.ink3,lineHeight:1.6,marginBottom:20}}>Add rows to start building this pattern step by step.</div>
           <button onClick={()=>{if(!editing)setEditing(true);}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Add Rows</button>

@@ -179,7 +179,7 @@ const Stars = ({val=0,onChange,ro}) => (
 );
 const Photo = ({src,alt,style:sx}) => {
   const [err,setErr]=useState(false);
-  if(err) return <div style={{...sx,background:"linear-gradient(145deg,#C4855A,#6B3A22)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,opacity:.4}}>🧶</span></div>;
+  if(err) return <div style={{...sx,background:"linear-gradient(145deg,#C4855A,#6B3A22)",display:"flex",alignItems:"center",justifyContent:"center"}}><img src="/bev_neutral.png" style={{width:32,height:32,objectFit:"contain",opacity:.4}}/></div>;
   return <img src={src} alt={alt} onError={()=>setErr(true)} style={{...sx,objectFit:"cover",display:"block"}}/>;
 };
 
@@ -407,7 +407,7 @@ const PaywallGate = ({onClose,onUpgrade,patternCount}) => (
     <div className="dim-in" style={{position:"absolute",inset:0,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)"}}/>
     <div className="su" onClick={e=>e.stopPropagation()} style={{position:"relative",background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",padding:"28px 24px 52px",zIndex:1}}>
       <div style={{width:36,height:3,background:T.border,borderRadius:99,margin:"0 auto 24px"}}/>
-      <div style={{width:64,height:64,borderRadius:20,background:`linear-gradient(135deg,#2D3A7C,${T.terra})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 16px",boxShadow:"0 8px 24px rgba(155,126,200,.35)"}}>🧶</div>
+      <div style={{width:64,height:64,borderRadius:20,background:`linear-gradient(135deg,#2D3A7C,${T.terra})`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",boxShadow:"0 8px 24px rgba(155,126,200,.35)"}}><img src="/bev_neutral.png" style={{width:28,height:28,objectFit:"contain"}}/></div>
       <div style={{textAlign:"center",marginBottom:24}}>
         <div style={{fontFamily:T.serif,fontSize:22,color:T.ink,marginBottom:8}}>Pattern library full</div>
         <div style={{fontSize:14,color:T.ink2,lineHeight:1.7,maxWidth:320,margin:"0 auto"}}>You've used all {TIER_CONFIG.free.patternCap} free patterns. Upgrade to Pro for unlimited storage and every import method.</div>
@@ -438,7 +438,8 @@ const PaywallGate = ({onClose,onUpgrade,patternCount}) => (
 const SidebarNav = ({view,onNavigate,count,isPro,onAddPattern,onSignOut,onUpgrade,userPatterns=[],allPatterns=[]}) => {
   const starterC=DEFAULT_STARTERS.length;const addedC=userPatterns.filter(p=>!p.isStarter).length;
   const wipCount=allPatterns.filter(p=>!p.isStarter&&(p.status==="in_progress"||p.started)).filter(p=>pct(p)<100).length;
-  const ITEMS=[{key:"collection",label:"My Wovely",sub:starterC+" starter"+(starterC!==1?"s":"")+" · "+addedC+" added",icon:"🧶"},{key:"wip",label:"On the Hook",sub:wipCount>0?wipCount+" active":"Currently making",icon:"🪡"},{key:"browse",label:"Find Patterns",sub:"Find & browse patterns",icon:"🌐"},{key:"stash",label:"Stash & Notions",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"The Workbench",sub:"Gauge, yardage & more",icon:"🧮"},{key:"stitch-check",label:"Stitch Check",sub:isPro?"Validate any pattern":"Pro feature",icon:"🛡️",proOnly:true},{key:"shopping",label:"Supply Run",sub:"Auto-generated",icon:"🛒"}];
+  const BevIcon=({s=18})=><img src="/bev_neutral.png" style={{width:s,height:s,objectFit:"contain",verticalAlign:"middle"}}/>;
+  const ITEMS=[{key:"collection",label:"My Wovely",sub:starterC+" starter"+(starterC!==1?"s":"")+" · "+addedC+" added",icon:<BevIcon/>},{key:"wip",label:"On the Hook",sub:wipCount>0?wipCount+" active":"Currently making",icon:"🪡"},{key:"browse",label:"Find Patterns",sub:"Find & browse patterns",icon:"🌐"},{key:"stash",label:"Stash & Notions",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"The Workbench",sub:"Gauge, yardage & more",icon:"🧮"},{key:"stitch-check",label:"Stitch Check",sub:isPro?"Validate any pattern":"Pro feature",icon:"🛡️",proOnly:true},{key:"shopping",label:"Supply Run",sub:"Auto-generated",icon:"🛒"}];
   return (
     <div style={{width:260,background:"#9B7EC8",height:"100vh",position:"sticky",top:0,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div onClick={()=>onNavigate("collection")} style={{padding:"32px 20px 24px",cursor:"pointer",transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
@@ -483,7 +484,7 @@ const NavPanel = ({open,onClose,view,onNavigate,count,isPro,onSignOut,onUpgrade}
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
   const go=v=>{onNavigate(v);dismiss();};
   if(!open) return null;
-  const ITEMS=[{key:"collection",label:"My Wovely",sub:count+" patterns",icon:"🧶"},{key:"wip",label:"On the Hook",sub:"Currently making",icon:"🪡"},{key:"browse",label:"Find Patterns",sub:"Find & browse patterns",icon:"🌐"},{key:"stash",label:"Stash & Notions",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"The Workbench",sub:"Gauge, yardage & more",icon:"🧮"},{key:"stitch-check",label:"Stitch Check",sub:isPro?"Validate any pattern":"Pro feature",icon:"🛡️",proOnly:true},{key:"shopping",label:"Supply Run",sub:"Auto-generated needs",icon:"🛒"}];
+  const ITEMS=[{key:"collection",label:"My Wovely",sub:count+" patterns",icon:<img src="/bev_neutral.png" style={{width:20,height:20,objectFit:"contain",verticalAlign:"middle"}}/>},{key:"wip",label:"On the Hook",sub:"Currently making",icon:"🪡"},{key:"browse",label:"Find Patterns",sub:"Find & browse patterns",icon:"🌐"},{key:"stash",label:"Stash & Notions",sub:"Manage your yarn",icon:"🎀"},{key:"calculator",label:"The Workbench",sub:"Gauge, yardage & more",icon:"🧮"},{key:"stitch-check",label:"Stitch Check",sub:isPro?"Validate any pattern":"Pro feature",icon:"🛡️",proOnly:true},{key:"shopping",label:"Supply Run",sub:"Auto-generated needs",icon:"🛒"}];
   return (
     <div style={{position:"fixed",inset:0,zIndex:100}}>
       <div className={closing?"dim-out":"dim-in"} onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.52)",backdropFilter:"blur(3px)"}}/>
@@ -754,7 +755,7 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
           <div style={{position:"absolute",inset:0,background:"linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0.05) 100%)"}}/>
           <button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_dismissed","true");}} style={{position:"absolute",top:12,right:16,background:"transparent",border:"none",color:"#fff",fontSize:20,cursor:"pointer",lineHeight:1,zIndex:2}}>×</button>
           <div style={{position:"relative",zIndex:1,height:"100%",display:"flex",flexDirection:"column",justifyContent:"center",paddingLeft:32}}>
-            <div style={{fontFamily:T.serif,fontSize:32,fontWeight:700,color:"#fff",marginBottom:8,lineHeight:1.2}}>Welcome to Wovely. 🧶</div>
+            <div style={{fontFamily:T.serif,fontSize:32,fontWeight:700,color:"#fff",marginBottom:8,lineHeight:1.2}}>Welcome to Wovely. <img src="/bev_neutral.png" style={{width:28,height:28,objectFit:"contain",verticalAlign:"middle"}}/></div>
             <div style={{fontSize:15,color:"rgba(255,255,255,0.88)",marginBottom:20}}>Your collection is ready. Time to make something.</div>
             <div><button onClick={()=>{setWelcomeDismissed(true);localStorage.setItem("yh_welcome_dismissed","true");onGoHome();}} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontSize:15,fontWeight:600,cursor:"pointer"}}>Go to My Wovely →</button></div>
           </div>
@@ -976,7 +977,7 @@ const YarnStash = () => {
   if(stash.length===0&&!adding) return (
     <div style={{padding:isD?"0 0 100px":"0 18px 100px"}}>
       <div style={{...CARD,textAlign:"center",padding:"60px 32px"}}>
-        <div style={{fontSize:48,marginBottom:16}}>🧶</div>
+        <div style={{marginBottom:16}}><img src="/bev_neutral.png" style={{width:48,height:48,objectFit:"contain"}}/></div>
         <div style={{fontFamily:T.serif,fontSize:22,fontWeight:700,color:T.ink,marginBottom:8}}>Your stash is empty</div>
         <div style={{fontSize:14,color:T.ink3,lineHeight:1.6,marginBottom:24,maxWidth:320,margin:"0 auto 24px"}}>Track every skein you own so you always know what you have before you buy.</div>
         <button onClick={()=>setAdding(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"14px 32px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>+ Add Your First Yarn</button>
@@ -1115,13 +1116,13 @@ const LegalFooter = () => (
 
 const WelcomeToast = ({visible}) => (
   <div style={{position:"fixed",top:16,right:16,zIndex:900,background:T.terra,color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(155,126,200,.4)",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,transform:visible?"translateX(0)":"translateX(20px)",transition:"opacity .4s ease, transform .4s ease",pointerEvents:"none"}}>
-    <span style={{fontSize:18}}>🧶</span> Welcome back! Your Wovely is ready.
+    <img src="/bev_neutral.png" style={{width:18,height:18,objectFit:"contain",verticalAlign:"middle"}}/> Welcome back! Your Wovely is ready.
   </div>
 );
 
 const WelcomeBanner = ({visible}) => (
   <div style={{background:T.terra,padding:"10px 16px",display:"flex",alignItems:"center",gap:8,opacity:visible?1:0,maxHeight:visible?50:0,overflow:"hidden",transition:"opacity .4s ease, max-height .4s ease"}}>
-    <span style={{fontSize:13,color:"#fff",fontWeight:500,lineHeight:1.4}}>Welcome to Wovely! 🧶 Your starter patterns are ready — start exploring.</span>
+    <span style={{fontSize:13,color:"#fff",fontWeight:500,lineHeight:1.4}}>Welcome to Wovely! <img src="/bev_neutral.png" style={{width:14,height:14,objectFit:"contain",verticalAlign:"middle"}}/> Your starter patterns are ready — start exploring.</span>
   </div>
 );
 
@@ -1185,7 +1186,7 @@ const OnboardingScreen = ({onComplete,onBackToAuth}) => {
           <button onClick={onBackToAuth} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>
           <div style={{textAlign:"center",marginBottom:28}}>
             <div style={{fontSize:11,color:T.ink3,fontWeight:500,letterSpacing:".06em",marginBottom:10}}>Step 2 of 2</div>
-            <div style={{fontSize:48,marginBottom:12}}>🧶</div>
+            <div style={{marginBottom:12}}><img src="/bev_neutral.png" style={{width:48,height:48,objectFit:"contain"}}/></div>
             <div style={{fontFamily:T.serif,fontSize:isDesktop?32:26,fontWeight:700,color:T.ink,lineHeight:1.1,letterSpacing:"-.02em"}}>Set up your profile</div>
             <p style={{fontSize:14,color:T.ink3,marginTop:8,lineHeight:1.6}}>Let other makers know who you are.</p>
           </div>
@@ -1312,7 +1313,7 @@ const MasterDocView = () => {
                 <div style={{padding:isDesktop?"22px 28px 18px":"18px 20px 14px",borderBottom:`1px solid ${T.border}`,background:entry.major?"linear-gradient(135deg, #FAF0EC 0%, "+T.card+" 100%)":T.card}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                     <span style={{fontFamily:"'Inter', monospace",fontSize:isDesktop?22:18,fontWeight:700,color:T.ink,letterSpacing:"-0.02em"}}>{entry.version}</span>
-                    {entry.major && <span style={{fontSize:16}} title="Major release">🧶</span>}
+                    {entry.major && <span title="Major release"><img src="/bev_neutral.png" style={{width:16,height:16,objectFit:"contain",verticalAlign:"middle"}}/></span>}
                     <span style={{fontSize:12,color:T.ink3,fontWeight:500,marginLeft:"auto"}}>{entry.date}</span>
                   </div>
                 </div>
@@ -1388,7 +1389,7 @@ const MasterDocView = () => {
     <div style={{minHeight:"100vh",background:"#FFFFFF",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:'"Inter",-apple-system,sans-serif'}}>
       <div style={{width:"100%",maxWidth:380,padding:"40px 32px",background:"#FFFFFF",borderRadius:20,border:"1px solid #EDE4F7",boxShadow:"0 8px 32px rgba(155,126,200,.08)"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:40,marginBottom:12}}>🧶</div>
+          <div style={{marginBottom:12}}><img src="/bev_neutral.png" style={{width:40,height:40,objectFit:"contain"}}/></div>
           <div style={{fontFamily:'"Playfair Display",Georgia,serif',fontSize:22,fontWeight:700,color:"#2D2D4E"}}>Wovely Admin</div>
           <div style={{fontSize:13,color:"#6B6B8A",marginTop:6}}>Enter password to view</div>
         </div>
@@ -1495,7 +1496,7 @@ const ChangelogPage = () => {
       {/* Header bar */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"0 24px",height:60,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:20}}>
         <div style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>navigate("/")}>
-          <span style={{fontSize:22}}>🧶</span>
+          <img src="/bev_neutral.png" style={{width:22,height:22,objectFit:"contain",verticalAlign:"middle"}}/>
           <span style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>Wovely</span>
         </div>
         <div style={{fontSize:12,color:T.ink3,fontWeight:500,letterSpacing:".04em",textTransform:"uppercase"}}>Changelog</div>
@@ -1543,7 +1544,7 @@ const ChangelogPage = () => {
                 <div style={{padding:isDesktop?"22px 28px 18px":"18px 20px 14px",borderBottom:`1px solid ${T.border}`,background:entry.major?"linear-gradient(135deg, #FAF0EC 0%, "+T.card+" 100%)":T.card}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                     <span style={{fontFamily:"'Inter', monospace",fontSize:isDesktop?22:18,fontWeight:700,color:T.ink,letterSpacing:"-0.02em"}}>{entry.version}</span>
-                    {entry.major && <span style={{fontSize:16}} title="Major release">🧶</span>}
+                    {entry.major && <span title="Major release"><img src="/bev_neutral.png" style={{width:16,height:16,objectFit:"contain",verticalAlign:"middle"}}/></span>}
                     <span style={{fontSize:12,color:T.ink3,fontWeight:500,marginLeft:"auto"}}>{entry.date}</span>
                   </div>
                 </div>

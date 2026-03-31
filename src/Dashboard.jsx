@@ -111,7 +111,7 @@ const HiveCarousel = () => {
 
   return (
     <div style={{padding:"16px 0 8px",position:"relative"}}>
-      {toast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:900,background:T.ink,color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,boxShadow:"0 8px 24px rgba(0,0,0,.3)"}}>Coming soon — stay tuned! 🧶</div>}
+      {toast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:900,background:T.ink,color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:600,boxShadow:"0 8px 24px rgba(0,0,0,.3)"}}>Coming soon — stay tuned!</div>}
       <div style={{position:"relative",overflow:"hidden",margin:"0 18px"}}>
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{display:"flex",gap:12,transform:`translateX(-${idx*(cardW+12)}px)`,transition:"transform .35s ease"}}>
           {CAROUSEL_CARDS.map(c=>(

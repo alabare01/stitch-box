@@ -55,7 +55,7 @@ const BeeAnimator = ({visible, isDesktop}) => {
   return (
     <div style={{width:W,height:H,marginBottom:-(H-26),position:"relative",zIndex:2,pointerEvents:"none",flexShrink:0,opacity:visible?1:0,transition:"opacity .3s ease"}}>
       <div ref={canvasRef} style={{position:"absolute",inset:0}}/>
-      <div ref={beeRef} style={{position:"absolute",top:0,left:0,fontSize:size,lineHeight:1,userSelect:"none",opacity:0,willChange:"transform"}}>🧶</div>
+      <div ref={beeRef} style={{position:"absolute",top:0,left:0,lineHeight:1,userSelect:"none",opacity:0,willChange:"transform"}}><img src="/bev_neutral.png" style={{width:size,height:size,objectFit:"contain"}}/></div>
     </div>
   );
 };
@@ -112,7 +112,7 @@ export const WaitlistPopup = () => {
       <div onClick={dismiss} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.5)"}}/>
       <div className="fu" style={{position:"relative",zIndex:1,background:T.modal,borderRadius:20,padding:40,maxWidth:420,width:"100%",boxShadow:"0 20px 60px rgba(155,126,200,.2)"}}>
         <button onClick={dismiss} style={{position:"absolute",top:14,right:16,background:"none",border:"none",color:T.ink3,fontSize:20,cursor:"pointer"}}>×</button>
-        {submitted?<div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:40,marginBottom:12}}>🧶</div><div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>You're on the list!</div><div style={{fontSize:14,color:T.ink3,marginTop:8}}>We'll be in touch.</div></div>:(
+        {submitted?<div style={{textAlign:"center",padding:"20px 0"}}><div style={{marginBottom:12}}><img src="/bev_neutral.png" style={{width:40,height:40,objectFit:"contain"}}/></div><div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>You're on the list!</div><div style={{fontSize:14,color:T.ink3,marginTop:8}}>We'll be in touch.</div></div>:(
           <>
             <div style={{textAlign:"center",marginBottom:24}}>
               <div style={{fontFamily:T.serif,fontSize:26,fontWeight:700,color:T.ink,lineHeight:1.2}}>Your next favorite pattern is waiting.</div>

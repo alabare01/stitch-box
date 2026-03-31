@@ -864,9 +864,9 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
   );
   // Complexity-aware loading messages
   const complexityMsg = complexity==="complex"
-    ? {emoji:"🧶🧶🧶", headline:"Big pattern. Bev is going all in.", sub:`${complexityStats?.pages||"Many"} pages of pure craft. Every round, every stitch, every note. Grab your hook — this might take a minute.`, barSpeed:80}
+    ? {emoji:<img src="/bev_neutral.png" style={{width:28,height:28,objectFit:"contain"}}/>, headline:"Big pattern. Bev is going all in.", sub:`${complexityStats?.pages||"Many"} pages of pure craft. Every round, every stitch, every note. Grab your hook — this might take a minute.`, barSpeed:80}
     : complexity==="detailed"
-    ? {emoji:"🧶🧶", headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
+    ? {emoji:<img src="/bev_neutral.png" style={{width:24,height:24,objectFit:"contain"}}/>, headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
     : {emoji:"🔎", headline:stageText, sub:null, barSpeed:300};
   const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:null, barSpeed:300};
   if(stage==="uploading"||stage==="extracting"||stage==="building") return (
@@ -889,7 +889,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
   );
   if(stage==="error") return (
     <div style={{padding:"24px 0"}}>
-      <div style={{fontSize:36,textAlign:"center",marginBottom:12}}>🧶</div>
+      <div style={{textAlign:"center",marginBottom:12}}><img src="/bev_neutral.png" style={{width:36,height:36,objectFit:"contain"}}/></div>
       <div style={{fontFamily:T.serif,fontSize:17,color:T.ink,textAlign:"center",marginBottom:6}}>This one stumped us</div>
       <div style={{fontSize:13,color:T.ink2,textAlign:"center",lineHeight:1.7,marginBottom:20}}>
         {fileInfo ? "We saved your file. Tap below to start building — your PDF will be right there as you go." : "We had trouble reading this pattern. Try another file or enter your rows manually."}
@@ -984,7 +984,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
                   <circle cx="40" cy="40" r="36" fill="none" stroke={T.linen} strokeWidth="4"/>
                   <circle cx="40" cy="40" r="36" fill="none" stroke={T.terra} strokeWidth="4" strokeLinecap="round" strokeDasharray={Math.round(2*Math.PI*36)} style={{animation:"scRingSpin 2.5s ease-in-out infinite"}}/>
                 </svg>
-                <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>🧶</span>
+                <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><img src="/bev_neutral.png" style={{width:24,height:24,objectFit:"contain"}}/></span>
               </div>
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
