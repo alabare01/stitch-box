@@ -43,7 +43,7 @@ export const supabaseAuth = {
     const s = getSession(); if(!s?.access_token) return null;
     try {
       const p = JSON.parse(atob(s.access_token.split(".")[1]));
-      if(p.exp*1000 < Date.now()) { saveSession(null); return null; }
+      if(p.exp*1000 < Date.now()) return null;
       return {id:p.sub, email:p.email};
     } catch { return null; }
   },

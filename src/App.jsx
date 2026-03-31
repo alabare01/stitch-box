@@ -1583,6 +1583,7 @@ export default function Wovely() {
 
   // Guard to prevent concurrent profile fetches from racing
   const isFetchingProfile = useRef(false);
+  const isValidating = useRef(false);
 
   // Validate session against Supabase on mount
   useEffect(()=>{
@@ -1591,10 +1592,10 @@ export default function Wovely() {
       setAuthed(false);
     };
     const validate = async () => {
+      if (isValidating.current) return;
+      isValidating.current = true;
       const s = getSession();
-      if (!s?.refresh_token) { clearAuth(); setAuthChecked(true); return; }
-      const localUser = supabaseAuth.getUser();
-      if (!localUser) { clearAuth(); setAuthChecked(true); return; }
+      if (!s?.refresh_token) { clearAuth(); setAuthChecked(true); isValidating.current=false; return; }
       try {
         const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
           method:"POST",
@@ -1643,6 +1644,7 @@ export default function Wovely() {
         clearAuth();
       }
       setAuthChecked(true);
+      isValidating.current=false;
     };
     validate();
   },[]);
