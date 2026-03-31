@@ -899,6 +899,7 @@ const BrowseSitesView = ({onSavePattern}) => {
           </div>
           <button onClick={doImport} disabled={!url.trim()||loading} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:!url.trim()||loading?"not-allowed":"pointer",opacity:!url.trim()||loading?.6:1,whiteSpace:"nowrap",flexShrink:0}}>{loading?"Importing...":"Import Pattern →"}</button>
         </div>
+        <div style={{fontSize:12,color:"#6B6B8A",marginTop:10,lineHeight:1.5}}>Patterns behind a paywall or login wall can't be imported by URL. Download the PDF and use our PDF import instead.</div>
         {loading&&<div style={{marginTop:16,display:"flex",alignItems:"center",gap:10}}><div className="spinner" style={{width:18,height:18,border:`2px solid ${T.border}`,borderTopColor:"#9B7EC8",borderRadius:"50%"}}/><span style={{fontSize:13,color:"#6B6B8A"}}>Reading pattern page...</span></div>}
         {error&&<div style={{marginTop:14,background:"#FFF0EE",borderRadius:10,padding:"12px 16px",border:"1px solid #F5C6BB",fontSize:13,color:"#C05A5A",lineHeight:1.6}}>{error}</div>}
         {preview&&<div style={{marginTop:14,background:T.sageLt,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✅</span><span style={{fontSize:13,fontWeight:600,color:T.sage}}>"{preview}" saved to My Wovely!</span></div>}
