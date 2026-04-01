@@ -661,13 +661,13 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onLoadingChange}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
-    setLoading(true);setError(null);setPreview(null);setValidationReport(null);setValidating(false);
+    setLoading(true);onLoadingChange?.(true);setError(null);setPreview(null);setValidationReport(null);setValidating(false);
     const MSGS=["Fetching pattern page...","Reading and extracting...","Structuring your pattern...","Almost there..."];
     let msgIdx=0;setStageText(MSGS[0]);
     const msgIntv=setInterval(()=>{msgIdx=(msgIdx+1)%MSGS.length;setStageText(MSGS[msgIdx]);},6000);
@@ -676,13 +676,13 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl}) => {
       const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.trim()})});
       data=await res.json();
       if(!res.ok||data.error) throw new Error(data.error||"Could not read that page");
-    }catch(err){clearInterval(msgIntv);setError("Couldn't read that pattern. Try a different URL or use Manual Entry.");setLoading(false);return;}
+    }catch(err){clearInterval(msgIntv);onLoadingChange?.(false);setError("Couldn't read that pattern. Try a different URL or use Manual Entry.");setLoading(false);return;}
     clearInterval(msgIntv);
     const rows=(data.rows||[]).map((r,i)=>({id:Date.now()+i,text:r.text||"",done:false,note:r.note||""}));
     const estimatedYardage=data.yardage>0?data.yardage:(data.materials||[]).reduce((sum,m)=>{if(m.yardage>0)return sum+m.yardage;const t=((m.name||"")+" "+(m.amount||"")).toLowerCase();const b=t.match(/(\d+)\s*ball/),s=t.match(/(\d+)\s*skein/);if(b)return sum+parseInt(b[1])*200;if(s)return sum+parseInt(s[1])*200;return sum;},0);
     const missing=[];if(!data.hook)missing.push("hook size");if(!data.weight)missing.push("yarn weight");if(!(data.yardage>0)&&!(estimatedYardage>0))missing.push("yardage");if(!(data.materials||[]).length)missing.push("materials list");
     setPreview({title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:estimatedYardage||data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,smartNote:rows.length+" steps extracted and ready to track.",qualityNote:missing.length===0?null:"Not found on source page: "+missing.join(", ")+". Pattern quality depends on the source."});
-    setLoading(false);
+    setLoading(false);onLoadingChange?.(false);
     // Run Stitch Check in background — same as PDF import
     const pageText=rows.map(r=>r.text).join("\n");
     if(pageText&&GEMINI_API_KEY){
@@ -747,7 +747,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl}) => {
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
+const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onLoadingChange}) => {
   const [stage,setStage]=useState("pick");
   const [progress,setProgress]=useState(0);
   const [stageText,setStageText]=useState("");
@@ -782,7 +782,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
       const isPDF=fileMime==="application/pdf"||f.name.toLowerCase().endsWith(".pdf");
       console.log("[Wovely] File:", f.name, f.type, (f.size/1024).toFixed(0)+"KB", "isPDF:", isPDF);
       // Stage 1: Upload to Cloudinary + render cover (parallel)
-      setStage("uploading");setStageText("Uploading your pattern...");setProgress(10);
+      setStage("uploading");setStageText("Uploading your pattern...");setProgress(10);onLoadingChange?.(true);
       const intv1=setInterval(()=>setProgress(p=>Math.min(p+3,30)),200);
       // Run upload and cover render in parallel
       const [uploaded, pdfCoverDataUrl] = await Promise.all([
@@ -870,7 +870,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);setStage("error");setErrorMsg("We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onLoadingChange?.(false);setStage("error");setErrorMsg("We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
       clearInterval(intv2);clearInterval(intv3);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
@@ -904,8 +904,8 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade}) => {
           setValidating(false);
         })();
       }
-      await new Promise(r=>setTimeout(r,400));setStage("review");
-    }catch(ex){console.error("[Wovely] PDF import error:",ex);setStage("error");setErrorMsg("Something went wrong. Try again or use manual entry.");}
+      await new Promise(r=>setTimeout(r,400));setStage("review");onLoadingChange?.(false);
+    }catch(ex){console.error("[Wovely] PDF import error:",ex);onLoadingChange?.(false);setStage("error");setErrorMsg("Something went wrong. Try again or use manual entry.");}
   };
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
@@ -1173,9 +1173,10 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
 
 const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
   const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
+  const [importing,setImporting]=useState(false);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{
-    if(method&&onMinimize){onMinimize();return;}
+    if(importing&&onMinimize){onMinimize();return;}
     setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);
   };
   const fullClose=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
@@ -1212,13 +1213,13 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,overflowY:"auto",borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column"}}>
         <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
-          <button onClick={fullClose} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          {!importing&&<button onClick={fullClose} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"8px 18px 18px"}}>
           {!method&&<MethodList/>}
           {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl}/>}
-          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){fullClose();onUpgrade();}}}/>}
+          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onLoadingChange={setImporting}/>}
+          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){fullClose();onUpgrade();}}} onLoadingChange={setImporting}/>}
           {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
           {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
         </div>
@@ -1239,8 +1240,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
         <div style={{flex:1,overflowY:"auto",padding:"0 28px 32px"}}>
           {!method&&<MethodList/>}
           {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl}/>}
-          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}}/>}
+          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onLoadingChange={setImporting}/>}
+          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onLoadingChange={setImporting}/>}
           {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
           {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
         </div>
@@ -1262,8 +1263,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
         <div style={{flex:1,overflowY:"auto",padding:"0 22px 40px"}}>
           {!method&&<MethodList/>}
           {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl}/>}
-          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}}/>}
+          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onLoadingChange={setImporting}/>}
+          {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onLoadingChange={setImporting}/>}
           {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
           {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
         </div>
