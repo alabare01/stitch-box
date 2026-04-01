@@ -276,6 +276,9 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const upAccum=useRef(0);
   const [headerHidden,setHeaderHidden]=useState(false);
   useEffect(()=>{
+    const el=scrollRef.current;if(el) el.scrollTop=0;
+  },[p.id||p._supabaseId]);
+  useEffect(()=>{
     const el=scrollRef.current;if(!el) return;
     const onScroll=()=>{
       const y=el.scrollTop;
