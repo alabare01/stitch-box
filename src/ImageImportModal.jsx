@@ -184,6 +184,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onImportProg
   };
 
   const handleSave = () => {
+    try {
     const rows = buildRowsFromComponents(extracted.components);
     const mats = (extracted.materials || []).map((m, i) => ({ id: i + 1, name: m.name || "", amount: m.amount || "", yardage: 0, notes: m.notes || "" }));
     onPatternSaved({
@@ -213,6 +214,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onImportProg
       validation_report: isPro && validationReport ? validationReport : null,
     });
     onImportProgress?.({stage:'done',pct:100,status:'done',patternTitle:editTitle||'Your pattern'});
+    } catch(ex) { console.error("[ImageImport] Save error:",ex); onImportProgress?.({stage:'error',pct:0,status:'error',patternTitle:null}); }
     dismiss();
   };
 
