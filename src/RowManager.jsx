@@ -26,9 +26,25 @@ const nextDotColor = (current) => {
   return DOT_COLORS[(idx + 1) % DOT_COLORS.length];
 };
 
-const SubCounter = ({row, globalIdx, onDotTap}) => {
+const hasTrailingStitches = (row) => {
+  const text = row.text || "";
+  const re = /\([^)]+\)\s*[x×]\s*\d+/gi;
+  let lastEnd = 0, m;
+  while ((m = re.exec(text)) !== null) lastEnd = m.index + m[0].length;
+  if (lastEnd === 0) return false;
+  const after = text.slice(lastEnd).replace(/[\s,;—–\-]+/g, " ").replace(/\(\d+\)\s*$/, "").trim();
+  return /[a-zA-Z]/.test(after);
+};
+
+const SubCounter = ({row, globalIdx, onDotTap, onRepeatDone}) => {
   const rb = (row.repeat_brackets || []).find(b => b.count > 1);
   if (!rb) return null;
+  if (row.repeat_done) return (
+    <div style={{paddingTop:8}} onClick={e => e.stopPropagation()}>
+      <div style={{fontSize:11, color:T.ink3, marginBottom:6}}>Repeat complete — finish remaining stitches</div>
+      <button onClick={() => onRepeatDone(globalIdx)} style={{background:T.terra, color:"#fff", border:"none", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:600, cursor:"pointer"}}>Tap to finish row</button>
+    </div>
+  );
   const dots = row.dot_state && row.dot_state.length === rb.count ? row.dot_state : Array(rb.count).fill(null);
   return (
     <div style={{paddingTop:8}} onClick={e => e.stopPropagation()}>
@@ -123,11 +139,23 @@ const RowManager = ({
     dots[dotIdx]=nextDotColor(dots[dotIdx]);
     const nextRows=rows.map((r,i)=>i===globalIdx?{...r,dot_state:dots}:r);
     if(dots.every(c=>c!==null)){
+      if(hasTrailingStitches(row)){
+        const partial=nextRows.map((r,i)=>i===globalIdx?{...r,repeat_done:true,dot_state:dots}:r);
+        setRows(partial);onSave({...p,rows:partial});return;
+      }
       const autoCheck=nextRows.map((r,i)=>i===globalIdx?{...r,done:true,dot_state:dots}:r);
       setRows(autoCheck);onSave({...p,rows:autoCheck});
       const newDone=pct({...p,rows:autoCheck}),prev2=prevDone.current;for(const m of [25,50,75,100]){if(prev2<m&&newDone>=m){setMilestone(m);break;}}prevDone.current=newDone;return;
     }
     setRows(nextRows);onSave({...p,rows:nextRows});
+  };
+
+  const handleRepeatDone=(globalIdx)=>{
+    const next=rows.map((r,i)=>i===globalIdx?{...r,done:true,repeat_done:false}:r);
+    setRows(next);onSave({...p,rows:next});
+    const newDone=pct({...p,rows:next}),prev=prevDone.current;
+    for(const m of [25,50,75,100]){if(prev<m&&newDone>=m){setMilestone(m);break;}}
+    prevDone.current=newDone;
   };
 
   const toggle=id=>{
@@ -153,12 +181,12 @@ const RowManager = ({
       }
       next=rows.map((row,i)=>{
         if(i===globalIdx){
-          const updated={...row,done:false};
+          const updated={...row,done:false,repeat_done:false};
           if(row.dot_state){const rb2=(row.repeat_brackets||[]).find(b=>b.count>1);updated.dot_state=Array(rb2?rb2.count:0).fill(null);}
           return updated;
         }
         if(!toUncheck.has(i))return row;
-        const updated={...row,done:false};
+        const updated={...row,done:false,repeat_done:false};
         if(row.dot_state){const rb2=(row.repeat_brackets||[]).find(b=>b.count>1);updated.dot_state=Array(rb2?rb2.count:0).fill(null);}
         return updated;
       });
@@ -238,7 +266,7 @@ const RowManager = ({
               <button onClick={e=>{e.stopPropagation();setNoteEdit(noteEdit===r.id?null:r.id);}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",padding:"4px"}}><span style={{color:r.note?T.terra:T.ink3,opacity:r.note?1:.5}}>📝</span></button>
             </div>}
           </div>
-          {!r.done&&!rowLocked&&(r.repeat_brackets||[]).some(b=>b.count>1)&&<div style={{padding:"0 8px 10px 47px"}}><SubCounter row={r} globalIdx={globalIdx} onDotTap={handleDotTap}/></div>}
+          {!r.done&&!rowLocked&&((r.repeat_brackets||[]).some(b=>b.count>1)||r.repeat_done)&&<div style={{padding:"0 8px 10px 47px"}}><SubCounter row={r} globalIdx={globalIdx} onDotTap={handleDotTap} onRepeatDone={handleRepeatDone}/></div>}
           {r.note&&noteEdit!==r.id&&!rowLocked&&<div onClick={e=>{e.stopPropagation();setNoteEdit(r.id);}} style={{padding:"0 8px 10px 47px",fontSize:12,color:T.ink3,lineHeight:1.5,cursor:"pointer"}}><span style={{fontSize:11}}>📌</span> <span style={{fontStyle:"italic"}}>{r.note}</span></div>}
           {newAbbr.length>0&&!rowLocked&&<div style={{padding:"0 8px 10px 47px",display:"flex",flexWrap:"wrap",gap:4}} onClick={e=>e.stopPropagation()}>{newAbbr.map(a=><button key={a.raw} onClick={e=>{e.stopPropagation();window.open(a.url,"_blank","noopener,noreferrer");}} style={{background:"transparent",color:T.terra,border:"1px solid rgba(155,126,200,0.4)",borderRadius:4,padding:"2px 6px",fontSize:10,fontWeight:500,cursor:"pointer"}}>{a.raw}</button>)}</div>}
           {noteEdit===r.id&&!rowLocked&&<div style={{padding:"0 8px 12px 47px",display:"flex",alignItems:"center",gap:8}}><input value={r.note} onChange={e=>updateNote(r.id,e.target.value)} placeholder="Add a note for this row…" style={{flex:1,padding:"9px 12px",background:T.linen,border:`1.5px solid ${T.terra}`,borderRadius:9,fontSize:13,color:T.ink,outline:"none"}}/>{noteSaved&&<span style={{fontSize:11,color:T.sage,fontWeight:600,flexShrink:0}}>Note saved</span>}</div>}
