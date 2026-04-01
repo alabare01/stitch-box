@@ -889,8 +889,8 @@ const BrowseSitesView = ({onSavePattern}) => {
   return (
     <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF",maxWidth:900,margin:"0 auto"}}>
       {/* Section 1 — URL Import */}
-      <div style={{background:"#FFFFFF",borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"32px":"24px 20px",marginBottom:32,boxShadow:"0 2px 12px rgba(155,126,200,.06)"}}>
-        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,color:"#2D2D4E",marginBottom:8}}>Import a Pattern</div>
+      <div style={{background:"#FFFFFF",borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"32px":"24px 20px",marginBottom:32,boxShadow:"0 2px 12px rgba(155,126,200,.06)",maxWidth:700}}>
+        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,color:"#2D2D4E",marginBottom:8,borderLeft:"3px solid #9B7EC8",paddingLeft:10}}>Import a Pattern</div>
         <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Find a pattern on any crochet site, copy the URL from your browser, and paste it below to import it directly into Wovely.</div>
         <div style={{display:"flex",gap:10,flexDirection:isMobile?"column":"row"}}>
           <div style={{flex:1,display:"flex",alignItems:"center",background:T.linen,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"12px 16px",gap:10}}>
@@ -899,7 +899,7 @@ const BrowseSitesView = ({onSavePattern}) => {
           </div>
           <button onClick={doImport} disabled={!url.trim()||loading} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:!url.trim()||loading?"not-allowed":"pointer",opacity:!url.trim()||loading?.6:1,whiteSpace:"nowrap",flexShrink:0}}>{loading?"Importing...":"Import Pattern →"}</button>
         </div>
-        <div style={{fontSize:12,color:"#6B6B8A",marginTop:10,lineHeight:1.5}}>Patterns behind a paywall or login wall can't be imported by URL. Download the PDF and use our PDF import instead.</div>
+        <div style={{background:"#FFF8E7",border:"1px solid #F0C040",borderRadius:8,padding:"8px 12px",marginTop:12,fontSize:12,color:"#856404",lineHeight:1.5,fontFamily:"Inter,sans-serif"}}>⚠️ Patterns behind a paywall or login wall can't be imported by URL. Download the PDF and use our PDF import instead.</div>
         {loading&&<div style={{marginTop:16,display:"flex",alignItems:"center",gap:10}}><div className="spinner" style={{width:18,height:18,border:`2px solid ${T.border}`,borderTopColor:"#9B7EC8",borderRadius:"50%"}}/><span style={{fontSize:13,color:"#6B6B8A"}}>Reading pattern page...</span></div>}
         {error&&<div style={{marginTop:14,background:"#FFF0EE",borderRadius:10,padding:"12px 16px",border:"1px solid #F5C6BB",fontSize:13,color:"#C05A5A",lineHeight:1.6}}>{error}</div>}
         {preview&&<div style={{marginTop:14,background:T.sageLt,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✅</span><span style={{fontSize:13,fontWeight:600,color:T.sage}}>"{preview}" saved to My Wovely!</span></div>}
@@ -907,7 +907,7 @@ const BrowseSitesView = ({onSavePattern}) => {
 
       {/* Section 2 — Partner Sites Grid */}
       <div style={{marginBottom:32}}>
-        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:6}}>Browse Partner Sites</div>
+        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:6,borderLeft:"3px solid #9B7EC8",paddingLeft:10}}>Browse Partner Sites</div>
         <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Open any site below to browse their patterns. When you find one you love, copy the URL and paste it above.</div>
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(3,1fr)":isTablet?"repeat(2,1fr)":"1fr",gap:16}}>
           {SITES.map(s=>(
@@ -924,24 +924,27 @@ const BrowseSitesView = ({onSavePattern}) => {
               </div>
             </div>
           ))}
+          <div style={{background:"#F8F6FF",borderRadius:16,border:"1.5px dashed #EDE4F7",display:"flex",alignItems:"center",justifyContent:"center",minHeight:200}}>
+            <div style={{textAlign:"center",padding:20}}><div style={{fontSize:24,marginBottom:8,opacity:.4}}>🌐</div><div style={{fontSize:13,color:"#9B9B9B",fontWeight:500}}>More sites coming soon</div></div>
+          </div>
         </div>
       </div>
 
       {/* Section 3 — Coming Soon Banner */}
       <div style={{background:"#EDE4F7",borderRadius:16,padding:isDesktop?"28px 32px":"24px 20px",display:"flex",flexDirection:isMobile?"column":"row",alignItems:isMobile?"flex-start":"center",gap:isMobile?20:32}}>
         <div style={{flex:1}}>
-          <div style={{fontSize:28,marginBottom:10}}>🧶</div>
+          <div style={{marginBottom:10}}><img src="/bev_neutral.png" alt="Bev" style={{width:48,height:48,objectFit:"contain"}} onError={e=>{e.target.style.display="none";e.target.parentElement.innerHTML="🐍";}}/></div>
           <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:8}}>Seamless browsing is coming.</div>
           <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7}}>The Wovely app will let you browse any crochet site and save patterns with a single tap — no copying, no pasting.</div>
         </div>
-        <div style={{display:"flex",gap:12,alignItems:"center",flexShrink:0}}>
-          <div style={{position:"relative",cursor:"default"}}>
-            <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" style={{height:40,opacity:.45,display:"block"}}/>
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{background:"#9B7EC8",color:"#fff",fontSize:9,fontWeight:700,borderRadius:99,padding:"2px 8px"}}>Coming Soon</span></div>
+        <div style={{display:"flex",gap:12,flexDirection:isMobile?"column":"row",alignItems:"center",flexShrink:0}}>
+          <div style={{background:"#1C1C1E",borderRadius:12,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,opacity:.7,cursor:"default",minWidth:120}}>
+            <svg width="20" height="24" viewBox="0 0 384 512" fill="#fff"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+            <div><div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Inter,sans-serif",lineHeight:1.2}}>App Store</div><div style={{fontSize:10,color:"rgba(255,255,255,.6)",fontFamily:"Inter,sans-serif"}}>Coming Soon</div></div>
           </div>
-          <div style={{position:"relative",cursor:"default"}}>
-            <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Google Play" style={{height:40,opacity:.45,display:"block"}}/>
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{background:"#9B7EC8",color:"#fff",fontSize:9,fontWeight:700,borderRadius:99,padding:"2px 8px"}}>Coming Soon</span></div>
+          <div style={{background:"#1C1C1E",borderRadius:12,padding:"12px 20px",display:"flex",alignItems:"center",gap:10,opacity:.7,cursor:"default",minWidth:120}}>
+            <svg width="18" height="20" viewBox="0 0 512 512" fill="#fff"><path d="M93.6 28.3l187.2 107.5L93.6 483.7c-5.1-4.4-8.2-10.8-8.2-18V46.3c0-7.2 3.1-13.6 8.2-18zm22.7-17L330 135.8 282.4 256 116.3 11.3zm0 473.4L282.4 256l47.6 120.2-213.7 124.5zM345.6 256l80.8-46.4c14.3-8.2 14.3-28.9 0-37.2L345.6 126l-52.8 130 52.8 130z"/></svg>
+            <div><div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Inter,sans-serif",lineHeight:1.2}}>Google Play</div><div style={{fontSize:10,color:"rgba(255,255,255,.6)",fontFamily:"Inter,sans-serif"}}>Coming Soon</div></div>
           </div>
         </div>
       </div>
