@@ -39,7 +39,7 @@ const LOADING_MSGS = [
   "Almost there...",
 ];
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onImportProgress }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -123,6 +123,10 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
     }, 3000);
 
     try {
+      onImportProgress?.({stage:'reading',pct:10,status:'running',patternTitle:null});
+      // Images are already compressed at selection time
+      onImportProgress?.({stage:'preparing',pct:35,status:'running',patternTitle:null});
+      onImportProgress?.({stage:'analyzing',pct:55,status:'running',patternTitle:null});
       const res = await fetch("/api/extract-pattern-vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,6 +145,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
       }
 
       const result = await res.json();
+      onImportProgress?.({stage:'building',pct:82,status:'running',patternTitle:null});
       setExtracted(result);
       setEditTitle(result.title || "");
       setEditDesigner(result.designer || "");
@@ -172,6 +177,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
     } catch (err) {
       clearInterval(msgInterval);
       console.error("[ImageImport] Extraction failed:", err);
+      onImportProgress?.({stage:'error',pct:0,status:'error',patternTitle:null});
       setErrorMsg(err.message || "We couldn't read this pattern from the photos.");
       setStage("error");
     }
@@ -206,6 +212,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
       suggested_resources: extracted.suggested_resources || [],
       validation_report: isPro && validationReport ? validationReport : null,
     });
+    onImportProgress?.({stage:'done',pct:100,status:'done',patternTitle:editTitle||'Your pattern'});
     dismiss();
   };
 
@@ -237,7 +244,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
         }}>Choose photos</div>
       </div>
       <input
-        ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" multiple
+        ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp" capture="environment" multiple
         onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
         style={{ display: "none" }}
       />
