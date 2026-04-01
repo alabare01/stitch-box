@@ -1164,8 +1164,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
           </div>
         ))}
       </div>
-      <div onClick={()=>setMethod("snap")} style={{background:"linear-gradient(135deg,#9B7EC8 0%,#8B3A2C 100%)",borderRadius:16,padding:20,cursor:"pointer",position:"relative",overflow:"hidden",transition:"transform .15s"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-        <div style={{position:"absolute",top:10,right:12,background:"rgba(255,255,255,.2)",borderRadius:99,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff"}}>3 free scans/mo</div>
+      <div style={{background:"linear-gradient(135deg,#9B7EC8 0%,#8B3A2C 100%)",borderRadius:16,padding:20,cursor:"not-allowed",position:"relative",overflow:"hidden",opacity:.4}}>
+        <div style={{position:"absolute",top:10,right:12,background:"rgba(255,255,255,.25)",borderRadius:99,padding:"3px 10px",fontSize:10,fontWeight:700,color:"#fff"}}>Soon</div>
         <div style={{fontSize:32,marginBottom:8}}>✨</div>
         <div style={{fontSize:17,fontWeight:700,color:"#fff",marginBottom:4}}>Snap & Stitch — Point. Click. Stitch.</div>
         <div style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.5}}>Photograph any finished object. Get the complete pattern instantly.</div>
