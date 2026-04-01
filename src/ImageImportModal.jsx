@@ -308,11 +308,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
   const loadingContent = (
     <div style={{ padding: "48px 20px 36px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
       <style>{`@keyframes spinLoaderVision{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInMsgV{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
-      <div style={{
-        width: 60, height: 60, borderRadius: "50%", border: "4px solid transparent",
-        borderTopColor: "#9B7EC8", animation: "spinLoaderVision 1s linear infinite", marginBottom: 24,
-      }} />
-      <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: "#2D2D4E", marginBottom: 8, lineHeight: 1.4 }}>
+      <div style={{position:"relative",width:60,height:60,marginBottom:24}}>
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoaderVision 1s linear infinite"}}/>
+        <img src="/bev_neutral.png" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:40,height:40,objectFit:"contain"}} alt="Bev"/>
+      </div>
+      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 600, color: "#2D2D4E", marginBottom: 8, lineHeight: 1.4 }}>
         Extracting your pattern
       </div>
       <div key={loadingMsg} style={{
