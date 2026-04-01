@@ -53,6 +53,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
   const [dragIdx, setDragIdx] = useState(null);
   const [validating, setValidating] = useState(false);
   const [validationReport, setValidationReport] = useState(null);
+  const [showFullReport, setShowFullReport] = useState(false);
+  const [proUpgradeBanner, setProUpgradeBanner] = useState(false);
   const fileRef = useRef(null);
   const dropRef = useRef(null);
   const { isDesktop } = useBreakpoint();
@@ -398,79 +400,99 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
           )}
         </div>
         {/* RIGHT 42% — Stitch Check */}
-        <div style={{ flex: "0 0 42%", minWidth: 0 }}>
-          {validating ? (
-            <div style={{ background: T.card, borderRadius: 16, padding: "36px 20px", boxShadow: T.shadowLg, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, animation: "scPulseImg 2s ease-in-out infinite" }}>
-              <style>{`@keyframes scPulseImg{0%,100%{opacity:1}50%{opacity:.85}}@keyframes scSpinImg{0%{stroke-dashoffset:${Math.round(2*Math.PI*36)}}50%{stroke-dashoffset:0}100%{stroke-dashoffset:${Math.round(2*Math.PI*36)}}}`}</style>
-              <div style={{ position: "relative", width: 80, height: 80 }}>
-                <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx="40" cy="40" r="36" fill="none" stroke={T.linen} strokeWidth="4" />
-                  <circle cx="40" cy="40" r="36" fill="none" stroke={T.terra} strokeWidth="4" strokeLinecap="round" strokeDasharray={Math.round(2*Math.PI*36)} style={{ animation: "scSpinImg 2.5s ease-in-out infinite" }} />
+        <div style={{flex:"0 0 42%",minWidth:0}}>
+          {validating?(
+            <div style={{background:T.card,borderRadius:16,padding:"36px 20px",boxShadow:T.shadowLg,display:"flex",flexDirection:"column",alignItems:"center",gap:16,animation:"scCardPulse 2s ease-in-out infinite"}}>
+              <style>{`@keyframes scCardPulse{0%,100%{opacity:1}50%{opacity:.85}}@keyframes scRingSpin{0%{stroke-dashoffset:${Math.round(2*Math.PI*36)}}50%{stroke-dashoffset:0}100%{stroke-dashoffset:${Math.round(2*Math.PI*36)}}}`}</style>
+              <div style={{position:"relative",width:80,height:80}}>
+                <svg width="80" height="80" viewBox="0 0 80 80" style={{transform:"rotate(-90deg)"}}>
+                  <circle cx="40" cy="40" r="36" fill="none" stroke={T.linen} strokeWidth="4"/>
+                  <circle cx="40" cy="40" r="36" fill="none" stroke={T.terra} strokeWidth="4" strokeLinecap="round" strokeDasharray={Math.round(2*Math.PI*36)} style={{animation:"scRingSpin 2.5s ease-in-out infinite"}}/>
                 </svg>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: T.ink }}>Analyzing your pattern</div>
-              <div style={{ fontSize: 12, color: T.sage, textAlign: "center", maxWidth: 200, lineHeight: 1.5 }}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
+              <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
+              <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
             </div>
-          ) : validationReport ? (() => {
-            const scScore = displayScore(validationReport);
-            const scBadge = badgeForScore(scScore);
-            return isPro ? (
-              <div style={{ background: T.surface, borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(155,126,200,.08)", border: `1px solid ${T.border}` }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: scBadge.color, marginBottom: 2 }}>{scBadge.label}</div>
-                    <div style={{ fontSize: 10, color: T.ink3 }}>Stitch Check</div>
-                  </div>
-                  <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scBadge.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color .6s ease" }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, fontFamily: T.serif, color: scBadge.color, transition: "color .6s ease" }}>{scScore}%</span>
-                  </div>
+          ):validationReport?(()=>{const scScore=displayScore(validationReport);const scBadge=badgeForScore(scScore);return isPro?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
+                  <div style={{fontSize:10,color:T.ink3}}>Stitch Check</div>
                 </div>
-                {(validationReport.checks || []).slice(0, 3).map(c => (
-                  <div key={c.id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
-                    <span style={{ fontSize: 11, color: T.ink2 }}>{c.label}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ background: T.surface, borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(155,126,200,.08)", border: `1px solid ${T.border}` }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: scBadge.color, marginBottom: 2 }}>{scBadge.label}</div>
-                    <div style={{ fontSize: 10, color: T.ink3 }}>Stitch Check</div>
-                  </div>
-                  <div style={{ width: 56, height: 56, borderRadius: "50%", border: `3px solid ${scBadge.color}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, fontFamily: T.serif, color: scBadge.color, filter: "blur(8px)", WebkitFilter: "blur(8px)", userSelect: "none" }}>{scScore}%</span>
-                  </div>
-                </div>
-                {(validationReport.checks || []).slice(0, 2).map((c, i) => (
-                  <div key={c.id || i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
-                    <span style={{ fontSize: 11, color: T.ink2 }}>{c.label}</span>
-                    <div style={{ flex: 1, height: 12, background: `linear-gradient(to right,${T.ink3}22,transparent)`, borderRadius: 4 }} />
-                  </div>
-                ))}
-                <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 8, paddingTop: 8 }}>
-                  <div style={{ fontSize: 10, color: T.ink3, marginBottom: 6 }}>Unlock full report</div>
+                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
+                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,transition:"color .6s ease"}}>{scScore}%</span>
                 </div>
               </div>
-            );
-          })() : (
-            <div style={{ background: T.surface, borderRadius: 16, padding: 20, boxShadow: "0 4px 20px rgba(155,126,200,.08)", border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 120, fontSize: 11, color: T.ink3 }}>Stitch Check unavailable</div>
+              {(validationReport.checks||[]).slice(0,3).map(c=>(
+                <div key={c.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
+                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
+                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
+                </div>
+              ))}
+              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:8,textDecoration:"underline"}}>Full Report →</button>
+            </div>
+          ):(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
+                  <div style={{fontSize:10,color:T.ink3}}>Stitch Check</div>
+                </div>
+                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
+                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,filter:"blur(8px)",WebkitFilter:"blur(8px)",userSelect:"none",transition:"color .6s ease"}}>{scScore}%</span>
+                </div>
+              </div>
+              {validationReport.checks?.slice(0,2).map((c,i)=>(
+                <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
+                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
+                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
+                  <div style={{flex:1,height:12,background:`linear-gradient(to right,${T.ink3}22,transparent)`,borderRadius:4}}/>
+                </div>
+              ))}
+              <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8}}>
+                <div style={{fontSize:10,color:T.ink3,marginBottom:6}}>🔒 Unlock full report</div>
+                <button onClick={()=>setProUpgradeBanner(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:10,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
+              </div>
+            </div>
+          );})():(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",minHeight:120,fontSize:11,color:T.ink3}}>Stitch Check unavailable</div>
           )}
         </div>
       </div>
-      {/* ── Full-width actions below columns ── */}
-      <div style={{ height: 20 }} />
-      <button onClick={handleSave} style={{
-        width: "100%", background: "linear-gradient(135deg,#9B7EC8,#7B5FB5)", color: "#fff",
-        border: "none", borderRadius: 99, padding: "15px", fontSize: 15, fontWeight: 600,
-        cursor: "pointer", boxShadow: "0 8px 28px rgba(155,126,200,.5)", marginBottom: 8,
-      }}>Looks good — save pattern</button>
-      <button onClick={() => { setStage("pick"); setItems([]); setExtracted(null); }} style={{
-        width: "100%", background: "transparent", color: T.ink3, border: "none",
-        borderRadius: 99, padding: "10px", fontSize: 13, cursor: "pointer",
-      }}>Try different photos</button>
+      {proUpgradeBanner&&(
+        <div style={{background:T.terraLt,border:`1px solid ${T.terra}33`,borderRadius:12,padding:"12px 14px",marginTop:10,display:"flex",alignItems:"center",gap:10}}>
+          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.terra,marginBottom:2}}>Upgrade to Pro to unlock Stitch Check</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>Your pattern is still importing — finish saving first, then upgrade anytime from Settings.</div></div>
+          <button onClick={()=>setProUpgradeBanner(false)} style={{background:"none",border:"none",fontSize:16,color:T.ink3,cursor:"pointer",padding:4,flexShrink:0}}>×</button>
+        </div>
+      )}
+      {/* Full report overlay */}
+      {showFullReport&&validationReport&&(
+        <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={()=>setShowFullReport(false)} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}}/>
+          <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"auto",padding:"24px 22px 32px"}}>
+            <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+            <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:16}}>Stitch Check Report</div>
+            {(()=>{const frScore=displayScore(validationReport);const frBadge=badgeForScore(frScore);return(
+            <div style={{background:frBadge.bg,border:`2px solid ${frBadge.color}`,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:4}}>{frBadge.emoji}</div>
+              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:frBadge.color}}>{frBadge.label}</div>
+              <div style={{fontFamily:T.serif,fontSize:36,fontWeight:700,color:frBadge.color,lineHeight:1}}>{frScore}%</div>
+            </div>);})()}
+            {(validationReport.checks||[]).map(c=>(
+              <div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
+                <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span>
+                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.ink,marginBottom:2}}>{c.label}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
+              </div>
+            ))}
+            {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
+            <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>
+          </div>
+        </div>
+      )}
+      <div style={{height:20}}/>
+      <button onClick={handleSave} style={{width:"100%",background:`linear-gradient(135deg,${T.terra},#7B5FB5)`,color:"#fff",border:"none",borderRadius:99,padding:"15px",fontSize:15,fontWeight:600,cursor:"pointer",boxShadow:"0 8px 28px rgba(155,126,200,.5)",marginBottom:8}}>Looks good — save pattern</button>
+      <button onClick={()=>{setStage("pick");setItems([]);setExtracted(null);}} style={{width:"100%",background:"transparent",color:T.ink3,border:"none",borderRadius:99,padding:"10px",fontSize:13,cursor:"pointer"}}>Try different photos</button>
     </div>
   ) : null;
 
