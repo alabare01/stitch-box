@@ -859,9 +859,9 @@ const ProfileSettingsView = ({isPro,onOpenProModal,onGoHome,onEmailConfirmed}) =
 
 
 
-const BrowseSitesView = ({onSavePattern}) => {
+const BrowseSitesView = ({onImportUrl}) => {
   const{isDesktop,isTablet,isMobile}=useBreakpoint();
-  const [url,setUrl]=useState(""),[loading,setLoading]=useState(false),[error,setError]=useState(null),[preview,setPreview]=useState(null);
+  const [url,setUrl]=useState("");
   const SITES=[
     {name:"AllFreeCrochet",desc:"The largest free crochet pattern library.",url:"https://www.allfreecrochet.com",tags:["Blankets","Amigurumi","Wearables"],free:true},
     {name:"Drops Design",desc:"Free international patterns.",url:"https://www.garnstudio.com",tags:["Garments","Accessories"],free:true},
@@ -872,19 +872,10 @@ const BrowseSitesView = ({onSavePattern}) => {
     {name:"Ravelry",desc:"World's largest pattern database.",url:"https://www.ravelry.com/patterns/library#craft=crochet",tags:["All categories","Free + Paid"],free:false},
     {name:"LoveCrafts",desc:"Quality free and paid patterns.",url:"https://www.lovecrafts.com/en-us/l/crochet/crochet-patterns?price=free",tags:["Garments","Modern"],free:false},
   ];
-  const doImport=async()=>{
+  const doImport=()=>{
     if(!url.trim()) return;
-    setLoading(true);setError(null);setPreview(null);
-    try{
-      const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.trim()})});
-      const data=await res.json();
-      if(!res.ok||data.error) throw new Error(data.error||"Could not read that page");
-      const rows=(data.rows||[]).map((r,i)=>({id:Date.now()+i,text:r.text||"",done:false,note:""}));
-      onSavePattern&&onSavePattern({id:Date.now(),title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60}});
-      setPreview(data.title||"Pattern");setUrl("");
-      setTimeout(()=>setPreview(null),3000);
-    }catch(e){setError("Couldn't extract a pattern from that URL. Make sure you're linking to a specific pattern page.");}
-    finally{setLoading(false);}
+    onImportUrl(url.trim());
+    setUrl("");
   };
   return (
     <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF",maxWidth:900,margin:"0 auto"}}>
@@ -897,12 +888,9 @@ const BrowseSitesView = ({onSavePattern}) => {
             <span style={{color:T.ink3,flexShrink:0}}>🔗</span>
             <input value={url} onChange={e=>setUrl(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doImport()} placeholder="https://allfreecrochet.com/..." style={{border:"none",background:"transparent",flex:1,fontSize:14,color:T.ink,outline:"none",minWidth:0}}/>
           </div>
-          <button onClick={doImport} disabled={!url.trim()||loading} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:!url.trim()||loading?"not-allowed":"pointer",opacity:!url.trim()||loading?.6:1,whiteSpace:"nowrap",flexShrink:0}}>{loading?"Importing...":"Import Pattern →"}</button>
+          <button onClick={doImport} disabled={!url.trim()} style={{background:"#9B7EC8",color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",fontSize:14,fontWeight:600,cursor:!url.trim()?"not-allowed":"pointer",opacity:!url.trim()?.6:1,whiteSpace:"nowrap",flexShrink:0}}>Import Pattern →</button>
         </div>
         <div style={{background:"#FFF8E7",border:"1px solid #F0C040",borderRadius:8,padding:"8px 12px",marginTop:12,fontSize:12,color:"#856404",lineHeight:1.5,fontFamily:"Inter,sans-serif"}}>⚠️ Patterns behind a paywall or login wall can't be imported by URL. Download the PDF and use our PDF import instead.</div>
-        {loading&&<div style={{marginTop:16,display:"flex",alignItems:"center",gap:10}}><div className="spinner" style={{width:18,height:18,border:`2px solid ${T.border}`,borderTopColor:"#9B7EC8",borderRadius:"50%"}}/><span style={{fontSize:13,color:"#6B6B8A"}}>Reading pattern page...</span></div>}
-        {error&&<div style={{marginTop:14,background:"#FFF0EE",borderRadius:10,padding:"12px 16px",border:"1px solid #F5C6BB",fontSize:13,color:"#C05A5A",lineHeight:1.6}}>{error}</div>}
-        {preview&&<div style={{marginTop:14,background:T.sageLt,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16}}>✅</span><span style={{fontSize:13,fontWeight:600,color:T.sage}}>"{preview}" saved to My Wovely!</span></div>}
       </div>
 
       {/* Section 2 — Partner Sites Grid */}
@@ -1611,6 +1599,7 @@ export default function Wovely() {
   const [deleteTarget,setDeleteTarget]=useState(null);
   const [upgradeToast,setUpgradeToast]=useState(null);
   const [coverPickerTarget,setCoverPickerTarget]=useState(null);
+  const [pendingImportUrl,setPendingImportUrl]=useState(null);
   const{isTablet,isDesktop}=useBreakpoint();
   const allPatterns = [...userPatterns,...starterPatterns];
   const userStarterCount=userPatterns.filter(p=>p.isStarter).length;
@@ -2052,7 +2041,8 @@ export default function Wovely() {
       }catch(e){console.error("[Wovely] Pattern save error:",e);}
     }
   };
-  const openAddModal=()=>{if(tier.atCap){setShowPaywall(true);return;}setAddOpen(true);};
+  const openAddModal=()=>{if(tier.atCap){setShowPaywall(true);return;}setPendingImportUrl(null);setAddOpen(true);};
+  const handleImportUrl=(u)=>{if(tier.atCap){setShowPaywall(true);return;}setPendingImportUrl(u);setAddOpen(true);};
   const updatePatternStatus=(p,status)=>{
     const updated={...p,status};
     setUserPatterns(prev=>prev.map(x=>x.id===p.id?updated:x));
@@ -2111,7 +2101,7 @@ export default function Wovely() {
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>setShowProModal(true)}/>}
+      {addOpen&&<AddPatternModal onClose={()=>{setAddOpen(false);setPendingImportUrl(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>setShowProModal(true)} initialMethod={pendingImportUrl?"url":undefined} initialUrl={pendingImportUrl||undefined}/>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
@@ -2133,7 +2123,7 @@ export default function Wovely() {
           {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} onRename={handleRenamePattern} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
           {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
           {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></div>}
-          {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
+          {view==="browse"&&<BrowseSitesView onImportUrl={handleImportUrl}/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="stitch-check"&&<div style={{paddingTop:24}}><StitchCheck/></div>}
@@ -2155,7 +2145,7 @@ export default function Wovely() {
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} onSignOut={handleSignOut} onUpgrade={()=>setShowProModal(true)}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {addOpen&&<AddPatternModal onClose={()=>setAddOpen(false)} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>setShowProModal(true)}/>}
+      {addOpen&&<AddPatternModal onClose={()=>{setAddOpen(false);setPendingImportUrl(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>setShowProModal(true)} initialMethod={pendingImportUrl?"url":undefined} initialUrl={pendingImportUrl||undefined}/>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
@@ -2170,7 +2160,7 @@ export default function Wovely() {
         {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} onRename={handleRenamePattern} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
         {view==="detail"&&selected&&<Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/>}
-        {view==="browse"&&<BrowseSitesView onSavePattern={handleAddPattern}/>}
+        {view==="browse"&&<BrowseSitesView onImportUrl={handleImportUrl}/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="stitch-check"&&<div style={{paddingTop:18}}><StitchCheck/></div>}

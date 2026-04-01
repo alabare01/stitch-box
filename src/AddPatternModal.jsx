@@ -661,8 +661,9 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo}) => {
-  const [url,setUrl]=useState(""),[loading,setLoading]=useState(false),[progress,setProgress]=useState(0),[phase,setPhase]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
+const URLImportForm = ({onSave,Btn,Photo,initialUrl}) => {
+  const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[progress,setProgress]=useState(0),[phase,setPhase]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
+  const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
     setLoading(true);setError(null);setPreview(null);setProgress(0);setPhase("Fetching pattern page…");
@@ -684,6 +685,7 @@ const URLImportForm = ({onSave,Btn,Photo}) => {
     setPreview({title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:estimatedYardage||data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,smartNote:rows.length+" steps extracted and ready to track.",qualityNote:missing.length===0?null:"Not found on source page: "+missing.join(", ")+". Pattern quality depends on the source."});
     setLoading(false);
   };
+  useEffect(()=>{if(initialUrl&&!autoTriggered.current){autoTriggered.current=true;doImport();}},[]);
   return (
     <div style={{paddingBottom:8}}>
       <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:14}}>Paste any crochet pattern URL. We read the page and extract every step automatically.</div>
@@ -1110,8 +1112,8 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
   );
 };
 
-const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade}) => {
-  const [method,setMethod]=useState(null),[closing,setClosing]=useState(false);
+const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl}) => {
+  const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
   const handleSave=(p)=>{onSave(p);dismiss();};
@@ -1155,7 +1157,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
         <div style={{flex:1,overflowY:"auto",padding:"0 28px 32px"}}>
           {!method&&<MethodList/>}
           {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo}/>}
+          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl}/>}
           {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}}/>}
           {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
           {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
@@ -1178,7 +1180,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
         <div style={{flex:1,overflowY:"auto",padding:"0 22px 40px"}}>
           {!method&&<MethodList/>}
           {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo}/>}
+          {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl}/>}
           {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}}/>}
           {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
           {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
