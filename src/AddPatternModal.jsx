@@ -1118,7 +1118,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       )}
       {/* Full report overlay */}
       {showFullReport&&validationReport&&(
-        <div style={{position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{position:"fixed",inset:0,zIndex:10001,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
           <div onClick={()=>setShowFullReport(false)} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}}/>
           <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"auto",padding:"24px 22px 32px"}}>
             <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
@@ -1218,7 +1218,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     </>
   );
   // ── SINGLE RENDER TREE — style-only change when minimized ──
-  const minStyle = {position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column",overflow:"hidden"};
+  const minStyle = {position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column",overflowY:"auto"};
   const deskStyle = {position:"relative",background:T.surface,borderRadius:20,width:"100%",maxWidth:580,maxHeight:"85vh",display:"flex",flexDirection:"column",zIndex:1,boxShadow:"0 24px 64px rgba(28,23,20,.3)"};
   const mobStyle = {position:"relative",background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxHeight:"92vh",display:"flex",flexDirection:"column",zIndex:1};
   const containerStyle = minimized ? minStyle : isDesktop ? deskStyle : mobStyle;
@@ -1265,7 +1265,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     : {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"flex-end"};
   const animClass = isDesktop ? (closing?"":"fu") : (closing?"":"su");
   return (
-    <div style={minimized ? {position:"fixed",inset:0,zIndex:9998,pointerEvents:"none"} : wrapStyle}>
+    <div style={minimized ? {position:"fixed",inset:0,zIndex:9998,pointerEvents:"auto"} : wrapStyle} onClick={minimized ? (e)=>{if(e.target===e.currentTarget)dismiss();} : undefined}>
       {!minimized && (
         <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)",pointerEvents:"all"}}/>
       )}
