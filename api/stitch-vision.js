@@ -93,21 +93,24 @@ export default async function handler(req, res) {
 
     // Step 4: Parse response
     const data = await r.json();
-    console.log("[stitch-vision] Gemini response candidates:", data.candidates?.length);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    console.log("[stitch-vision] Raw text:", text.substring(0, 300));
+    const finishReason = data.candidates?.[0]?.finishReason;
+    console.log("[stitch-vision] Raw Gemini text:", text.substring(0, 500));
+    console.log("[stitch-vision] Finish reason:", finishReason);
+
     if (!text) {
-      const finishReason = data.candidates?.[0]?.finishReason || "unknown";
-      console.error("[stitch-vision] Empty response, finishReason:", finishReason);
-      return res.status(500).json({ error: "Empty response from Gemini", finishReason });
+      return res.status(500).json({ error: "Empty response from Gemini", message: `No text in response. finishReason: ${finishReason}`, raw: JSON.stringify(data).substring(0, 300) });
     }
 
-    const cleaned = text.replace(/^[\s\S]*?```(?:json|JSON)?\s*\n?/i, "").replace(/\n?\s*```[\s\S]*$/, "").trim();
-    const toParse = cleaned.startsWith("{") ? cleaned : text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let toParse = text.replace(/^[\s\S]*?```(?:json|JSON)?\s*/i, "").replace(/\s*```[\s\S]*$/i, "").trim();
+    if (!toParse.startsWith("{")) {
+      const match = text.match(/\{[\s\S]*\}/);
+      toParse = match ? match[0] : text;
+    }
+
     let result;
     try { result = JSON.parse(toParse); } catch (parseErr) {
-      console.error("[stitch-vision] JSON parse failed:", parseErr.message, "text starts:", toParse.substring(0, 200));
-      return res.status(500).json({ error: "Failed to parse Gemini response" });
+      return res.status(500).json({ error: "Failed to parse Gemini response", message: parseErr.message, raw_gemini_text: text.substring(0, 500) });
     }
 
     console.log("[stitch-vision] Identified:", result.stitch_name, "confidence:", result.confidence);
