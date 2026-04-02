@@ -1,7 +1,7 @@
 // api/stitch-vision.js
 // Vercel serverless function — identifies crochet stitch from a photo via Gemini
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 30, api: { bodyParser: { sizeLimit: "1mb" } } };
 
 const PROMPT = `You are an expert crochet stitch identifier.
 Analyze this image and identify the crochet stitch or stitch pattern shown.
@@ -29,13 +29,19 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { imageBase64, mimeType } = req.body || {};
-    if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+    const { imageUrl } = req.body || {};
+    if (!imageUrl) return res.status(400).json({ error: "imageUrl required" });
 
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
     if (!GEMINI_KEY) return res.status(500).json({ error: "API key not configured" });
 
-    console.log("[stitch-vision] Identifying stitch, mime:", mimeType || "image/jpeg");
+    console.log("[stitch-vision] Fetching image from:", imageUrl);
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) return res.status(502).json({ error: "Failed to fetch image: " + imgRes.status });
+    const imgBuffer = await imgRes.arrayBuffer();
+    const imgBase64 = Buffer.from(imgBuffer).toString("base64");
+    const mimeType = imgRes.headers.get("content-type") || "image/jpeg";
+    console.log("[stitch-vision] Identifying stitch, size:", imgBuffer.byteLength, "mime:", mimeType);
 
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
@@ -44,7 +50,7 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [
-            { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } },
+            { inline_data: { mime_type: mimeType, data: imgBase64 } },
             { text: PROMPT },
           ] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 500 },

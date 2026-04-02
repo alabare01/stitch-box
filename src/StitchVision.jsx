@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { T } from "./theme.jsx";
+import { SUPABASE_URL, supabaseAuth, getSession } from "./supabase.js";
 
 const MSGS = [
   "Analyzing the stitch pattern…",
@@ -24,7 +25,9 @@ const compressForVision = (file) => new Promise((resolve, reject) => {
     cvs.width = w; cvs.height = h;
     cvs.getContext("2d").drawImage(img, 0, 0, w, h);
     const dataUrl = cvs.toDataURL("image/jpeg", 0.8);
-    resolve({ base64: dataUrl.split(",")[1], thumb: dataUrl, mimeType: "image/jpeg" });
+    cvs.toBlob((blob) => {
+      resolve({ blob, thumb: dataUrl });
+    }, "image/jpeg", 0.8);
   };
   img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
   img.src = url;
@@ -76,13 +79,26 @@ const StitchVision = ({ isPro, onUpgrade }) => {
     const intv = setInterval(() => { msgIdx = (msgIdx + 1) % MSGS.length; setLoadingMsg(MSGS[msgIdx]); }, 2500);
 
     try {
-      const { base64, thumb: t, mimeType } = await compressForVision(f);
+      const { blob, thumb: t } = await compressForVision(f);
       setThumb(t);
+
+      // Upload to Supabase Storage
+      const session = getSession();
+      const user = supabaseAuth.getUser();
+      if (!session?.access_token || !user) throw new Error("Not authenticated");
+      const filePath = `stitch-vision/${user.id}/${Date.now()}.jpg`;
+      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/pattern-files/${filePath}`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "image/jpeg" },
+        body: blob,
+      });
+      if (!uploadRes.ok) throw new Error("Image upload failed: " + uploadRes.status);
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/pattern-files/${filePath}`;
 
       const res = await fetch("/api/stitch-vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64, mimeType }),
+        body: JSON.stringify({ imageUrl: publicUrl }),
       });
 
       clearInterval(intv);
