@@ -51,9 +51,10 @@ export default async function handler(req, res) {
     // Step 2: Convert to base64
     let imgBase64, mimeType;
     try {
-      const imgBuffer = await imgRes.arrayBuffer();
-      console.log("[stitch-vision] Image buffer size:", imgBuffer.byteLength);
-      imgBase64 = Buffer.from(imgBuffer).toString("base64");
+      const imgArrayBuffer = await imgRes.arrayBuffer();
+      console.log("[stitch-vision] Image buffer size:", imgArrayBuffer.byteLength);
+      const imgUint8 = new Uint8Array(imgArrayBuffer);
+      imgBase64 = Buffer.from(imgUint8).toString("base64");
       mimeType = imgRes.headers.get("content-type") || "image/jpeg";
       console.log("[stitch-vision] Base64 length:", imgBase64.length, "mime:", mimeType);
     } catch (bufErr) {
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
     }
 
     // Step 3: Call Gemini
-    console.log("[stitch-vision] Calling Gemini...");
+    console.log("[stitch-vision] Base64 ready, length:", imgBase64.length, "calling Gemini...");
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
