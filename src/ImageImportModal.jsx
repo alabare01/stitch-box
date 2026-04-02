@@ -39,7 +39,7 @@ const LOADING_MSGS = [
   "Almost there...",
 ];
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, onMinimize, onExpand }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -237,7 +237,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
         }}>Choose photos</div>
       </div>
       <input
-        ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" multiple
+        ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp" capture="environment" multiple
         onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
         style={{ display: "none" }}
       />
@@ -306,7 +306,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
 
   // ── LOADING SCREEN ──
   const loadingContent = (
-    <div style={{ padding: "48px 20px 36px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+    <div style={{ padding: "48px 20px 36px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, position: "relative" }}>
+      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>}
       <style>{`@keyframes spinLoaderVision{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInMsgV{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{position:"relative",width:60,height:60,marginBottom:24}}>
         <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoaderVision 1s linear infinite"}}/>
@@ -523,6 +524,21 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro }) => {
     : stage === "loading" ? loadingContent
     : stage === "error" ? errorContent
     : reviewContent;
+
+  // ── MINIMIZED FLOATING CARD ──
+  if (minimized) {
+    return (
+      <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,overflowY:"auto",borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column"}}>
+        <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
+          <button onClick={dismiss} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"8px 18px 18px"}}>
+          {content}
+        </div>
+      </div>
+    );
+  }
 
   // ── MODAL SHELL ──
   if (isDesktop) return (
