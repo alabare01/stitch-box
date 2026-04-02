@@ -661,13 +661,13 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onSpinnerVisible}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
-    setLoading(true);onExtractionStart?.();setError(null);setPreview(null);setValidationReport(null);setValidating(false);
+    setLoading(true);onExtractionStart?.();onSpinnerVisible?.();setError(null);setPreview(null);setValidationReport(null);setValidating(false);
     const MSGS=["Fetching pattern page...","Reading and extracting...","Structuring your pattern...","Almost there..."];
     let msgIdx=0;setStageText(MSGS[0]);
     const msgIntv=setInterval(()=>{msgIdx=(msgIdx+1)%MSGS.length;setStageText(MSGS[msgIdx]);},6000);
@@ -747,7 +747,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd}) => {
+const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onSpinnerVisible}) => {
   const [stage,setStage]=useState("pick");
   const [progress,setProgress]=useState(0);
   const [stageText,setStageText]=useState("");
@@ -783,7 +783,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       const isPDF=fileMime==="application/pdf"||f.name.toLowerCase().endsWith(".pdf");
       console.log("[Wovely] File:", f.name, f.type, (f.size/1024).toFixed(0)+"KB", "isPDF:", isPDF);
       // Stage 1: Upload to Cloudinary + render cover (parallel)
-      setStage("uploading");setStageText("Uploading your pattern...");setProgress(10);      const intv1=setInterval(()=>setProgress(p=>Math.min(p+3,30)),200);
+      setStage("uploading");setStageText("Uploading your pattern...");setProgress(10);onSpinnerVisible?.();      const intv1=setInterval(()=>setProgress(p=>Math.min(p+3,30)),200);
       // Run upload and cover render in parallel
       const [uploaded, pdfCoverDataUrl] = await Promise.all([
         uploadPatternFile(f),
@@ -1174,9 +1174,10 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
 const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
   const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
   const extractingRef=useRef(false);
+  const spinnerVisibleRef=useRef(false);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const backdropClick=()=>{if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
+  const backdropClick=()=>{if(extractingRef.current&&spinnerVisibleRef.current&&onMinimize){onMinimize();}else{dismiss();}};
   const handleSave=(p)=>{onSave(p);dismiss();};
   const METHODS=[
     {key:"manual",icon:"✏️",label:"Manual Entry",sub:"Type it in yourself"},
@@ -1245,8 +1246,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;spinnerVisibleRef.current=false;}} onSpinnerVisible={()=>{spinnerVisibleRef.current=true;}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;spinnerVisibleRef.current=false;}} onSpinnerVisible={()=>{spinnerVisibleRef.current=true;}}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>
