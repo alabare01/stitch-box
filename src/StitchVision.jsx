@@ -222,11 +222,15 @@ const StitchVision = ({ isPro, onUpgrade }) => {
           </button>
         )}
 
-        {shareId && (
-          <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 12 }}>
-            {copied ? "✓ Copied!" : "🔗 Copy share link"}
-          </button>
-        )}
+        <div style={{marginBottom:12}}>
+          {shareId ? (
+            <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              {copied ? "✓ Copied!" : "🔗 Copy share link"}
+            </button>
+          ) : (
+            <div style={{ width: "100%", background: T.linen, borderRadius: 12, padding: "12px", fontSize: 13, color: T.ink3, textAlign: "center" }}>Preparing share link…</div>
+          )}
+        </div>
 
         <button onClick={reset} style={{ width: "100%", background: "transparent", color: T.ink3, border: "none", borderRadius: 12, padding: "12px", fontSize: 13, cursor: "pointer" }}>Try another photo</button>
       </div>
