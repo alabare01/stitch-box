@@ -6,17 +6,19 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase.js";
 const DIFF_COLORS = { Beginner: "#5C9E7A", Intermediate: "#C9853A", Advanced: "#C05A5A" };
 
 const StitchResultPage = () => {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
+  const id = paramId || window.location.pathname.split("/stitch/")[1]?.split("/")[0];
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!id) { setError("Not found"); setLoading(false); return; }
     (async () => {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/stitch_results?id=eq.${id}&select=*`, {
-          headers: { "apikey": SUPABASE_ANON_KEY },
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
         });
         if (!res.ok) throw new Error("Not found");
         const rows = await res.json();
