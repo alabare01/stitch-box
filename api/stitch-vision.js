@@ -79,7 +79,7 @@ export default async function handler(req, res) {
             { inline_data: { mime_type: mimeType, data: imgBase64 } },
             { text: PROMPT },
           ] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 500 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
         }),
       }
     );
