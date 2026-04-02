@@ -96,6 +96,7 @@ const StitchVision = ({ isPro, onUpgrade }) => {
       });
       if (!uploadRes.ok) throw new Error("Image upload failed: " + uploadRes.status);
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/pattern-files/${filePath}`;
+      console.log("[stitch-vision] Image uploaded, URL:", publicUrl);
 
       const res = await fetch("/api/stitch-vision", {
         method: "POST",
@@ -113,15 +114,17 @@ const StitchVision = ({ isPro, onUpgrade }) => {
       try {
         const session2 = getSession();
         const user2 = supabaseAuth.getUser();
-        if (session2?.access_token && user2) {
-          const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/stitch_results`, {
-            method: "POST",
-            headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session2.access_token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-            body: JSON.stringify({ image_url: publicUrl, result: data, user_id: user2.id }),
-          });
-          if (saveRes.ok) { const [saved] = await saveRes.json(); setShareId(saved.id); }
-        }
-      } catch (saveErr) { console.warn("[StitchVision] Save failed:", saveErr); }
+        console.log("[stitch-vision] Saving result, user:", user2?.id, "session:", !!session2);
+        const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/stitch_results`, {
+          method: "POST",
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session2?.access_token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
+          body: JSON.stringify({ image_url: publicUrl, result: data, user_id: user2?.id || null }),
+        });
+        const saveText = await saveRes.text();
+        console.log("[stitch-vision] Save response:", saveRes.status, saveText.substring(0, 200));
+        if (saveRes.ok) { const [saved] = JSON.parse(saveText); setShareId(saved.id); }
+        else { console.error("[stitch-vision] Save failed:", saveRes.status, saveText); }
+      } catch (saveErr) { console.error("[stitch-vision] Save error:", saveErr.message); }
     } catch (err) {
       clearInterval(intv);
       console.error("[StitchVision] Error:", err);
