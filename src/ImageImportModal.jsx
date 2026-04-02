@@ -237,7 +237,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
         }}>Choose photos</div>
       </div>
       <input
-        ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp" capture="environment" multiple
+        ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp" multiple
         onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); }}
         style={{ display: "none" }}
       />
