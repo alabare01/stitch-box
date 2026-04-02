@@ -7,6 +7,7 @@ import { PHOTOS, PILL, APP_VERSION } from "./constants.js";
 import Calculators from "./Calculators.jsx";
 import StitchCheck from "./StitchCheck.jsx";
 import StitchVision from "./StitchVision.jsx";
+import StitchResultPage from "./StitchResultPage.jsx";
 import Auth, { WaitlistPopup } from "./Auth.jsx";
 import PatternHeader from "./PatternHeader.jsx";
 import RowManager, { ensureRepeatBrackets } from "./RowManager.jsx";
@@ -1950,6 +1951,8 @@ export default function Wovely() {
 
   // Show nothing until session is validated against Supabase
   if(!authChecked) return <><CSS/><div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div className="spinner" style={{width:28,height:28,border:`3px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%"}}/></div></>;
+  // Public stitch result page — no auth required
+  if(location.pathname.startsWith("/stitch/")) return <><CSS/><StitchResultPage/></>;
   if(!authed) {
     // Auth guard: redirect any non-root path to / when not logged in
     if(location.pathname!=="/") return <Navigate to="/" replace/>;

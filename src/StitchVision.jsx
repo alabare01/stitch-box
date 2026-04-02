@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { T } from "./theme.jsx";
-import { SUPABASE_URL, supabaseAuth, getSession } from "./supabase.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
 
 const MSGS = [
   "Analyzing the stitch pattern…",
@@ -66,6 +66,8 @@ const StitchVision = ({ isPro, onUpgrade }) => {
   const [thumb, setThumb] = useState(null);
   const [loadingMsg, setLoadingMsg] = useState(MSGS[0]);
   const [error, setError] = useState(null);
+  const [shareId, setShareId] = useState(null);
+  const [copied, setCopied] = useState(false);
   const fileRef = useRef(null);
 
   const handleFile = async (e) => {
@@ -107,6 +109,19 @@ const StitchVision = ({ isPro, onUpgrade }) => {
       incrementUsage();
       setResult(data);
       setStage("result");
+      // Save result to Supabase (best-effort, don't block)
+      try {
+        const session2 = getSession();
+        const user2 = supabaseAuth.getUser();
+        if (session2?.access_token && user2) {
+          const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/stitch_results`, {
+            method: "POST",
+            headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session2.access_token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
+            body: JSON.stringify({ image_url: publicUrl, result: data, user_id: user2.id }),
+          });
+          if (saveRes.ok) { const [saved] = await saveRes.json(); setShareId(saved.id); }
+        }
+      } catch (saveErr) { console.warn("[StitchVision] Save failed:", saveErr); }
     } catch (err) {
       clearInterval(intv);
       console.error("[StitchVision] Error:", err);
@@ -115,7 +130,7 @@ const StitchVision = ({ isPro, onUpgrade }) => {
     }
   };
 
-  const reset = () => { setStage("pick"); setResult(null); setThumb(null); setError(null); if (fileRef.current) fileRef.current.value = ""; };
+  const reset = () => { setStage("pick"); setResult(null); setThumb(null); setError(null); setShareId(null); setCopied(false); if (fileRef.current) fileRef.current.value = ""; };
 
   // ── LIMIT SCREEN ──
   if (stage === "limit") return (
@@ -194,6 +209,12 @@ const StitchVision = ({ isPro, onUpgrade }) => {
         {result.tutorial_search && (
           <button onClick={() => window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(result.tutorial_search), "_blank")} style={{ width: "100%", background: T.terra, color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(155,126,200,.3)", marginBottom: 12 }}>
             Watch a tutorial →
+          </button>
+        )}
+
+        {shareId && (
+          <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 12 }}>
+            {copied ? "✓ Copied!" : "🔗 Copy share link"}
           </button>
         )}
 
