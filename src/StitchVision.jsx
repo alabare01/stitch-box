@@ -122,8 +122,15 @@ const StitchVision = ({ isPro, onUpgrade }) => {
         });
         const saveText = await saveRes.text();
         console.log("[stitch-vision] Save response:", saveRes.status, saveText.substring(0, 200));
-        if (saveRes.ok) { const [saved] = JSON.parse(saveText); setShareId(saved.id); }
-        else { console.error("[stitch-vision] Save failed:", saveRes.status, saveText); }
+        if (saveRes.ok) {
+          let savedData;
+          try {
+            savedData = typeof saveText === 'string' ? JSON.parse(saveText) : saveText;
+            const savedRecord = Array.isArray(savedData) ? savedData[0] : savedData;
+            if (savedRecord?.id) { setShareId(savedRecord.id); console.log("[stitch-vision] Share ID set:", savedRecord.id); }
+            else { console.error("[stitch-vision] No ID in save response:", JSON.stringify(savedData).substring(0, 200)); }
+          } catch (parseErr) { console.error("[stitch-vision] Save parse error:", parseErr.message, saveText.substring(0, 200)); }
+        } else { console.error("[stitch-vision] Save failed:", saveRes.status, saveText); }
       } catch (saveErr) { console.error("[stitch-vision] Save error:", saveErr.message); }
     } catch (err) {
       clearInterval(intv);
