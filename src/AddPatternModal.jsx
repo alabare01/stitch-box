@@ -1247,15 +1247,18 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     </div>
   );
 
-  if(minimized) return (<div style={minStyle}>{header}{content}</div>);
   const wrapStyle = isDesktop
     ? {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"center",justifyContent:"center"}
     : {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"flex-end"};
   const animClass = isDesktop ? (closing?"":"fu") : (closing?"":"su");
   return (
-    <div style={wrapStyle}>
-      <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)"}}/>
-      <div className={animClass} style={containerStyle}>{header}{content}</div>
+    <div style={minimized ? {position:"fixed",inset:0,zIndex:9998,pointerEvents:"none"} : wrapStyle}>
+      {!minimized && (
+        <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)",pointerEvents:"all"}}/>
+      )}
+      <div className={minimized ? "" : animClass} style={containerStyle} onClick={e=>e.stopPropagation()}>
+        {header}{content}
+      </div>
     </div>
   );
 };
