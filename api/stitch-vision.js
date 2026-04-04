@@ -148,16 +148,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "The stitch identifier couldn't analyze this image. Try a clearer, well-lit photo of the stitch.", detail: `finishReason: ${finishReason}` });
     }
 
-    let toParse = text.replace(/^[\s\S]*?```(?:json|JSON)?\s*/i, "").replace(/\s*```[\s\S]*$/i, "").trim();
-    if (!toParse.startsWith("{")) {
-      const match = text.match(/\{[\s\S]*\}/);
-      toParse = match ? match[0] : text;
-    }
-
+    // Sanitize and parse Gemini JSON response
     let result;
-    try { result = JSON.parse(toParse); } catch (parseErr) {
-      console.error("[stitch-vision] JSON parse failed:", parseErr.message, "raw:", toParse.substring(0, 300));
-      return res.status(500).json({ error: "Could not interpret the stitch analysis. Please try again with a different photo." });
+    try {
+      let toParse = text.trim();
+      // Strip markdown code fences (```json ... ```, ``` ... ```, etc.)
+      toParse = toParse.replace(/^```[\w]*\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+      // If still not starting with {, extract the first JSON object
+      if (!toParse.startsWith("{")) {
+        const match = toParse.match(/\{[\s\S]*\}/);
+        toParse = match ? match[0] : toParse;
+      }
+      // Remove trailing commas before } or ]
+      toParse = toParse.replace(/,\s*([\]}])/g, "$1");
+      toParse = toParse.trim();
+
+      result = JSON.parse(toParse);
+    } catch (parseErr) {
+      console.error("[stitch-vision] JSON parse failed:", parseErr.message);
+      console.error("[stitch-vision] Raw Gemini response text:", text);
+      return res.status(200).json({ error: true, message: "Could not interpret the stitch analysis. Please try a clearer photo." });
     }
 
     console.log("[stitch-vision] Identified:", result.stitch_name, "confidence:", result.confidence);
