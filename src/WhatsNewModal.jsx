@@ -34,7 +34,10 @@ export default function WhatsNewModal() {
 
   if (!visible) return null;
 
-  const entries = CHANGELOG.slice(0, 2);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const recentEntries = CHANGELOG.filter(entry => new Date(entry.date) >= sevenDaysAgo);
+  const entries = recentEntries.length > 0 ? recentEntries : CHANGELOG.slice(0, 1);
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + "T00:00:00");
