@@ -1,12 +1,11 @@
 // api/stripe-checkout.js
 // Creates a Stripe Checkout session for Wovely Pro subscription
 
-import { withLogging } from './utils/logger.js';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -45,4 +44,3 @@ async function handler(req, res) {
   }
 }
 
-export default withLogging(handler);

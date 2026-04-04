@@ -2,7 +2,6 @@
 // Called by Supabase webhook on new user signup — sends email notification to Adam
 // Env vars: WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_URL, RESEND_API_KEY
 
-import { withLogging } from './utils/logger.js';
 import { createClient } from '@supabase/supabase-js';
 
 let _supabase = null;
@@ -13,7 +12,7 @@ function getSupabase() {
   return _supabase;
 }
 
-async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Verify webhook secret
@@ -112,4 +111,3 @@ async function handler(req, res) {
   }
 }
 
-export default withLogging(handler);
