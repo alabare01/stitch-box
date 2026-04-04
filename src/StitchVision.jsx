@@ -96,7 +96,7 @@ const StitchVision = ({ isPro, onUpgrade }) => {
       });
       if (!uploadRes.ok) throw new Error("Image upload failed: " + uploadRes.status);
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/pattern-files/${filePath}`;
-      console.log("[stitch-vision] Image uploaded, URL:", publicUrl);
+      console.log("[StitchVision] Image uploaded, sending to API — imageUrl:", publicUrl);
 
       const res = await fetch("/api/stitch-vision", {
         method: "POST",
@@ -106,7 +106,9 @@ const StitchVision = ({ isPro, onUpgrade }) => {
 
       clearInterval(intv);
       const data = await res.json();
+      console.log("[StitchVision] API response — status:", res.status, "data:", JSON.stringify(data).substring(0, 300));
       if (!res.ok) throw new Error(data.message || data.error || "Server error: " + res.status);
+      if (data.error) throw new Error(data.message || "Stitch identification failed. Please try again.");
       incrementUsage();
       setResult(data);
       setStage("result");
