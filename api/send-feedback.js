@@ -82,28 +82,42 @@ export default async function handler(req, res) {
     }
 
     // Insert into Supabase
+    // NOTE: user_id should be nullable without FK constraint on feedback table
+    // to avoid 23503 foreign key violations when user IDs differ across environments.
     try {
-      const { error: dbError } = await getSupabase()
+      const insertPayload = {
+        user_id: userId || null,
+        email: email || null,
+        category,
+        message,
+        steps_to_reproduce: stepsToReproduce || null,
+        expected_behavior: expectedBehavior || null,
+        severity: severity || null,
+        page: page || null,
+        browser: browser || null,
+        device: device || null,
+        screen_size: screenSize || null,
+        attachment_url: attachmentUrl || null,
+        created_at: new Date().toISOString()
+      };
+      console.log('[send-feedback] Attempting insert with payload:', JSON.stringify(insertPayload));
+
+      const { data: dbData, error: dbError } = await getSupabase()
         .from('feedback')
-        .insert({
-          user_id: userId || null,
-          email: email || null,
-          category,
-          message,
-          steps_to_reproduce: stepsToReproduce || null,
-          expected_behavior: expectedBehavior || null,
-          severity: severity || null,
-          page: page || null,
-          browser: browser || null,
-          device: device || null,
-          screen_size: screenSize || null,
-          attachment_url: attachmentUrl || null,
-          created_at: new Date().toISOString()
-        });
+        .insert(insertPayload)
+        .select();
+
+      console.log('[send-feedback] Full DB result:', JSON.stringify(dbData), JSON.stringify(dbError));
 
       if (dbError) {
-        console.error('[send-feedback] Supabase insert error:', dbError.message, 'details:', dbError.details, 'hint:', dbError.hint, 'code:', dbError.code);
-        return res.status(500).json({ error: 'Failed to save feedback', detail: dbError.message });
+        if (dbError.code === '23503') {
+          console.error('[send-feedback] Foreign key violation (23503) — user_id may not exist in auth.users:', dbError.message, 'details:', dbError.details);
+        } else if (dbError.code === '23502') {
+          console.error('[send-feedback] Not-null violation (23502) — a required column is null:', dbError.message, 'details:', dbError.details);
+        } else {
+          console.error('[send-feedback] Supabase insert error:', dbError.message, 'details:', dbError.details, 'hint:', dbError.hint, 'code:', dbError.code);
+        }
+        return res.status(500).json({ error: 'Failed to save feedback', detail: dbError.message, code: dbError.code });
       }
     } catch (dbErr) {
       console.error('[send-feedback] Supabase insert exception:', dbErr);
