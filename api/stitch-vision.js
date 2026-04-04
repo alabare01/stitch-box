@@ -186,7 +186,35 @@ export default async function handler(req, res) {
     }
     toParse = toParse.replace(/,\s*([\]}])/g, "$1").trim();
 
-    const result = JSON.parse(toParse);
+    let result;
+    try {
+      result = JSON.parse(toParse);
+    } catch (parseErr) {
+      console.error("[STITCH-STEP-5] JSON.parse failed, attempting regex extraction. Raw text:", toParse.substring(0, 500));
+      // Try to extract stitch_name at minimum from raw text
+      const nameMatch = toParse.match(/"stitch_name"\s*:\s*"([^"]+)"/);
+      const diffMatch = toParse.match(/"difficulty"\s*:\s*"([^"]+)"/);
+      const descMatch = toParse.match(/"description"\s*:\s*"([^"]+)"/);
+      const confMatch = toParse.match(/"confidence"\s*:\s*"([^"]+)"/);
+      const usesMatch = toParse.match(/"common_uses"\s*:\s*"([^"]+)"/);
+      const tutMatch  = toParse.match(/"tutorial_search"\s*:\s*"([^"]+)"/);
+      if (nameMatch) {
+        console.log("[STITCH-STEP-5] Regex extraction succeeded — stitch_name:", nameMatch[1]);
+        result = {
+          stitch_name: nameMatch[1],
+          difficulty: diffMatch?.[1] || "Intermediate",
+          description: descMatch?.[1] || "",
+          confidence: confMatch?.[1] || "low",
+          common_uses: usesMatch?.[1] || "",
+          tutorial_search: tutMatch?.[1] || nameMatch[1] + " crochet stitch tutorial",
+          also_known_as: [],
+          not_crochet: false,
+        };
+      } else {
+        console.error("[STITCH-STEP-5] Regex extraction also failed. Giving up. Raw:", toParse.substring(0, 500));
+        return res.status(200).json({ error: true, message: "Could not interpret the stitch analysis. Please try a clearer photo." });
+      }
+    }
     console.log("[STITCH-STEP-5] Success — identified:", result.stitch_name, "confidence:", result.confidence);
     return res.status(200).json(result);
   } catch (err) {
