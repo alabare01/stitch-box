@@ -81,22 +81,29 @@ const StitchVision = ({ isPro, onUpgrade }) => {
     const intv = setInterval(() => { msgIdx = (msgIdx + 1) % MSGS.length; setLoadingMsg(MSGS[msgIdx]); }, 2500);
 
     try {
+      console.log("[StitchVision] Step 1: Compressing image —", f.name, f.size, "bytes, type:", f.type);
       const { blob, thumb: t } = await compressForVision(f);
+      console.log("[StitchVision] Step 1 done: blob size:", blob?.size, "type:", blob?.type);
       setThumb(t);
 
       // Upload to Supabase Storage
       const session = getSession();
       const user = supabaseAuth.getUser();
+      console.log("[StitchVision] Step 2: Uploading — user:", user?.id, "session:", !!session?.access_token);
       if (!session?.access_token || !user) throw new Error("Not authenticated");
       const filePath = `stitch-vision/${user.id}/${Date.now()}.jpg`;
-      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/pattern-files/${filePath}`, {
+      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/pattern-files/${filePath}`;
+      console.log("[StitchVision] Step 2: Upload URL:", uploadUrl);
+      const uploadRes = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "image/jpeg" },
         body: blob,
       });
-      if (!uploadRes.ok) throw new Error("Image upload failed: " + uploadRes.status);
+      const uploadBody = await uploadRes.text();
+      console.log("[StitchVision] Step 2 done: upload status:", uploadRes.status, "body:", uploadBody.substring(0, 200));
+      if (!uploadRes.ok) throw new Error("Image upload failed: " + uploadRes.status + " — " + uploadBody.substring(0, 100));
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/pattern-files/${filePath}`;
-      console.log("[StitchVision] Image uploaded, sending to API — imageUrl:", publicUrl);
+      console.log("[StitchVision] Step 3: Calling API — imageUrl:", publicUrl);
 
       const res = await fetch("/api/stitch-vision", {
         method: "POST",
@@ -106,7 +113,7 @@ const StitchVision = ({ isPro, onUpgrade }) => {
 
       clearInterval(intv);
       const data = await res.json();
-      console.log("[StitchVision] API response — status:", res.status, "data:", JSON.stringify(data).substring(0, 300));
+      console.log("[StitchVision] Step 3 done: API status:", res.status, "data keys:", Object.keys(data), "data:", JSON.stringify(data).substring(0, 500));
       if (!res.ok) throw new Error(data.message || data.error || "Server error: " + res.status);
       if (data.error) throw new Error(data.message || "Stitch identification failed. Please try again.");
       incrementUsage();
