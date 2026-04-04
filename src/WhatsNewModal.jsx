@@ -1,10 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabaseAuth } from "./supabase.js";
 import { CHANGELOG } from "./changelog.js";
 
 const LS_KEY = "wv_whats_new_last_seen";
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+// Module-level trigger for external callers
+let _externalTrigger = null;
+
+export function triggerWhatsNew() {
+  if (_externalTrigger) _externalTrigger();
+}
+
+export function useWovelySuperTap(onActivate) {
+  const tapCount = useRef(0);
+  const tapTimer = useRef(null);
+
+  const handleTap = useCallback(() => {
+    tapCount.current += 1;
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+
+    if (tapCount.current >= 5) {
+      tapCount.current = 0;
+      onActivate();
+    } else {
+      tapTimer.current = setTimeout(() => {
+        tapCount.current = 0;
+      }, 1500);
+    }
+  }, [onActivate]);
+
+  return handleTap;
+}
 
 export default function WhatsNewModal() {
   const [visible, setVisible] = useState(false);
@@ -20,6 +48,16 @@ export default function WhatsNewModal() {
     setVisible(true);
     const t = setTimeout(() => setEntered(true), 50);
     return () => clearTimeout(t);
+  }, []);
+
+  // External trigger for 5-tap easter egg
+  useEffect(() => {
+    _externalTrigger = () => {
+      localStorage.removeItem(LS_KEY);
+      setVisible(true);
+      setTimeout(() => setEntered(true), 50);
+    };
+    return () => { _externalTrigger = null; };
   }, []);
 
   // Dev reset: Shift+W when logged in as adam
