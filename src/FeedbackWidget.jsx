@@ -70,24 +70,24 @@ export default function FeedbackWidget({ user }) {
 
   const canSubmit = category && message.trim() && !sending;
 
-  // Heart button
+  // Heart button — rendered inline in the header, not fixed
   const heartBtn = (
     <button
       onClick={() => { setOpen(true); setSuccess(false); setError(""); }}
       aria-label="Send feedback"
       style={{
-        position: "fixed",
-        top: 14,
-        right: 20,
-        zIndex: 9999,
         background: "none",
         border: "none",
         cursor: "pointer",
         padding: 4,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         animation: "heartPulse 3s ease-in-out infinite",
+        flexShrink: 0,
       }}
     >
-      <svg width="26" height="24" viewBox="0 0 26 24" fill={COLORS.lavender} xmlns="http://www.w3.org/2000/svg">
+      <svg width="22" height="20" viewBox="0 0 26 24" fill={COLORS.lavender} xmlns="http://www.w3.org/2000/svg">
         <path d="M13 24C12.7 24 12.4 23.9 12.2 23.7C11.5 23.1 10.8 22.5 10.2 22L10.1 21.9C7.1 19.2 4.6 16.9 2.8 14.7C0.8 12.2 0 9.9 0 7.4C0 5 0.8 2.8 2.3 1.2C3.8 -0.4 5.8 -0.4 7.3 0.3C8.4 0.8 9.4 1.5 10.2 2.4C10.8 3.1 11.3 3.8 11.7 4.6C11.9 5 12.1 5.4 12.3 5.8C12.5 6.2 12.7 6.2 13 6.2C13.3 6.2 13.5 6.2 13.7 5.8C13.9 5.4 14.1 5 14.3 4.6C14.7 3.8 15.2 3.1 15.8 2.4C16.6 1.5 17.6 0.8 18.7 0.3C20.2 -0.4 22.2 -0.4 23.7 1.2C25.2 2.8 26 5 26 7.4C26 9.9 25.2 12.2 23.2 14.7C21.4 16.9 18.9 19.2 15.9 21.9L15.8 22C15.2 22.5 14.5 23.1 13.8 23.7C13.6 23.9 13.3 24 13 24Z"/>
       </svg>
     </button>

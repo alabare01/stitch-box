@@ -17,6 +17,7 @@ import Detail, { CoverImagePicker, DeleteConfirmModal, ReadyToBuildPrompt, Patte
 import ImageImportModal from "./ImageImportModal.jsx";
 import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import TermsOfService from "./TermsOfService.jsx";
+import FeedbackWidget from "./FeedbackWidget.jsx";
 
 if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
   const l = document.createElement("link");
@@ -2130,6 +2131,7 @@ export default function Wovely() {
         <div style={{background:"#FFFFFF",borderBottom:"1px solid #EDE4F7",padding:"0 32px",height:64,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
           <div style={{fontFamily:T.serif,fontSize:28,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Wovely"}</div>
           <div style={{display:"flex",alignItems:"center",gap:12,position:"relative"}}>
+            <FeedbackWidget user={supabaseAuth.getUser()}/>
             {isPro&&<div style={{background:T.terraLt,borderRadius:9999,padding:"4px 10px",fontSize:11,fontWeight:600,color:T.terra}}>✨ Pro</div>}
             <button onClick={(e)=>{if(tier.atCap){setShowPaywall(true);return;}if(addMenuOpen){setAddMenuOpen(false);setMenuAnchor(null);return;}const r=e.currentTarget.getBoundingClientRect();setMenuAnchor({top:r.bottom+8,left:r.right-220});setAddMenuOpen(true);}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:9999,padding:"10px 24px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:18}}>+</span> Add Pattern</button>
           </div>
@@ -2171,7 +2173,10 @@ export default function Wovely() {
       <div style={{background:"#FFFFFF",borderBottom:"1px solid #EDE4F7",padding:"0 18px",height:56,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,zIndex:20,flexShrink:0}}>
         <button onClick={()=>setNavOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:"8px 8px 8px 0",display:"flex",flexDirection:"column",gap:5}}><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:15,height:1.5,background:T.ink,borderRadius:99}}/><div style={{width:22,height:1.5,background:T.ink,borderRadius:99}}/></button>
         <div style={{fontFamily:T.serif,fontSize:20,fontWeight:700,color:T.ink}}>{TITLE_MAP[view]||"Wovely"}</div>
-        <button onClick={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} style={{background:T.terra,border:"none",borderRadius:9999,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(155,126,200,.4)"}}>+</button>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <FeedbackWidget user={supabaseAuth.getUser()}/>
+          <button onClick={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} style={{background:T.terra,border:"none",borderRadius:9999,width:34,height:34,cursor:"pointer",color:"#fff",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 10px rgba(155,126,200,.4)"}}>+</button>
+        </div>
       </div>
       {addMenuOpen&&<><div onClick={()=>setAddMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:49,background:"rgba(28,23,20,.4)"}}/><div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:50,background:"#fff",borderRadius:"20px 20px 0 0",padding:"12px 0 24px",boxShadow:"0 -8px 32px rgba(45,45,78,.12)",fontFamily:"Inter,sans-serif"}}><div style={{width:36,height:3,background:T.border,borderRadius:99,margin:"0 auto 16px"}}/>{[{icon:"📄",label:"Add PDF",sub:"Upload & extract",action:()=>{setAddMenuOpen(false);openAddModal("pdf");}},{icon:"📸",label:"Add from photos",sub:"Screenshots, scans, photos",action:()=>{setAddMenuOpen(false);setImageImportOpen(true);}},{icon:"🔗",label:"Paste a URL",sub:"Any pattern link",action:()=>{setAddMenuOpen(false);openAddModal("url");}},{icon:"🌐",label:"Explore free patterns",sub:"AllFreeCrochet, Drops & more",action:()=>{setAddMenuOpen(false);navigateToView("browse");}},{icon:"🔍",label:"Identify a Stitch",sub:"Photo to stitch name",action:()=>{setAddMenuOpen(false);navigateToView("stitch-vision");}}].map(item=>(<div key={item.label} onClick={item.action} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 22px",cursor:"pointer"}}><span style={{fontSize:22,width:28,textAlign:"center"}}>{item.icon}</span><div><div style={{fontSize:14,fontWeight:600,color:T.ink}}>{item.label}</div><div style={{fontSize:12,color:T.ink3}}>{item.sub}</div></div></div>))}</div></>}
       <div style={{flex:1,overflowY:"auto",paddingBottom:100}}>
