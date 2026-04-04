@@ -22,6 +22,21 @@ export default function WhatsNewModal() {
     return () => clearTimeout(t);
   }, []);
 
+  // Dev reset: Shift+W when logged in as adam
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key !== "W") return;
+      const user = supabaseAuth.getUser();
+      if (user?.email !== "alabare@gmail.com") return;
+      localStorage.removeItem(LS_KEY);
+      setVisible(true);
+      setTimeout(() => setEntered(true), 50);
+      console.log("What's New modal reset — showing now");
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
   const dismiss = () => {
     setEntered(false);
     setTimeout(() => {
@@ -63,6 +78,7 @@ export default function WhatsNewModal() {
         position: "fixed", top: "50%", left: "50%", zIndex: 301,
         background: "#fff", borderRadius: 20,
         maxWidth: 480, width: "calc(100% - 48px)", maxHeight: "80vh", overflowY: "auto",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
         transform: entered ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -50%) scale(0.95)",
         opacity: entered ? 1 : 0,
         transition: "opacity 0.25s ease-out, transform 0.25s ease-out",
