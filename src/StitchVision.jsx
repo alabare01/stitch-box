@@ -179,6 +179,15 @@ const StitchVision = ({ isPro, onUpgrade }) => {
       </div>
     );
 
+    if (!result || !result.stitch_name) return (
+      <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
+        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Couldn't identify the stitch</div>
+        <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>Try a closer, well-lit photo of the stitch texture.</div>
+        <button onClick={reset} style={{ background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
+      </div>
+    );
+
     if (result?.not_crochet) return (
       <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
         {thumb && <img src={thumb} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
