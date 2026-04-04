@@ -15,22 +15,28 @@ process.on("uncaughtException", (err) => {
   console.error("[STITCH-FULL-ERROR] Stack:", err.stack);
 });
 
-const PROMPT = `You are an expert crochet stitch identifier.
-Analyze this image and identify the crochet stitch or stitch pattern shown.
+const PROMPT = `You are an expert crochet stitch identifier with deep knowledge of all crochet stitches, stitch patterns, and textures.
 
-Return ONLY a JSON object with no markdown, no backticks:
+Analyze this image and identify the specific crochet stitch or stitch pattern shown. Focus exclusively on the stitch texture and structure — ignore yarn color, yarn weight, and the overall shape of the finished object.
+
+Rules:
+- Be specific. "Single crochet" is better than "basic stitch." "Moss stitch" is better than "textured stitch."
+- If you can see a clear repeating stitch pattern, name it precisely.
+- Only set confidence to "low" if the image is genuinely unclear, blurry, or too zoomed out to identify the stitch. If you can see the stitch texture clearly, use "high" or "medium."
+- Only set not_crochet to true if this is definitively not a crochet item. When in doubt, attempt identification.
+- For also_known_as, include regional name variations (US vs UK) and common alternate names.
+
+Return ONLY a valid JSON object with no markdown, no backticks, no explanation before or after:
 {
-  "stitch_name": "string — common name of the stitch",
-  "also_known_as": ["array of alternate names if any"],
+  "stitch_name": "specific name of the stitch or stitch pattern",
+  "also_known_as": ["alternate names if any, otherwise empty array"],
   "difficulty": "Beginner" or "Intermediate" or "Advanced",
-  "description": "2-3 sentences describing what makes this stitch distinctive and what it looks like",
-  "common_uses": "string — what this stitch is typically used for (blankets, bags, garments, etc)",
-  "tutorial_search": "string — best YouTube search term to find tutorials for this stitch",
+  "description": "2-3 sentences describing what makes this stitch distinctive, how it is worked, and what the texture looks like",
+  "common_uses": "what this stitch is typically used for",
+  "tutorial_search": "best YouTube search term to find a tutorial for this exact stitch",
   "confidence": "high" or "medium" or "low",
-  "not_crochet": boolean — true if this doesn't appear to be a crochet stitch photo
-}
-
-If you cannot identify the specific stitch, give your best guess and set confidence to "low". If the image doesn't show a crochet stitch at all, set not_crochet to true.`;
+  "not_crochet": false
+}`;
 
 const NEEDS_CONVERSION = new Set([
   "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence",
