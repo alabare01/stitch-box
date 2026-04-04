@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     });
 
     if (_url && _key) {
-      fetch(`${_url}/rest/v1/vercel_logs`, {
+      await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'info', message: `POST /api/stripe-checkout → 200 (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/stripe-checkout', request_method: 'POST', status_code: 200, project_id: 'wovely' })
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[stripe-checkout] Error:', err.message);
     if (_url && _key) {
-      fetch(`${_url}/rest/v1/vercel_logs`, {
+      await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[stripe-checkout] error: ${err.message} (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/stripe-checkout', request_method: 'POST', status_code: 500, project_id: 'wovely' })

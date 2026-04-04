@@ -144,7 +144,6 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'info', message: `POST /api/extract-pattern → 200 (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 200, project_id: 'wovely' })
       }).catch(() => {});
-      console.log('[extract-pattern] log write attempted');
     }
     return res.status(200).json(result);
   } catch (e) {

@@ -163,7 +163,7 @@ ${text}`;
     }
 
     if (_url && _key) {
-      fetch(`${_url}/rest/v1/vercel_logs`, {
+      await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'info', message: `POST /api/fetch-pattern → 200 (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/fetch-pattern', request_method: 'POST', status_code: 200, project_id: 'wovely' })
@@ -174,7 +174,7 @@ ${text}`;
   } catch (err) {
     console.error("[fetch-pattern]", err.message);
     if (_url && _key) {
-      fetch(`${_url}/rest/v1/vercel_logs`, {
+      await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
         body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[fetch-pattern] error: ${err.message} (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/fetch-pattern', request_method: 'POST', status_code: 500, project_id: 'wovely' })
