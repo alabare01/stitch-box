@@ -2,8 +2,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function writeLog({ level = 'info', message, request_path, request_method, status_code, user_id = null, context = null }) {
+  console.log('[logger] writeLog called:', message, 'URL:', SUPABASE_URL ? 'SET' : 'UNDEFINED', 'KEY:', SUPABASE_SERVICE_KEY ? 'SET' : 'UNDEFINED');
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/vercel_logs`, {
+    const logRes = await fetch(`${SUPABASE_URL}/rest/v1/vercel_logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -24,9 +25,9 @@ async function writeLog({ level = 'info', message, request_path, request_method,
         project_id: 'wovely'
       })
     });
+    console.log('[logger] Supabase response status:', logRes.status);
   } catch (e) {
-    // Never let logging crash the app
-    console.error('Logger write failed:', e.message);
+    console.error('[logger] Logger write failed:', e.message, e.stack);
   }
 }
 
