@@ -1,15 +1,14 @@
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 async function writeLog({ level = 'info', message, request_path, request_method, status_code, user_id = null, context = null }) {
-  console.log('[logger] writeLog called:', message, 'URL:', SUPABASE_URL ? 'SET' : 'UNDEFINED', 'KEY:', SUPABASE_SERVICE_KEY ? 'SET' : 'UNDEFINED');
+  const url = process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log('[logger] ENV CHECK — URL:', url ? url.substring(0, 30) : 'UNDEFINED', '| KEY:', key ? 'SET(' + key.length + 'chars)' : 'UNDEFINED');
   try {
-    const logRes = await fetch(`${SUPABASE_URL}/rest/v1/vercel_logs`, {
+    const logRes = await fetch(`${url}/rest/v1/vercel_logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
         'Prefer': 'return=minimal'
       },
       body: JSON.stringify({
@@ -25,9 +24,10 @@ async function writeLog({ level = 'info', message, request_path, request_method,
         project_id: 'wovely'
       })
     });
-    console.log('[logger] Supabase response status:', logRes.status);
+    const responseText = await logRes.text();
+    console.log('[logger] Supabase response:', logRes.status, responseText.substring(0, 200));
   } catch (e) {
-    console.error('[logger] Logger write failed:', e.message, e.stack);
+    console.error('[logger] FETCH THREW:', e.constructor.name, e.message);
   }
 }
 
