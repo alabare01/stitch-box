@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useBreakpoint } from "./theme.jsx";
 import { supabaseAuth } from "./supabase.js";
 import { CHANGELOG } from "./changelog.js";
 
@@ -10,7 +9,6 @@ const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export default function WhatsNewModal() {
   const [visible, setVisible] = useState(false);
   const [entered, setEntered] = useState(false);
-  const { isMobile } = useBreakpoint();
 
   useEffect(() => {
     const user = supabaseAuth.getUser();
@@ -60,27 +58,21 @@ export default function WhatsNewModal() {
         }}
       />
 
-      {/* Sheet / Card */}
-      <div style={isMobile ? {
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 301,
-        background: "#fff", borderRadius: "24px 24px 0 0",
-        maxHeight: "70vh", overflowY: "auto",
-        transform: entered ? "translateY(0)" : "translateY(100%)",
-        transition: "transform 0.3s ease-out",
-      } : {
+      {/* Card */}
+      <div style={{
         position: "fixed", top: "50%", left: "50%", zIndex: 301,
-        background: "#fff", borderRadius: 16,
+        background: "#fff", borderRadius: 20,
         maxWidth: 480, width: "calc(100% - 48px)", maxHeight: "80vh", overflowY: "auto",
-        transform: entered ? "translate(-50%, -50%)" : "translate(-50%, -50%)",
+        transform: entered ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -50%) scale(0.95)",
         opacity: entered ? 1 : 0,
-        transition: "opacity 0.25s ease-out",
+        transition: "opacity 0.25s ease-out, transform 0.25s ease-out",
       }}>
 
         {/* Header */}
         <div style={{
           background: "linear-gradient(135deg, #9B7EC8, #7B5EA8)",
           padding: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-          borderRadius: isMobile ? "24px 24px 0 0" : "16px 16px 0 0",
+          borderRadius: "20px 20px 0 0",
         }}>
           <img src="/bev_neutral.png" alt="Bev" style={{ width: 64, height: 64, borderRadius: "50%", border: "3px solid white", objectFit: "cover" }} />
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#fff", textAlign: "center" }}>What's New in Wovely 🎉</div>
