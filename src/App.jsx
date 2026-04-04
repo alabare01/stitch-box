@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { initErrorReporter, setErrorReporterUser } from './utils/errorReporter.js';
 import { useNavigate, useLocation, useParams, Routes, Route, Navigate } from "react-router-dom";
 import posthog from "posthog-js";
 import { T, useBreakpoint, Field } from "./theme.jsx";
@@ -1619,6 +1620,11 @@ export default function Wovely() {
   const userStarterCount=userPatterns.filter(p=>p.isStarter).length;
   const tier=useTier(isPro,userPatterns.length,userStarterCount);
 
+  // Initialize client-side error reporting once on mount
+  useEffect(() => {
+    initErrorReporter();
+  }, []);
+
   // Guard to prevent concurrent profile fetches from racing
   const isFetchingProfile = useRef(false);
   const isValidating = useRef(false);
@@ -1674,6 +1680,7 @@ export default function Wovely() {
           // Identify user for PostHog analytics on session restore
           const restoredUser=supabaseAuth.getUser();
           if(restoredUser) posthog.identify(restoredUser.id,{email:restoredUser.email});
+          setErrorReporterUser(restoredUser?.id || null);
           setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
         } else {
           clearAuth();
