@@ -1,14 +1,20 @@
 async function writeLog({ level = 'info', message, request_path, request_method, status_code, user_id = null, context = null }) {
   const url = process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  console.log('[logger] ENV CHECK — URL:', url ? url.substring(0, 30) : 'UNDEFINED', '| KEY:', key ? 'SET(' + key.length + 'chars)' : 'UNDEFINED');
+
+  // Hard bail if env vars missing — can't log without them
+  if (!url || !key) {
+    console.error('[logger] Missing env vars — url:', !!url, 'key:', !!key);
+    return;
+  }
+
   try {
     const logRes = await fetch(`${url}/rest/v1/vercel_logs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
+        'apikey': String(key),
+        'Authorization': `Bearer ${String(key)}`,
         'Prefer': 'return=minimal'
       },
       body: JSON.stringify({
@@ -16,18 +22,20 @@ async function writeLog({ level = 'info', message, request_path, request_method,
         level,
         message,
         source: 'serverless',
-        request_path,
-        request_method,
-        status_code,
-        user_id,
-        context,
+        request_path: request_path || '',
+        request_method: request_method || '',
+        status_code: status_code || 0,
+        user_id: user_id || null,
+        context: context || null,
         project_id: 'wovely'
       })
     });
     const responseText = await logRes.text();
-    console.log('[logger] Supabase response:', logRes.status, responseText.substring(0, 200));
+    if (logRes.status >= 300) {
+      console.error('[logger] Supabase rejected write:', logRes.status, responseText.substring(0, 300));
+    }
   } catch (e) {
-    console.error('[logger] FETCH THREW:', e.constructor.name, e.message);
+    console.error('[logger] FETCH THREW:', e.constructor.name, '—', e.message);
   }
 }
 
