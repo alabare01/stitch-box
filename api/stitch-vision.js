@@ -28,7 +28,8 @@ Rules:
 - Be specific. "Single crochet" is better than "basic stitch." "Moss stitch" is better than "textured stitch."
 - If you can see a clear repeating stitch pattern, name it precisely.
 - Only set confidence to "low" if the image is genuinely unclear, blurry, or too zoomed out to identify the stitch. If you can see the stitch texture clearly, use "high" or "medium."
-- Even when confidence is "low", you MUST still populate all fields fully — description, common_uses, tutorial_search, also_known_as. Never return empty strings. Give your best answer for every field regardless of confidence level.
+- ALWAYS populate description, common_uses, also_known_as, tutorial_search, and difficulty regardless of confidence level. confidence only reflects how certain you are of the stitch_name — it never affects whether other fields are filled in. Even at low confidence, provide your best description of what you see.
+- Never return empty string for description or common_uses. If unsure, describe what you observe visually.
 - Only set not_crochet to true if this is definitively not a crochet item. When in doubt, attempt identification.
 - For also_known_as, include regional name variations (US vs UK) and common alternate names.
 
