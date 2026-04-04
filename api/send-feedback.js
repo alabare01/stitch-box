@@ -18,7 +18,7 @@ function buildSubject(category, severity, email, page) {
 }
 
 function buildEmailBody(data) {
-  const { category, message, stepsToReproduce, expectedBehavior, severity, email, page, browser, device, screenSize } = data;
+  const { category, message, stepsToReproduce, expectedBehavior, severity, email, page, browser, device, screenSize, attachmentUrl } = data;
   const lines = [];
   lines.push(`Category: ${category}`);
   lines.push(`From: ${email || 'anonymous'}`);
@@ -36,6 +36,7 @@ function buildEmailBody(data) {
     lines.push(`Browser: ${browser || 'unknown'}`);
     lines.push(`Device: ${device || 'unknown'}`);
     lines.push(`Screen: ${screenSize || 'unknown'}`);
+    if (attachmentUrl) { lines.push(''); lines.push(`Attachment: ${attachmentUrl}`); }
   } else if (category === 'Idea') {
     lines.push('── The Idea ──');
     lines.push(message);
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { userId, email, category, message, stepsToReproduce, expectedBehavior, severity, page, browser, device, screenSize } = req.body;
+    const { userId, email, category, message, stepsToReproduce, expectedBehavior, severity, attachmentUrl, page, browser, device, screenSize } = req.body;
 
     if (!category || !message) {
       return res.status(400).json({ error: 'Category and message are required' });
@@ -77,6 +78,7 @@ export default async function handler(req, res) {
         browser: browser || null,
         device: device || null,
         screen_size: screenSize || null,
+        attachment_url: attachmentUrl || null,
         created_at: new Date().toISOString()
       });
 

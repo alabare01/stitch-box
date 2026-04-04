@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+// NOTE: Supabase Storage bucket 'feedback-attachments' must be public. Create it manually in Supabase dashboard if it does not exist.
+import { useState, useEffect, useRef } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, getSession } from "./supabase.js";
 
 const C = {
   lavender: "#9B7EC8",
@@ -108,9 +110,48 @@ export default function FeedbackWidget({ user }) {
   // Love it field
   const [loveMsg, setLoveMsg] = useState("");
 
+  // File attachment (bug only)
+  const [attachedFile, setAttachedFile] = useState(null); // { name, url } or null
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef(null);
+
   const resetForm = () => {
     setCategory(""); setBugWhat(""); setBugSteps(""); setBugExpected(""); setBugSeverity("");
     setIdeaWhat(""); setIdeaWhy(""); setLoveMsg(""); setError("");
+    setAttachedFile(null); setUploadError("");
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setUploadError("File must be under 10MB"); return; }
+    setUploadError("");
+    setUploading(true);
+    try {
+      const uid = user?.id || "anon";
+      const path = `${uid}/${Date.now()}-${file.name}`;
+      const session = getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/feedback-attachments/${path}`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          "Content-Type": file.type || "application/octet-stream",
+          "x-upsert": "true",
+        },
+        body: file,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/feedback-attachments/${path}`;
+      setAttachedFile({ name: file.name, url: publicUrl });
+    } catch {
+      setUploadError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   useEffect(() => {
@@ -145,6 +186,7 @@ export default function FeedbackWidget({ user }) {
         body: JSON.stringify({
           userId: user?.id || null, email: user?.email || null,
           category, message, stepsToReproduce, expectedBehavior, severity,
+          attachmentUrl: attachedFile?.url || null,
           page: info.page, browser: info.browser, device: info.device, screenSize: info.screenSize,
         }),
       });
@@ -202,6 +244,34 @@ export default function FeedbackWidget({ user }) {
         <Input rows={2} placeholder="e.g. I expected it to save..." value={bugExpected} onChange={setBugExpected} />
       </div>
       <SeverityPills value={bugSeverity} onChange={setBugSeverity} />
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, fontFamily: T.sans }}>Attach a file (optional)</div>
+        <div style={{ fontSize: 11, color: C.sub, marginBottom: 8, fontFamily: T.sans }}>Screenshot, PDF, or pattern file — helps us fix it faster</div>
+        <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf" onChange={handleFileSelect} style={{ display: "none" }} />
+        {attachedFile ? (
+          <div style={{
+            border: `1px solid #5C9E7A`, borderRadius: 12, padding: "12px 16px",
+            display: "flex", alignItems: "center", gap: 10, background: "#F0F8F0",
+          }}>
+            <span style={{ color: "#5C9E7A", fontSize: 16 }}>✓</span>
+            <span style={{ fontSize: 13, color: C.text, fontFamily: T.sans, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachedFile.name}</span>
+            <button onClick={() => setAttachedFile(null)} style={{
+              background: "none", border: "none", fontSize: 14, color: C.sub, cursor: "pointer", padding: 2, lineHeight: 1,
+            }}>✕</button>
+          </div>
+        ) : (
+          <div onClick={() => !uploading && fileInputRef.current?.click()} style={{
+            border: `2px dashed ${C.border}`, borderRadius: 12, padding: "12px 16px",
+            cursor: uploading ? "default" : "pointer", display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ fontSize: 18 }}>📎</span>
+            <span style={{ fontSize: 13, color: uploading ? C.sub : C.lavender, fontFamily: T.sans }}>
+              {uploading ? "Uploading..." : "Tap to attach a file"}
+            </span>
+          </div>
+        )}
+        {uploadError && <div style={{ color: "#C05A5A", fontSize: 12, marginTop: 6, fontFamily: T.sans }}>{uploadError}</div>}
+      </div>
     </div>
   );
 
