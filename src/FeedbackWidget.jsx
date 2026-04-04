@@ -352,11 +352,11 @@ export default function FeedbackWidget({ user }) {
       <div onClick={handleClose} style={{
         position: "fixed", inset: 0, background: "rgba(45,58,124,0.25)",
         backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)",
-        zIndex: 9998, animation: "fbFadeIn .2s ease",
+        zIndex: 100, animation: "fbFadeIn .2s ease",
       }} />
       {isMobile ? (
         <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 101,
           background: "#fff", borderRadius: "20px 20px 0 0",
           boxShadow: "0 8px 40px rgba(45,58,124,0.15)",
           animation: "slideUp .3s ease", maxHeight: "90vh", overflowY: "auto",
@@ -373,7 +373,7 @@ export default function FeedbackWidget({ user }) {
       ) : (
         <div style={{
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-          zIndex: 9999, background: "#fff", borderRadius: 20,
+          zIndex: 101, background: "#fff", borderRadius: 20,
           boxShadow: "0 8px 40px rgba(45,58,124,0.15)",
           width: "100%", maxWidth: 480, animation: "modalPop .25s ease",
           overflowY: "auto", maxHeight: "90vh",
