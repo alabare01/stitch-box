@@ -4,10 +4,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 function buildSubject(category, severity, email, page) {
   const from = email || 'anonymous';
@@ -57,6 +60,20 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Env var checks
+  if (!process.env.VITE_SUPABASE_URL) {
+    console.error('[send-feedback] Missing VITE_SUPABASE_URL');
+    return res.status(500).json({ error: 'Missing VITE_SUPABASE_URL' });
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[send-feedback] Missing SUPABASE_SERVICE_ROLE_KEY');
+    return res.status(500).json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY' });
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[send-feedback] Missing RESEND_API_KEY');
+    return res.status(500).json({ error: 'Missing RESEND_API_KEY' });
+  }
+
   try {
     const { userId, email, category, message, stepsToReproduce, expectedBehavior, severity, attachmentUrl, page, browser, device, screenSize } = req.body;
 
@@ -64,46 +81,58 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Category and message are required' });
     }
 
-    const { error: dbError } = await supabase
-      .from('feedback')
-      .insert({
-        user_id: userId || null,
-        email: email || null,
-        category,
-        message,
-        steps_to_reproduce: stepsToReproduce || null,
-        expected_behavior: expectedBehavior || null,
-        severity: severity || null,
-        page: page || null,
-        browser: browser || null,
-        device: device || null,
-        screen_size: screenSize || null,
-        attachment_url: attachmentUrl || null,
-        created_at: new Date().toISOString()
-      });
+    // Insert into Supabase
+    try {
+      const { error: dbError } = await getSupabase()
+        .from('feedback')
+        .insert({
+          user_id: userId || null,
+          email: email || null,
+          category,
+          message,
+          steps_to_reproduce: stepsToReproduce || null,
+          expected_behavior: expectedBehavior || null,
+          severity: severity || null,
+          page: page || null,
+          browser: browser || null,
+          device: device || null,
+          screen_size: screenSize || null,
+          attachment_url: attachmentUrl || null,
+          created_at: new Date().toISOString()
+        });
 
-    if (dbError) {
-      console.error('[send-feedback] Supabase insert error:', dbError.message);
-      return res.status(500).json({ error: 'Failed to save feedback' });
+      if (dbError) {
+        console.error('[send-feedback] Supabase insert error:', dbError.message, 'details:', dbError.details, 'hint:', dbError.hint, 'code:', dbError.code);
+        return res.status(500).json({ error: 'Failed to save feedback', detail: dbError.message });
+      }
+    } catch (dbErr) {
+      console.error('[send-feedback] Supabase insert exception:', dbErr);
+      return res.status(500).json({ error: 'Failed to save feedback', detail: dbErr.message });
     }
 
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Wovely Feedback <support@wovely.app>',
-        to: 'support@wovely.app',
-        subject: buildSubject(category, severity, email, page),
-        text: buildEmailBody(req.body)
-      })
-    });
+    // Send email via Resend
+    try {
+      const emailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'Wovely Feedback <support@wovely.app>',
+          to: 'support@wovely.app',
+          subject: buildSubject(category, severity, email, page),
+          text: buildEmailBody(req.body)
+        })
+      });
 
-    if (!emailRes.ok) {
-      const errText = await emailRes.text();
-      console.error('[send-feedback] Resend error:', errText);
+      if (!emailRes.ok) {
+        const errBody = await emailRes.text();
+        console.error('[send-feedback] Resend error:', emailRes.status, errBody);
+      }
+    } catch (emailErr) {
+      console.error('[send-feedback] Resend exception:', emailErr);
+      // Don't fail the request — feedback was already saved
     }
 
     return res.status(200).json({ success: true });
