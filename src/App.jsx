@@ -20,6 +20,7 @@ import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import TermsOfService from "./TermsOfService.jsx";
 import FeedbackWidget from "./FeedbackWidget.jsx";
 import WhatsNewModal, { triggerWhatsNew, useWovelySuperTap } from "./WhatsNewModal.jsx";
+import Founders from "./Founders.jsx";
 
 if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
   const l = document.createElement("link");
@@ -1973,6 +1974,8 @@ export default function Wovely() {
     }
   },[authed,authChecked,location.pathname,navigate]);
 
+  // Secret founders dashboard — no auth required
+  if(location.pathname==="/founders") return <Founders/>;
   // Private route: /master-doc (includes changelog tab) — rendered before auth check
   if(location.pathname==="/master-doc") return <MasterDocView/>;
   // Redirect old /changelog URL to /master-doc
