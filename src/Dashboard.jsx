@@ -328,7 +328,7 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
   console.log("IN PROGRESS:", inProgress.length, inProgress.map(p=>p.title));
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #FAF8F5 0%, #F5F0FA 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "transparent" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "16px 16px 120px" : "24px 32px 80px", boxSizing: "border-box", width: "100%" }}>
         {/* Two-column grid on desktop, single column on mobile */}
         <div style={isMobile ? { display: "flex", flexDirection: "column", gap: 16 } : {
