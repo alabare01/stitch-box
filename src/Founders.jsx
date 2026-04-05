@@ -1,244 +1,214 @@
 import { useState, useEffect, useCallback } from "react";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase.js";
 
-const PH_KEY = import.meta.env.VITE_POSTHOG_API_KEY || "";
-const PH_PROJECT = "363175";
-const PH_API = `https://us.posthog.com/api/projects/${PH_PROJECT}/query/`;
-
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
 const PF = "'Playfair Display',Georgia,serif";
 const INTER = "Inter,sans-serif";
 const NAVY = "#2D3A7C";
 const ACCENT = "#9B7EC8";
-const MUTED = "#6B6B8A";
+const MUTED = "#9B87B8";
 const BG = "#FAF8F5";
 
-const cardStyle = { background: "#fff", borderRadius: 16, border: "1px solid #EDE4F7", boxShadow: "0 2px 12px rgba(155,126,200,0.08)", padding: 20 };
-const sectionTitle = { fontFamily: PF, fontSize: 18, fontWeight: 600, color: NAVY, marginBottom: 14 };
+const USERS = [
+  { id: "6e1a02d9-c210-4bc4-968e-dde3435565d1", email: "alabare@gmail.com", joined: "2026-03-24", is_pro: true },
+  { id: "d6b18345-a85e-42bd-b7cb-f20efd4b2fe7", email: "danielle2673@me.com", joined: "2026-03-26", is_pro: true },
+  { id: "038442a2-b13d-4abb-9960-24a360078f6c", email: "danielle2673@gmail.com", joined: "2026-03-23", is_pro: true },
+  { id: "019d4564-aa95-79fc-8a57-7e08d2f3ecd1", email: "steffaniembrown@gmail.com", joined: "2026-03-31", is_pro: true },
+  { id: "70d18298-06a9-468e-825d-2c561e6de9a0", email: "tbrightjax@gmail.com", joined: "2026-03-31", is_pro: true },
+  { id: "c143044b-25f8-48e6-9831-15ed2e3b474f", email: "stinkyswife@gmail.com", joined: "2026-03-31", is_pro: true },
+  { id: "b58607be-e04c-4194-b568-47e557087016", email: "turttlesong@yahoo.com", joined: "2026-04-03", is_pro: true, trialExpires: "2026-05-03" },
+  { id: "ronsrit-real-id", email: "ronsrit@hotmail.com", joined: "2026-04-01", is_pro: true },
+  { id: "test-id-123", email: "alabare+test1@gmail.com", joined: "2026-03-31", is_pro: false },
+];
 
-// PostHog HogQL query helper
-const phQuery = async (query) => {
+// ─── DATA FETCHERS ──────────────────────────────────────────────────────────
+const phQuery = async (sql) => {
+  const key = import.meta.env.VITE_POSTHOG_API_KEY;
+  if (!key) return [];
   try {
-    const res = await fetch(PH_API, {
+    const res = await fetch("https://us.posthog.com/api/projects/363175/query/", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${PH_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: { kind: "HogQLQuery", query } }),
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: { kind: "HogQLQuery", query: sql } }),
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.results || [];
-  } catch { return null; }
+    const d = await res.json();
+    return d.results || [];
+  } catch { return []; }
 };
 
-// Supabase REST helper
-const sbQuery = async (table, params = "") => {
+const sbFetch = async (table, params = "") => {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch { return null; }
+    return res.ok ? await res.json() : [];
+  } catch { return []; }
 };
 
-// Known founders/users for the user table
-const KNOWN_USERS = [
-  { email: "alabare@gmail.com", name: "Adam", joined: "2026-03-20", tier: "Pro" },
-  { email: "danielle@wovely.app", name: "Danielle", joined: "2026-03-20", tier: "Pro" },
-  { email: "turttlesong@yahoo.com", name: "Turtle Song", joined: "2026-03-28", tier: "Trial" },
-  { email: "crochetqueen@gmail.com", name: "CrochetQueen", joined: "2026-03-29", tier: "Free" },
-  { email: "yarnlover42@outlook.com", name: "YarnLover42", joined: "2026-03-30", tier: "Free" },
-  { email: "hookedonthat@gmail.com", name: "HookedOnThat", joined: "2026-03-31", tier: "Free" },
-  { email: "stitchfix_sarah@gmail.com", name: "Sarah", joined: "2026-04-01", tier: "Free" },
-  { email: "knottybydesign@yahoo.com", name: "KnottyByDesign", joined: "2026-04-02", tier: "Free" },
-  { email: "woolandwhimsy@gmail.com", name: "WoolAndWhimsy", joined: "2026-04-03", tier: "Free" },
-];
-
-const statusBadge = (lastActive, email) => {
-  if (email === "turttlesong@yahoo.com") return { label: "Trial", color: "#D97706", bg: "#FEF3C7" };
-  if (!lastActive) return { label: "Ghosted", color: "#DC2626", bg: "#FEE2E2" };
+// ─── STATUS LOGIC ───────────────────────────────────────────────────────────
+const getStatus = (patternCount, lastActive, email) => {
+  if (email === "turttlesong@yahoo.com") return { label: "Trial", bg: "#FAEEDA", color: "#854F0B" };
+  if (!patternCount || patternCount === 0) return { label: "Ghosted", bg: "#FCEBEB", color: "#A32D2D" };
+  if (!lastActive) return { label: "Ghosted", bg: "#FCEBEB", color: "#A32D2D" };
   const days = Math.floor((Date.now() - new Date(lastActive).getTime()) / 86400000);
-  if (days <= 3) return { label: "Active", color: "#059669", bg: "#D1FAE5" };
-  if (days <= 7) return { label: "At risk", color: "#D97706", bg: "#FEF3C7" };
-  if (days <= 30) return { label: "Drifting", color: "#D97706", bg: "#FEF3C7" };
-  return { label: "Ghosted", color: "#DC2626", bg: "#FEE2E2" };
+  if (days <= 3) return { label: "Active", bg: "#EAF3DE", color: "#3B6D11" };
+  if (days <= 7) return { label: "At risk", bg: "#FAEEDA", color: "#854F0B" };
+  return { label: "Drifting", bg: "#FAEEDA", color: "#854F0B" };
 };
 
+const tierBadge = (u) => {
+  if (!u.is_pro) return { label: "Free", bg: "#F1EFE8", color: "#5F5E5A" };
+  if (u.trialExpires) return { label: "Trial", bg: "#FAEEDA", color: "#854F0B" };
+  return { label: "Pro", bg: "#EDE4F7", color: "#6B3FA0" };
+};
+
+// ─── CARD / SECTION STYLES ──────────────────────────────────────────────────
+const card = { background: "#fff", borderRadius: 16, border: "1px solid #EDE4F7", padding: 20 };
+const secHead = { fontFamily: PF, fontSize: 18, fontWeight: 700, color: NAVY, marginBottom: 12 };
+const badge = (bg, color) => ({ display: "inline-block", background: bg, color, borderRadius: 20, padding: "2px 8px", fontSize: 10, fontWeight: 600 });
+
+// ─── BAR ROW ────────────────────────────────────────────────────────────────
 const BarRow = ({ label, value, max }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-    <div style={{ width: 140, fontSize: 12, color: MUTED, fontFamily: INTER, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{label}</div>
-    <div style={{ flex: 1, height: 8, background: "#EDE4F7", borderRadius: 4, overflow: "hidden" }}>
-      <div style={{ width: max > 0 ? (value / max * 100) + "%" : "0%", height: "100%", background: ACCENT, borderRadius: 4, transition: "width .3s" }} />
+  <div style={{ display: "flex", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #F8F5FF" }}>
+    <div style={{ width: 150, fontSize: 12, color: "#2D2D4E", fontFamily: INTER, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 0 }}>{label}</div>
+    <div style={{ flex: 1, margin: "0 14px", height: 5, background: "#F0EAF9", borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ width: max > 0 ? (value / max * 100) + "%" : "0%", height: "100%", background: ACCENT, borderRadius: 3 }} />
     </div>
-    <div style={{ width: 40, textAlign: "right", fontSize: 12, fontWeight: 600, color: NAVY, fontFamily: INTER }}>{value}</div>
+    <div style={{ width: 36, textAlign: "right", fontSize: 12, fontWeight: 600, color: NAVY, fontFamily: INTER }}>{value}</div>
   </div>
 );
 
+// ─── COMPONENT ──────────────────────────────────────────────────────────────
 export default function Founders() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [stats, setStats] = useState({ users: 0, logins: 0, patterns: 0, stitches: 0, mrr: 0 });
-  const [trafficSources, setTrafficSources] = useState(null);
-  const [customEvents, setCustomEvents] = useState(null);
-  const [pageviews, setPageviews] = useState(null);
-  const [topPages, setTopPages] = useState(null);
-  const [userLocations, setUserLocations] = useState(null);
-  const [userData, setUserData] = useState(KNOWN_USERS.map(u => ({ ...u, patterns: "...", stitches: "...", lastActive: null })));
+  const [data, setData] = useState({
+    patterns: [], stitches: [], pvDay: [], events: [], sources: [], locations: [], topPages: [],
+  });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-
-    // Supabase counts
-    const [patterns, stitches, profiles] = await Promise.all([
-      sbQuery("patterns", "select=id,user_id,updated_at&status=neq.deleted&limit=500"),
-      sbQuery("stitch_results", "select=id,user_id&limit=500"),
-      sbQuery("user_profiles", "select=id,is_pro&limit=100"),
+    const [patterns, stitches, pvDay, events, sources, locations, topPages] = await Promise.all([
+      sbFetch("patterns", "select=user_id,status,updated_at,is_starter&status=neq.deleted&limit=500"),
+      sbFetch("stitch_results", "select=user_id,created_at&limit=500"),
+      phQuery("SELECT toDate(timestamp) as day, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 7 day GROUP BY day ORDER BY day ASC"),
+      phQuery("SELECT event, count() as n FROM events WHERE event IN ('user_logged_in','pattern_uploaded','user_signed_up','upgrade_clicked','stitch_check_run') AND timestamp >= now() - interval 30 day GROUP BY event ORDER BY n DESC"),
+      phQuery("SELECT properties.$referring_domain as d, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY d ORDER BY n DESC LIMIT 8"),
+      phQuery("SELECT properties.$geoip_city_name as city, properties.$geoip_country_name as country, count() as n FROM events WHERE event = 'user_logged_in' AND timestamp >= now() - interval 30 day GROUP BY city, country ORDER BY n DESC LIMIT 8"),
+      phQuery("SELECT properties.$current_url as url, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY url ORDER BY n DESC LIMIT 8"),
     ]);
-
-    const patternCount = patterns?.length || 0;
-    const stitchCount = stitches?.length || 0;
-    const proCount = profiles?.filter(p => p.is_pro)?.length || 0;
-
-    setStats({
-      users: KNOWN_USERS.length,
-      logins: "...",
-      patterns: patternCount,
-      stitches: stitchCount,
-      mrr: (proCount * 8.99).toFixed(2),
-    });
-
-    // Enrich user table with pattern/stitch counts
-    if (patterns || stitches) {
-      setUserData(prev => prev.map(u => {
-        const userPatterns = patterns?.filter(p => {
-          // Match by checking if any pattern was created by this user
-          return true; // We can't match without user_id mapping — show totals instead
-        }) || [];
-        // Find most recent activity
-        const userPats = patterns?.filter(() => true) || [];
-        const mostRecent = userPats.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
-        return { ...u, lastActive: mostRecent?.updated_at || null };
-      }));
-    }
-
-    // PostHog queries — all in parallel
-    const [loginCount, traffic, events, views, locations, pages] = await Promise.all([
-      phQuery("SELECT count() FROM events WHERE event = 'user_logged_in' AND timestamp >= now() - interval 30 day"),
-      phQuery("SELECT properties.$referring_domain as domain, count() as visits FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY domain ORDER BY visits DESC LIMIT 10"),
-      phQuery("SELECT event, count() as count FROM events WHERE event IN ('user_logged_in','pattern_uploaded','user_signed_up','upgrade_clicked','stitch_check_run') AND timestamp >= now() - interval 30 day GROUP BY event ORDER BY count DESC"),
-      phQuery("SELECT toDate(timestamp) as day, count() as cnt FROM events WHERE event = '$pageview' AND timestamp >= now() - interval 7 day GROUP BY day ORDER BY day"),
-      phQuery("SELECT properties.$geoip_city_name as city, properties.$geoip_country_name as country, properties.$os as os, count() as cnt FROM events WHERE event = 'user_logged_in' AND timestamp >= now() - interval 30 day GROUP BY city, country, os ORDER BY cnt DESC LIMIT 10"),
-      phQuery("SELECT properties.$current_url as url, count() as cnt FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY url ORDER BY cnt DESC LIMIT 10"),
-    ]);
-
-    if (loginCount?.[0]) setStats(s => ({ ...s, logins: loginCount[0][0] || 0 }));
-    setTrafficSources(traffic);
-    setCustomEvents(events);
-    setPageviews(views);
-    setUserLocations(locations);
-    setTopPages(pages);
-
+    setData({ patterns: patterns || [], stitches: stitches || [], pvDay: pvDay || [], events: events || [], sources: sources || [], locations: locations || [], topPages: topPages || [] });
     setLastRefresh(new Date());
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Bev insight text
-  const bevInsight = stats.logins !== "..."
-    ? `${stats.logins} logins from ${stats.users} users in the last 30 days = ${(stats.logins / Math.max(stats.users, 1)).toFixed(1)} avg sessions per user. ${stats.patterns} patterns saved, ${stats.stitches} stitches identified. MRR: $${stats.mrr}.`
-    : "Crunching numbers...";
+  // Derived stats
+  const userPatterns = data.patterns.filter(p => !p.is_starter);
+  const totalLogins = data.events.find(e => e[0] === "user_logged_in")?.[1] || 0;
+  const totalPatterns = userPatterns.length;
+  const totalStitches = data.stitches.length;
+  const proCount = USERS.filter(u => u.is_pro).length;
+  const mrr = "$8.99";
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <style>{`@keyframes bevSpin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(155,126,200,0.2)", animation: "bevSpin 1.5s linear infinite" }}>
-          <img src="/bev_neutral.png" alt="Bev" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
-        </div>
-        <div style={{ fontFamily: PF, fontStyle: "italic", fontSize: 18, color: ACCENT }}>Loading your numbers...</div>
-      </div>
-    );
-  }
+  // Per-user enrichment
+  const enrichedUsers = USERS.map(u => {
+    const pats = userPatterns.filter(p => p.user_id === u.id);
+    const stit = data.stitches.filter(s => s.user_id === u.id);
+    const dates = pats.map(p => p.updated_at).filter(Boolean).sort().reverse();
+    const lastActive = dates[0] || null;
+    const status = getStatus(pats.length, lastActive, u.email);
+    return { ...u, patternCount: pats.length, stitchCount: stit.length, lastActive, status };
+  });
 
-  const maxTraffic = trafficSources ? Math.max(...trafficSources.map(r => r[1] || 0), 1) : 1;
-  const maxEvents = customEvents ? Math.max(...customEvents.map(r => r[1] || 0), 1) : 1;
-  const maxPages = topPages ? Math.max(...topPages.map(r => r[1] || 0), 1) : 1;
-  const maxViews = pageviews ? Math.max(...pageviews.map(r => r[1] || 0), 1) : 1;
+  // Bev insight
+  const fbVisits = data.sources.find(s => (s[0] || "").includes("facebook"))?.[1] || 0;
+  const ghosted = enrichedUsers.filter(u => u.status.label === "Ghosted").length;
+  const bevText = `${totalLogins} logins from ${USERS.length} users = ${(totalLogins / Math.max(USERS.length, 1)).toFixed(1)} avg sessions each. ${fbVisits > 0 ? `Facebook drove ${fbVisits} visits — viral loop working. ` : ""}${ghosted > 0 ? `${ghosted} user${ghosted > 1 ? "s" : ""} haven't added a pattern yet — they need a welcome email. ` : ""}turttlesong trial expires May 3.`;
+
+  // Max helpers for bar widths
+  const maxOf = (arr, idx) => Math.max(...arr.map(r => r[idx] || 0), 1);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      <style>{`@keyframes bspin { to { transform: rotate(360deg) } }`}</style>
+      <img src="/bev_neutral.png" alt="Bev" style={{ width: 80, height: 80, borderRadius: "50%", background: "#fff", padding: 6, objectFit: "contain", boxShadow: "0 4px 20px rgba(155,126,200,0.2)", animation: "bspin 1.5s linear infinite" }} />
+      <div style={{ fontFamily: PF, fontStyle: "italic", fontSize: 20, color: ACCENT }}>Loading your numbers...</div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: INTER }}>
-      {/* Header */}
-      <div style={{ background: NAVY, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <img src="/bev_neutral.png" alt="Bev" style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover" }} />
-          </div>
+      <style>{`@keyframes bspin { to { transform: rotate(360deg) } } @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }`}</style>
+
+      {/* ── HEADER ── */}
+      <div style={{ background: NAVY, padding: "20px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <img src="/bev_neutral.png" alt="Bev" style={{ width: 52, height: 52, borderRadius: "50%", background: "#fff", padding: 4, objectFit: "contain" }} />
           <div>
             <div style={{ fontFamily: PF, fontSize: 22, fontWeight: 700, color: "#fff" }}>Wovely — Founder Dashboard</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Live · wovely.app</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Live · wovely.app</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34D399", animation: "bevSpin 3s ease infinite" }} />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{lastRefresh ? lastRefresh.toLocaleTimeString() : ""}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(155,126,200,0.3)", borderRadius: 20, padding: "4px 12px" }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#34D399", animation: "pulse 2s ease infinite" }} />
+            <span style={{ fontSize: 11, color: "#fff", fontWeight: 500 }}>Live data</span>
           </div>
-          <button onClick={fetchAll} style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px 14px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Refresh</button>
+          {lastRefresh && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{lastRefresh.toLocaleTimeString()}</span>}
+          <button onClick={fetchAll} style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px 14px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>↻ Refresh</button>
         </div>
       </div>
-      <style>{`@keyframes bevSpin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 28px 60px", display: "flex", flexDirection: "column", gap: 20 }}>
 
-        {/* Top stat cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 24 }}>
+        {/* ── STAT CARDS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
           {[
-            { label: "Total Users", value: stats.users },
-            { label: "Logins / 30d", value: stats.logins },
-            { label: "Patterns Saved", value: stats.patterns },
-            { label: "Stitches Found", value: stats.stitches },
-            { label: "MRR", value: "$" + stats.mrr },
+            { label: "Total Users", value: USERS.length, sub: `${proCount} pro` },
+            { label: "Logins / 30d", value: totalLogins, sub: `${(totalLogins / Math.max(USERS.length, 1)).toFixed(1)} avg/user` },
+            { label: "Patterns Saved", value: totalPatterns, sub: "excl. starters" },
+            { label: "Stitches Found", value: totalStitches },
+            { label: "MRR", value: mrr, sub: "1 Stripe sub" },
           ].map(s => (
-            <div key={s.label} style={cardStyle}>
-              <div style={{ fontFamily: PF, fontSize: 32, fontWeight: 600, color: ACCENT, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 6 }}>{s.label}</div>
+            <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
+              <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.08em", marginBottom: 6 }}>{s.label}</div>
+              <div style={{ fontFamily: PF, fontSize: 30, fontWeight: 700, color: ACCENT, lineHeight: 1 }}>{s.value}</div>
+              {s.sub && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{s.sub}</div>}
             </div>
           ))}
         </div>
 
-        {/* Bev insight */}
-        <div style={{ ...cardStyle, background: "#F8F6FF", border: "1px solid #E8DFF5", display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+        {/* ── BEV INSIGHT ── */}
+        <div style={{ background: "#EDE4F7", borderRadius: 16, border: "1px solid #D4C5ED", padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(155,126,200,0.15)" }}>
             <img src="/bev_neutral.png" alt="Bev" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
           </div>
-          <div style={{ fontSize: 14, color: NAVY, lineHeight: 1.6 }}>{bevInsight}</div>
+          <div style={{ fontSize: 13, color: "#2D2D4E", lineHeight: 1.6 }}>{bevText}</div>
         </div>
 
-        {/* User table */}
-        <div style={{ ...cardStyle, marginBottom: 24, overflowX: "auto" }}>
-          <div style={sectionTitle}>Users</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        {/* ── USER TABLE ── */}
+        <div style={{ ...card, overflowX: "auto" }}>
+          <div style={secHead}>Users</div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #EDE4F7" }}>
-                {["Email", "Joined", "Tier", "Last Active", "Status"].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
+              <tr>{["Email", "Joined", "Tier", "Patterns", "Stitches", "Last Active", "Status"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "0 8px 10px 0", fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, borderBottom: "1px solid #F0EAF9" }}>{h}</th>
+              ))}</tr>
             </thead>
             <tbody>
-              {userData.map(u => {
-                const st = statusBadge(u.lastActive, u.email);
+              {enrichedUsers.map(u => {
+                const tb = tierBadge(u);
                 return (
-                  <tr key={u.email} style={{ borderBottom: "1px solid #F3EFF8" }}>
-                    <td style={{ padding: "10px 10px", color: NAVY, fontWeight: 500 }}>{u.email}</td>
-                    <td style={{ padding: "10px 10px", color: MUTED }}>{u.joined}</td>
-                    <td style={{ padding: "10px 10px" }}>
-                      <span style={{ background: u.tier === "Pro" ? "#E8DFF5" : "#F3EFF8", color: u.tier === "Pro" ? ACCENT : MUTED, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>{u.tier}</span>
-                    </td>
-                    <td style={{ padding: "10px 10px", color: MUTED, fontSize: 12 }}>{u.lastActive ? new Date(u.lastActive).toLocaleDateString() : "—"}</td>
-                    <td style={{ padding: "10px 10px" }}>
-                      <span style={{ background: st.bg, color: st.color, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>{st.label}</span>
-                    </td>
+                  <tr key={u.id}>
+                    <td style={{ padding: "10px 8px 10px 0", fontSize: 12, color: "#2D2D4E", fontWeight: 500, borderBottom: "1px solid #F8F5FF" }}>{u.email}</td>
+                    <td style={{ padding: "10px 8px 10px 0", fontSize: 12, color: MUTED, borderBottom: "1px solid #F8F5FF" }}>{u.joined}</td>
+                    <td style={{ padding: "10px 8px 10px 0", borderBottom: "1px solid #F8F5FF" }}><span style={badge(tb.bg, tb.color)}>{tb.label}</span></td>
+                    <td style={{ padding: "10px 8px 10px 0", fontSize: 12, color: "#2D2D4E", fontWeight: 600, borderBottom: "1px solid #F8F5FF" }}>{u.patternCount}</td>
+                    <td style={{ padding: "10px 8px 10px 0", fontSize: 12, color: "#2D2D4E", fontWeight: 600, borderBottom: "1px solid #F8F5FF" }}>{u.stitchCount}</td>
+                    <td style={{ padding: "10px 8px 10px 0", fontSize: 12, color: MUTED, borderBottom: "1px solid #F8F5FF" }}>{u.lastActive ? new Date(u.lastActive).toLocaleDateString() : "—"}</td>
+                    <td style={{ padding: "10px 8px 10px 0", borderBottom: "1px solid #F8F5FF" }}><span style={badge(u.status.bg, u.status.color)}>{u.status.label}</span></td>
                   </tr>
                 );
               })}
@@ -246,75 +216,66 @@ export default function Founders() {
           </table>
         </div>
 
-        {/* Two column grid for analytics */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
-
-          {/* Traffic Sources */}
-          <div style={cardStyle}>
-            <div style={sectionTitle}>Traffic Sources (30d)</div>
-            {trafficSources ? trafficSources.map(r => (
-              <BarRow key={r[0] || "direct"} label={r[0] || "(direct)"} value={r[1]} max={maxTraffic} />
+        {/* ── TRAFFIC + EVENTS (2-col) ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={card}>
+            <div style={secHead}>Traffic Sources (30d)</div>
+            {data.sources.length > 0 ? data.sources.map(r => (
+              <BarRow key={r[0] || "direct"} label={r[0] || "(direct)"} value={r[1]} max={maxOf(data.sources, 1)} />
             )) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
           </div>
-
-          {/* Custom Events */}
-          <div style={cardStyle}>
-            <div style={sectionTitle}>Events (30d)</div>
-            {customEvents ? customEvents.map(r => (
-              <BarRow key={r[0]} label={r[0]} value={r[1]} max={maxEvents} />
+          <div style={card}>
+            <div style={secHead}>Events (30d)</div>
+            {data.events.length > 0 ? data.events.map(r => (
+              <BarRow key={r[0]} label={r[0]} value={r[1]} max={maxOf(data.events, 1)} />
             )) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
-          </div>
-
-          {/* Pageviews (7d bar chart) */}
-          <div style={cardStyle}>
-            <div style={sectionTitle}>Pageviews (7d)</div>
-            {pageviews ? (
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 120 }}>
-                {pageviews.map(r => {
-                  const h = maxViews > 0 ? (r[1] / maxViews * 100) : 0;
-                  const day = new Date(r[0]).toLocaleDateString("en-US", { weekday: "short" });
-                  return (
-                    <div key={r[0]} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                      <div style={{ fontSize: 10, color: NAVY, fontWeight: 600 }}>{r[1]}</div>
-                      <div style={{ width: "100%", height: h + "%", minHeight: 4, background: ACCENT, borderRadius: "4px 4px 0 0", transition: "height .3s" }} />
-                      <div style={{ fontSize: 9, color: MUTED }}>{day}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
-          </div>
-
-          {/* Top Pages */}
-          <div style={cardStyle}>
-            <div style={sectionTitle}>Top Pages (30d)</div>
-            {topPages ? topPages.map(r => {
-              const path = (r[0] || "").replace(/https?:\/\/[^/]+/, "") || "/";
-              return <BarRow key={r[0]} label={path} value={r[1]} max={maxPages} />;
-            }) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
-          </div>
-
-          {/* User Locations */}
-          <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
-            <div style={sectionTitle}>User Locations (30d logins)</div>
-            {userLocations ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
-                {userLocations.map((r, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#F8F6FF", borderRadius: 8, fontSize: 12 }}>
-                    <span style={{ fontWeight: 600, color: NAVY }}>{r[0] || "Unknown"}</span>
-                    <span style={{ color: MUTED }}>{r[1]}</span>
-                    <span style={{ color: MUTED, fontSize: 10 }}>{r[2]}</span>
-                    <span style={{ marginLeft: "auto", fontWeight: 600, color: ACCENT }}>{r[3]}</span>
-                  </div>
-                ))}
-              </div>
-            ) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ textAlign: "center", padding: "32px 0 16px" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(155,126,200,0.12)", marginBottom: 8 }}>
+        {/* ── PAGEVIEWS CHART (7d) ── */}
+        <div style={card}>
+          <div style={secHead}>Pageviews (7d)</div>
+          {data.pvDay.length > 0 ? (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 140 }}>
+              {data.pvDay.map(r => {
+                const mx = maxOf(data.pvDay, 1);
+                const h = mx > 0 ? (r[1] / mx * 100) : 0;
+                const day = new Date(r[0]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                return (
+                  <div key={r[0]} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: NAVY }}>{r[1]}</div>
+                    <div style={{ width: "100%", height: h + "%", minHeight: 4, background: ACCENT, borderRadius: "4px 4px 0 0" }} />
+                    <div style={{ fontSize: 10, color: MUTED, whiteSpace: "nowrap" }}>{day}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
+        </div>
+
+        {/* ── TOP PAGES + LOCATIONS (2-col) ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+          <div style={card}>
+            <div style={secHead}>Top Pages (30d)</div>
+            {data.topPages.length > 0 ? data.topPages.map(r => {
+              const path = (r[0] || "").replace(/https?:\/\/[^/]+/, "") || "/";
+              return <BarRow key={r[0]} label={path} value={r[1]} max={maxOf(data.topPages, 1)} />;
+            }) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
+          </div>
+          <div style={card}>
+            <div style={secHead}>User Locations (30d)</div>
+            {data.locations.length > 0 ? data.locations.map((r, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F8F5FF", fontSize: 12 }}>
+                <span style={{ color: "#2D2D4E" }}>{r[0] || "Unknown"}, {r[1] || ""}</span>
+                <span style={{ fontWeight: 600, color: ACCENT }}>{r[2]}</span>
+              </div>
+            )) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
+          </div>
+        </div>
+
+        {/* ── FOOTER ── */}
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <div style={{ display: "inline-flex", width: 32, height: 32, borderRadius: "50%", background: "#fff", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(155,126,200,0.12)", marginBottom: 8 }}>
             <img src="/bev_neutral.png" alt="Bev" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />
           </div>
           <div style={{ fontSize: 11, color: MUTED }}>Wovely · Founder Dashboard · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
