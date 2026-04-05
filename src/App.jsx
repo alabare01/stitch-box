@@ -2228,9 +2228,9 @@ export default function Wovely() {
         {view==="privacy"&&<PrivacyPolicy/>}
         {view==="terms"&&<TermsOfService/>}
       </div>
-      <div style={{position:"fixed",bottom:28,left:"50%",transform:"translateX(-50%)",zIndex:40,pointerEvents:"none"}}>
+      {!addOpen&&!imageImportOpen&&!addMinimized&&!imageMinimized&&!addMenuOpen&&<div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",zIndex:40,pointerEvents:"none"}}>
         <button onClick={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:9999,padding:"13px 26px",fontSize:14,fontWeight:600,cursor:"pointer",pointerEvents:"auto",boxShadow:"0 8px 28px rgba(155,126,200,.55)",display:"flex",alignItems:"center",gap:8,animation:"fabPulse 3s ease infinite"}}><span style={{fontSize:17}}>+</span> Add Pattern</button>
-      </div>
+      </div>}
     </div>
   );
 }
