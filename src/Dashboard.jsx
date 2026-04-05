@@ -141,7 +141,7 @@ const BevCorner = ({ patterns, isMobile }) => {
         width: 0;
         opacity: 0;
         border-right: 2px solid #9B7EC8;
-        animation: bevTyping 1.6s steps(35) forwards, bevBlink 0.7s step-end 1.6s 4;
+        animation: bevTyping 2.8s steps(45) forwards, bevBlink 0.7s step-end 2.8s 4;
         animation-fill-mode: forwards;
         max-width: 100%;
       }
@@ -349,10 +349,6 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
   const inProgress=visible.filter(p=>{const v=pct(p);return !p.isStarter&&p.status!=="parked"&&(p.status==="in_progress"||p.started||(v>0&&v<100))&&v<100;}).sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0));
   const [viewMode,setViewMode]=useState("grid");
   const emptySlots=isPro?0:Math.max(0,TIER_CONFIG.free.patternCap-addedPats.length);
-
-  // Debug: pattern counts (remove before merge)
-  console.log("ALL PATTERNS:", visible.length);
-  console.log("IN PROGRESS:", inProgress.length, inProgress.map(p=>p.title));
 
   return (
     <div style={{ minHeight: "100vh", background: "transparent" }}>
