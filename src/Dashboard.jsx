@@ -5,28 +5,49 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, getSession, supabaseAuth } from "./sup
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 const hoursSince = (dateStr) => dateStr ? (Date.now() - new Date(dateStr).getTime()) / 3600000 : Infinity;
+const timeAgo = (dateStr) => {
+  if (!dateStr) return "";
+  const h = hoursSince(dateStr);
+  if (h < 1) return "Updated just now";
+  if (h < 24) return `Updated ${Math.round(h)}h ago`;
+  const d = Math.round(h / 24);
+  return `Updated ${d} day${d !== 1 ? "s" : ""} ago`;
+};
 
-// ─── RENAME MODAL (unchanged) ───────────────────────────────────────────────
+// ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
+const CARD = {
+  bg: "#FFFFFF",
+  radius: 20,
+  shadow: "0 4px 24px rgba(155,126,200,0.09)",
+  border: "1px solid #EDE4F7",
+};
+const PF = "'Playfair Display',Georgia,serif";
+const INTER = "Inter,sans-serif";
+const NAVY = "#2D3A7C";
+const INK = "#2D2D4E";
+const ACCENT = "#9B7EC8";
+const MUTED = "#6B6B8A";
+const PILL_BG = "#F3EFF8";
+
+// ─── RENAME MODAL ───────────────────────────────────────────────────────────
 const RenameModal = ({pattern,onSave,onCancel}) => {
   const [val,setVal]=useState(pattern.title||"");
   return (
     <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onCancel}>
       <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.5)",backdropFilter:"blur(3px)"}}/>
       <div onClick={e=>e.stopPropagation()} style={{position:"relative",background:"#fff",borderRadius:16,padding:"24px 22px 20px",width:"100%",maxWidth:360,boxShadow:"0 12px 40px rgba(0,0,0,.2)"}}>
-        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:"#2D2D4E",marginBottom:14}}>Rename pattern</div>
-        <input value={val} onChange={e=>setVal(e.target.value)} autoFocus style={{width:"100%",padding:"10px 14px",border:"1.5px solid #EDE4F7",borderRadius:10,fontSize:14,fontFamily:"Inter,sans-serif",color:"#2D2D4E",outline:"none",boxSizing:"border-box",marginBottom:16}} onFocus={e=>e.target.style.borderColor="#9B7EC8"} onBlur={e=>e.target.style.borderColor="#EDE4F7"}/>
+        <div style={{fontFamily:PF,fontSize:18,fontWeight:700,color:INK,marginBottom:14}}>Rename pattern</div>
+        <input value={val} onChange={e=>setVal(e.target.value)} autoFocus style={{width:"100%",padding:"10px 14px",border:"1.5px solid #EDE4F7",borderRadius:10,fontSize:14,fontFamily:INTER,color:INK,outline:"none",boxSizing:"border-box",marginBottom:16}} onFocus={e=>e.target.style.borderColor=ACCENT} onBlur={e=>e.target.style.borderColor="#EDE4F7"}/>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-          <button onClick={onCancel} style={{background:"none",border:`1px solid #EDE4F7`,borderRadius:10,padding:"8px 18px",fontSize:13,fontWeight:600,color:"#6B6B8A",cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>onSave(val.trim())} disabled={!val.trim()} style={{background:val.trim()?"#9B7EC8":"#D5CBE8",border:"none",borderRadius:10,padding:"8px 18px",fontSize:13,fontWeight:600,color:"#fff",cursor:val.trim()?"pointer":"not-allowed"}}>Save</button>
+          <button onClick={onCancel} style={{background:"none",border:"1px solid #EDE4F7",borderRadius:10,padding:"8px 18px",fontSize:13,fontWeight:600,color:MUTED,cursor:"pointer"}}>Cancel</button>
+          <button onClick={()=>onSave(val.trim())} disabled={!val.trim()} style={{background:val.trim()?ACCENT:"#D5CBE8",border:"none",borderRadius:10,padding:"8px 18px",fontSize:13,fontWeight:600,color:"#fff",cursor:val.trim()?"pointer":"not-allowed"}}>Save</button>
         </div>
       </div>
     </div>
   );
 };
 
-// ─── PATTERN CARD (updated visual tokens) ───────────────────────────────────
-const CARD = { bg: "#FFFFFF", radius: 20, shadow: "0 6px 28px rgba(155,126,200,0.10)", border: "1px solid #EDE4F7" };
-
+// ─── PATTERN CARD ───────────────────────────────────────────────────────────
 const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,delay=0,pct,catFallbackPhoto,Photo,Bar,Stars}) => {
   const done=pct(p);
   const [menuOpen,setMenuOpen]=useState(false);
@@ -40,11 +61,11 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,
       {!p.isStarter&&(onPark||onDelete)&&<div style={{position:"absolute",top:8,right:8,zIndex:5}}>
         <button onClick={e=>{e.stopPropagation();setMenuOpen(!menuOpen);}} style={{background:"rgba(0,0,0,.45)",backdropFilter:"blur(4px)",border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>⋮</button>
         {menuOpen&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",right:0,top:32,background:T.modal,border:CARD.border,borderRadius:10,boxShadow:CARD.shadow,zIndex:10,minWidth:150,overflow:"hidden"}}>
-          {onRename&&<div onClick={()=>{setMenuOpen(false);setRenaming(true);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid #EDE4F7`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Rename pattern</div>}
-          {!p.isStarter&&onCoverChange&&<div onClick={()=>{setMenuOpen(false);onCoverChange(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid #EDE4F7`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Change cover image</div>}
+          {onRename&&<div onClick={()=>{setMenuOpen(false);setRenaming(true);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:"1px solid #EDE4F7"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Rename pattern</div>}
+          {!p.isStarter&&onCoverChange&&<div onClick={()=>{setMenuOpen(false);onCoverChange(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:"1px solid #EDE4F7"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Change cover image</div>}
           {isParked
-            ?<div onClick={()=>{setMenuOpen(false);onUnpark&&onUnpark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid #EDE4F7`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Unpark</div>
-            :<div onClick={()=>{setMenuOpen(false);onPark&&onPark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:`1px solid #EDE4F7`}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Park for later</div>
+            ?<div onClick={()=>{setMenuOpen(false);onUnpark&&onUnpark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:"1px solid #EDE4F7"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Unpark</div>
+            :<div onClick={()=>{setMenuOpen(false);onPark&&onPark(p);}} style={{padding:"10px 14px",fontSize:13,color:T.ink,cursor:"pointer",borderBottom:"1px solid #EDE4F7"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Park for later</div>
           }
           <div onClick={()=>{setMenuOpen(false);onDelete&&onDelete(p);}} style={{padding:"10px 14px",fontSize:13,color:"#C05A5A",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Delete pattern</div>
         </div>}
@@ -63,9 +84,9 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,
       </div>
       <div style={{padding:"12px 14px 16px"}}>
         {p.cat&&p.cat.toLowerCase()!=="uncategorized"&&<div style={{fontSize:12,color:T.ink2,textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>{p.cat}</div>}
-        <div style={{fontFamily:T.serif,fontSize:15,fontWeight:600,color:"#2D2D4E",lineHeight:1.3,marginBottom:7,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",whiteSpace:"normal"}}>{p.title}</div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><Stars val={p.rating} ro/><span style={{fontSize:12,color:"#6B6B8A"}}>{p.source}</span></div>
-        {p.isStarter&&<div style={{fontSize:12,color:"#6B6B8A",opacity:.6,marginTop:6,fontStyle:"italic"}}>A gift from Wovely — yours to keep</div>}
+        <div style={{fontFamily:T.serif,fontSize:15,fontWeight:600,color:INK,lineHeight:1.3,marginBottom:7,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",whiteSpace:"normal"}}>{p.title}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><Stars val={p.rating} ro/><span style={{fontSize:11,color:MUTED}}>{p.source}</span></div>
+        {p.isStarter&&<div style={{fontSize:12,color:MUTED,opacity:.6,marginTop:6,fontStyle:"italic"}}>A gift from Wovely — yours to keep</div>}
       </div>
     </div>
   );
@@ -81,59 +102,66 @@ const SLOT_SVGS = [
 ];
 
 const EmptySlotCard = ({onClick,slotIndex=0}) => (
-  <div onClick={onClick} style={{background:T.surface,borderRadius:CARD.radius,border:`2px dashed #EDE4F7`,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:220,transition:"border-color .2s, background .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.terra;e.currentTarget.style.background=T.terraLt;}} onMouseLeave={e=>{e.currentTarget.style.borderColor="#EDE4F7";e.currentTarget.style.background=T.surface;}}>
+  <div onClick={onClick} style={{background:T.surface,borderRadius:CARD.radius,border:"2px dashed #D4C5ED",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:220,transition:"border-color .2s, background .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=T.terra;e.currentTarget.style.background=T.terraLt;}} onMouseLeave={e=>{e.currentTarget.style.borderColor="#D4C5ED";e.currentTarget.style.background=T.surface;}}>
     <div style={{width:48,height:48,marginBottom:10}} dangerouslySetInnerHTML={{__html:SLOT_SVGS[slotIndex%SLOT_SVGS.length]}}/>
     <div style={{fontSize:13,color:T.ink2}}>Add a pattern</div>
   </div>
 );
 
+// Playfair italic accent span helper
+const Em = ({ children }) => <span style={{ fontFamily: PF, fontStyle: "italic", color: ACCENT }}>{children}</span>;
+
 // ─── ZONE A: BEV CORNER ─────────────────────────────────────────────────────
 const BevCorner = ({ patterns, isMobile }) => {
-  const inProgressPatterns = patterns.filter(p => p.status === "in_progress" || p.started);
-  const mostRecent = [...inProgressPatterns].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
+  const inProgress = patterns.filter(p => p.status === "in_progress" || p.started);
+  const mostRecent = [...inProgress].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))[0];
 
-  let message;
+  let content;
   if (patterns.length === 0) {
-    message = "Your craft room is empty. Let's hang something on the walls. 🧶";
-  } else if (inProgressPatterns.length > 0 && mostRecent && hoursSince(mostRecent.updated_at) > 72) {
-    message = `Psst… "${mostRecent.title}" is still waiting for you. You okay? 👀`;
-  } else if (inProgressPatterns.length > 0 && mostRecent && hoursSince(mostRecent.updated_at) < 2) {
-    message = "Look at you go. Bev's genuinely impressed. 💜";
+    content = <>Your craft room is empty. <Em>Let's hang something on the walls.</Em> 🧶</>;
+  } else if (inProgress.length > 0 && mostRecent && hoursSince(mostRecent.updated_at) > 72) {
+    content = <>Psst… <Em>"{mostRecent.title}"</Em> is still waiting. You okay? 👀</>;
+  } else if (inProgress.length > 0 && mostRecent && hoursSince(mostRecent.updated_at) < 2) {
+    content = <>Look at you go. <Em>Bev's genuinely impressed.</Em> 💜</>;
   } else if (new Date().getHours() >= 18 && new Date().getHours() <= 22) {
-    message = "Evening craft session? Bev approves. 🌙";
+    content = <>Evening craft session? <Em>Bev approves.</Em> 🌙</>;
   } else {
-    message = `Hey! You've got ${inProgressPatterns.length} pattern${inProgressPatterns.length !== 1 ? "s" : ""} in progress. Bev's watching. 🐍`;
+    content = <>Hey! You've got <Em>{inProgress.length} pattern{inProgress.length !== 1 ? "s" : ""} in progress.</Em> Bev's watching. 🐍</>;
   }
 
   return (
     <div style={{
+      gridColumn: "1 / -1",
       background: CARD.bg, borderRadius: CARD.radius, boxShadow: CARD.shadow, border: CARD.border,
-      borderLeft: "4px solid #9B7EC8", display: "flex", alignItems: "center", gap: 16,
-      padding: "16px 20px", marginBottom: 24,
+      borderLeft: `4px solid ${ACCENT}`, display: "flex", alignItems: "center", gap: 16,
+      padding: "20px 24px",
     }}>
       <img src="/bev_neutral.png" alt="Bev" style={{
-        width: isMobile ? 56 : 72, height: "auto", flexShrink: 0,
-        filter: "drop-shadow(0 4px 12px rgba(155,126,200,0.25))",
+        width: 64, height: "auto", flexShrink: 0,
+        filter: "drop-shadow(0 3px 10px rgba(155,126,200,0.3))",
       }} />
-      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#2D2D4E", lineHeight: 1.5 }}>{message}</div>
+      <div style={{ fontFamily: INTER, fontSize: 15, color: INK, lineHeight: 1.5 }}>{content}</div>
     </div>
   );
 };
 
 // ─── ZONE B: ON THE HOOK ────────────────────────────────────────────────────
-const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto, Photo, Bar, isMobile }) => {
+const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto, Photo, isMobile }) => {
+  const sectionLabel = <div style={{ fontFamily: PF, fontSize: 20, fontWeight: 600, color: NAVY, marginBottom: 10 }}>On the Hook</div>;
+
   if (inProgress.length === 0) {
     return (
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, color: "#2D3A7C", marginBottom: 16 }}>On the Hook</div>
+      <div>
+        {sectionLabel}
         <div style={{
-          border: "2px dashed #EDE4F7", borderRadius: CARD.radius, padding: 32, textAlign: "center",
-          background: CARD.bg, boxShadow: CARD.shadow,
+          border: "2px dashed #D4C5ED", borderRadius: CARD.radius, padding: "40px 24px",
+          textAlign: "center", background: "#FDFBFF", boxShadow: CARD.shadow,
         }}>
-          <div style={{ fontSize: 14, color: "#6B6B8A", marginBottom: 16 }}>Nothing on the hook yet — ready to start something?</div>
+          <div style={{ fontFamily: INTER, fontSize: 14, color: MUTED, marginBottom: 4 }}>Nothing on the hook yet.</div>
+          <div style={{ fontFamily: PF, fontStyle: "italic", fontSize: 14, color: ACCENT, marginBottom: 16 }}>Ready to start something?</div>
           <button onClick={onAddPattern} style={{
-            background: "#9B7EC8", color: "#fff", border: "none", borderRadius: 12,
-            padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            background: ACCENT, color: "#fff", border: "none", borderRadius: 12,
+            padding: "12px 20px", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: INTER,
           }}>Import a Pattern</button>
         </div>
       </div>
@@ -143,71 +171,94 @@ const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto
   const hero = inProgress[0];
   const rest = inProgress.slice(1);
   const heroPhoto = hero.cover_image_url || hero.photo || catFallbackPhoto(hero.cat);
+  const rows = Array.isArray(hero.rows) ? hero.rows : [];
+  const doneRows = rows.filter(r => r && r.done).length;
+  const totalRows = rows.length;
 
   return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, color: "#2D3A7C", marginBottom: 16 }}>On the Hook</div>
+    <div>
+      {sectionLabel}
 
       {/* Hero card */}
       <div onClick={() => openDetail(hero)} style={{
         background: CARD.bg, borderRadius: CARD.radius, boxShadow: CARD.shadow, border: CARD.border,
-        overflow: "hidden", cursor: "pointer", marginBottom: rest.length > 0 ? 16 : 0,
+        overflow: "hidden", cursor: "pointer",
       }}>
         <div style={{
-          height: isMobile ? 160 : 200, overflow: "hidden", borderRadius: `${CARD.radius}px ${CARD.radius}px 0 0`,
-          background: heroPhoto ? undefined : "linear-gradient(135deg, #EDE4F7 0%, #F8F6FF 100%)",
+          height: isMobile ? 160 : 200, overflow: "hidden",
+          borderRadius: `${CARD.radius}px ${CARD.radius}px 0 0`, position: "relative",
+          background: "linear-gradient(135deg, #EDE4F7, #F5F0FA)",
         }}>
-          {heroPhoto && <Photo src={heroPhoto} alt={hero.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+          {heroPhoto
+            ? <Photo src={heroPhoto} alt={hero.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: PF, fontSize: 40, color: ACCENT, opacity: 0.5 }}>{(hero.title || "?")[0]}</span>
+              </div>
+          }
         </div>
         <div style={{ padding: 20 }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, color: "#2D3A7C", marginBottom: 6 }}>{hero.title}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <div style={{ flex: 1, height: 4, background: "#EDE4F7", borderRadius: 99, overflow: "hidden" }}>
-              <div style={{ width: pct(hero) + "%", height: "100%", background: "#9B7EC8", borderRadius: 99, transition: "width .3s" }} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#9B7EC8" }}>{pct(hero)}%</span>
+          <div style={{ fontFamily: PF, fontSize: 18, fontWeight: 600, color: NAVY, marginBottom: 6 }}>{hero.title}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: totalRows > 0 ? 12 : 0 }}>
+            {hero.difficulty && <span style={{ fontFamily: INTER, fontSize: 10, background: PILL_BG, color: ACCENT, borderRadius: 20, padding: "3px 10px" }}>{hero.difficulty}</span>}
+            <span style={{ fontFamily: INTER, fontSize: 11, color: MUTED }}>{timeAgo(hero.updated_at)}</span>
           </div>
-          {hero.difficulty && <span style={{ background: "#F3EFF8", color: "#9B7EC8", fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 10 }}>{hero.difficulty}</span>}
+          {totalRows > 0 && (
+            <>
+              <div style={{ height: 6, background: "#EDE4F7", borderRadius: 3, overflow: "hidden", margin: "0 0 6px" }}>
+                <div style={{ width: (doneRows / totalRows * 100) + "%", height: "100%", background: ACCENT, borderRadius: 3, transition: "width .3s" }} />
+              </div>
+              <div style={{ fontFamily: INTER, fontSize: 11, color: MUTED }}>{doneRows} of {totalRows} rows</div>
+            </>
+          )}
           <button style={{
-            background: "#9B7EC8", color: "#fff", border: "none", borderRadius: 12,
-            padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 16,
+            background: ACCENT, color: "#fff", border: "none", borderRadius: 12,
+            padding: "12px 20px", fontSize: 14, fontWeight: 500, cursor: "pointer", width: "100%",
+            marginTop: 16, fontFamily: INTER,
           }}>Pick up where you left off →</button>
         </div>
       </div>
 
       {/* Scroll row for remaining */}
       {rest.length > 0 && (
-        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
-          {rest.map(p => {
-            const photo = p.cover_image_url || p.photo || catFallbackPhoto(p.cat);
-            return (
-              <div key={p.id} onClick={() => openDetail(p)} style={{
-                flexShrink: 0, width: 160, background: CARD.bg, borderRadius: CARD.radius,
-                boxShadow: CARD.shadow, border: CARD.border, overflow: "hidden", cursor: "pointer",
-              }}>
-                <div style={{
-                  height: 100, overflow: "hidden",
-                  background: photo ? undefined : "linear-gradient(135deg, #EDE4F7 0%, #F8F6FF 100%)",
+        <>
+          <div style={{ fontFamily: INTER, fontSize: 11, color: MUTED, letterSpacing: "0.06em", textTransform: "uppercase", margin: "16px 0 8px" }}>Also in progress</div>
+          <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+            {rest.map(p => {
+              const photo = p.cover_image_url || p.photo || catFallbackPhoto(p.cat);
+              return (
+                <div key={p.id} onClick={() => openDetail(p)} style={{
+                  flexShrink: 0, width: 150, background: CARD.bg, borderRadius: CARD.radius,
+                  boxShadow: CARD.shadow, border: CARD.border, overflow: "hidden", cursor: "pointer",
                 }}>
-                  {photo && <Photo src={photo} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-                </div>
-                <div style={{ padding: 8 }}>
                   <div style={{
-                    fontSize: 13, fontFamily: "Inter,sans-serif", color: "#2D2D4E", lineHeight: 1.3,
-                    overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                  }}>{p.title}</div>
+                    height: 90, overflow: "hidden", position: "relative",
+                    background: "linear-gradient(135deg, #EDE4F7, #F5F0FA)",
+                  }}>
+                    {photo
+                      ? <Photo src={photo} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontFamily: PF, fontSize: 28, color: ACCENT, opacity: 0.4 }}>{(p.title || "?")[0]}</span>
+                        </div>
+                    }
+                  </div>
+                  <div style={{ padding: 10 }}>
+                    <div style={{
+                      fontSize: 12, fontFamily: INTER, color: INK, lineHeight: 1.3,
+                      overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    }}>{p.title}</div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
 };
 
-// ─── ZONE D: BRAG SHELF ─────────────────────────────────────────────────────
-const BragShelf = ({ patterns, pct }) => {
+// ─── ZONE: BRAG SHELF ───────────────────────────────────────────────────────
+const BragShelf = ({ patterns, pct, isMobile }) => {
   const [stitchCount, setStitchCount] = useState(null);
 
   useEffect(() => {
@@ -235,18 +286,25 @@ const BragShelf = ({ patterns, pct }) => {
     { value: stitchCount, label: "Stitches Found" },
   ];
 
+  const skeleton = <div style={{ width: 40, height: 24, background: "#EDE4F7", borderRadius: 6, margin: "0 auto" }} />;
+
   return (
-    <div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
+    <div style={isMobile
+      ? { display: "flex", gap: 12, gridColumn: "1 / -1" }
+      : { display: "flex", flexDirection: "column", gap: 12, position: "sticky", top: 20 }
+    }>
+      <div style={{ fontFamily: INTER, fontSize: 10, color: MUTED, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4, ...(isMobile ? { display: "none" } : {}) }}>Your Wovely</div>
       {stats.map(s => (
         <div key={s.label} style={{
-          flex: 1, background: CARD.bg, borderRadius: CARD.radius, boxShadow: CARD.shadow,
-          border: CARD.border, padding: 20, textAlign: "center",
+          flex: isMobile ? 1 : undefined,
+          background: CARD.bg, borderRadius: CARD.radius, boxShadow: CARD.shadow,
+          border: CARD.border, padding: isMobile ? 12 : 20, textAlign: "center",
         }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 28, color: "#9B7EC8", fontWeight: 700 }}>
-            {s.value === null ? "—" : s.value}
+          <div style={{ fontFamily: PF, fontSize: isMobile ? 24 : 32, color: ACCENT, fontWeight: 600 }}>
+            {s.value === null ? skeleton : s.value}
           </div>
           <div style={{
-            fontFamily: "Inter,sans-serif", fontSize: 11, color: "#6B6B8A",
+            fontFamily: INTER, fontSize: 10, color: MUTED,
             letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 4,
           }}>{s.label}</div>
         </div>
@@ -265,26 +323,32 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
   const filteredAll=[...addedPats,...starterPats].filter(p=>(cat==="All"||p.cat===cat)&&(!search||p.title.toLowerCase().includes(search.toLowerCase())));
   const inProgress=visible.filter(p=>{const v=pct(p);return v>0&&v<100;});
   const [viewMode,setViewMode]=useState("grid");
-  const pad=isDesktop?"0 0":"0 16px";
   const emptySlots=isPro?0:Math.max(0,TIER_CONFIG.free.patternCap-addedPats.length);
 
   return (
-    <div style={{ position: "relative", minHeight: "100%", background: "linear-gradient(150deg, #FAF8F5 0%, #F3EFF8 60%, #F8F6FF 100%)" }}>
-      {/* Decorative background overlays */}
-      <div style={{ position: "fixed", top: 0, left: 0, width: 340, height: 340, overflow: "hidden", opacity: isMobile ? 0.05 : 0.09, pointerEvents: "none", zIndex: 0 }}>
-        <img src="/wovely_landing_bg_v1.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top left" }} />
-      </div>
-      {!isMobile && <div style={{ position: "fixed", bottom: 0, right: 0, width: 300, height: 300, overflow: "hidden", opacity: 0.07, pointerEvents: "none", zIndex: 0 }}>
-        <img src="/wovely_landing_bg_v1.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "bottom right" }} />
-      </div>}
+    <div style={{
+      background: "linear-gradient(160deg, #FAF8F5 0%, #F5F0FA 100%)",
+      minHeight: "100%",
+      padding: isMobile ? "20px 16px 120px" : "28px 32px 80px",
+    }}>
+      {/* Two-column grid on desktop, single column on mobile */}
+      <div style={isMobile ? { display: "flex", flexDirection: "column", gap: 16 } : {
+        display: "grid",
+        gridTemplateColumns: "1fr 320px",
+        gridTemplateRows: "auto auto 1fr",
+        gap: 20,
+      }}>
 
-      {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: isMobile ? "16px 16px 120px" : "24px 0 80px" }}>
+        {/* Page header — full width */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <div style={{ fontFamily: PF, fontSize: 28, fontWeight: 600, color: NAVY }}>My Wovely</div>
+          <div style={{ fontFamily: INTER, fontSize: 13, color: MUTED, marginTop: 2 }}>Your crochet space</div>
+        </div>
 
-        {/* ZONE A — Bev Corner */}
+        {/* ZONE A — Bev Corner — full width */}
         <BevCorner patterns={visible} isMobile={isMobile} />
 
-        {/* ZONE B — On the Hook */}
+        {/* ZONE B — On the Hook — left column */}
         <OnTheHook
           inProgress={inProgress}
           openDetail={openDetail}
@@ -292,35 +356,37 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
           pct={pct}
           catFallbackPhoto={catFallbackPhoto}
           Photo={Photo}
-          Bar={Bar}
           isMobile={isMobile}
         />
 
-        {/* ZONE C — Your Library */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, color: "#2D3A7C", marginBottom: 16 }}>Your Library</div>
+        {/* ZONE: Brag Shelf — right column on desktop, full width row on mobile */}
+        <BragShelf patterns={visible} pct={pct} isMobile={isMobile} />
+
+        {/* ZONE C — Your Library — full width */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <div style={{ fontFamily: PF, fontSize: 20, fontWeight: 600, color: NAVY, marginBottom: 10 }}>Your Library</div>
 
           {/* Search */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", background: CARD.bg, border: CARD.border, borderRadius: 12, padding: "10px 14px", gap: 9 }}>
-              <span style={{ color: "#6B6B8A", fontSize: 15 }}>🔍</span>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search your patterns…" style={{ border: "none", background: "transparent", flex: 1, fontSize: 14, color: "#2D2D4E", outline: "none", fontFamily: "Inter,sans-serif" }} />
+              <span style={{ color: MUTED, fontSize: 15 }}>🔍</span>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search your patterns…" style={{ border: "none", background: "transparent", flex: 1, fontSize: 14, color: INK, outline: "none", fontFamily: INTER }} />
             </div>
           </div>
 
           {/* Category pills */}
           <div style={{ display: "flex", gap: 7, overflowX: "auto", paddingBottom: 16, WebkitOverflowScrolling: "touch" }}>
-            {CATS.map(c=><button key={c} onClick={()=>setCat(c)} style={{background:cat===c?"#9B7EC8":"#F3EFF8",color:cat===c?"#fff":"#9B7EC8",border:"none",borderRadius:9999,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all .15s",flexShrink:0,textTransform:"uppercase",letterSpacing:".05em"}}>{c}</button>)}
+            {CATS.map(c=><button key={c} onClick={()=>setCat(c)} style={{background:cat===c?ACCENT:PILL_BG,color:cat===c?"#fff":ACCENT,border:"none",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",transition:"all .15s",flexShrink:0,textTransform:"uppercase",letterSpacing:".05em",fontFamily:INTER}}>{c}</button>)}
           </div>
 
           {/* Counter + view toggle */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div>
-              {!isPro&&<div style={{fontSize:12,color:"#6B6B8A",fontWeight:500}}>{tier.userCount} of {TIER_CONFIG.free.patternCap} free slots used{tier.userCount===0?" · add your first":tier.atCap?" · upgrade for unlimited":""}</div>}
+              {!isPro&&<div style={{fontSize:12,color:MUTED,fontWeight:500,fontFamily:INTER}}>{tier.userCount} of {TIER_CONFIG.free.patternCap} free slots used{tier.userCount===0?" · add your first":tier.atCap?" · upgrade for unlimited":""}</div>}
             </div>
             <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>setViewMode("grid")} style={{background:viewMode==="grid"?"#F3EFF8":"transparent",border:`1px solid ${viewMode==="grid"?"#EDE4F7":"transparent"}`,borderRadius:6,padding:"4px 6px",cursor:"pointer",fontSize:12,color:"#6B6B8A",lineHeight:1}}>▦</button>
-              <button onClick={()=>setViewMode("list")} style={{background:viewMode==="list"?"#F3EFF8":"transparent",border:`1px solid ${viewMode==="list"?"#EDE4F7":"transparent"}`,borderRadius:6,padding:"4px 6px",cursor:"pointer",fontSize:12,color:"#6B6B8A",lineHeight:1}}>☰</button>
+              <button onClick={()=>setViewMode("grid")} style={{background:viewMode==="grid"?PILL_BG:"transparent",border:`1px solid ${viewMode==="grid"?"#EDE4F7":"transparent"}`,borderRadius:6,padding:"4px 6px",cursor:"pointer",fontSize:12,color:MUTED,lineHeight:1}}>▦</button>
+              <button onClick={()=>setViewMode("list")} style={{background:viewMode==="list"?PILL_BG:"transparent",border:`1px solid ${viewMode==="list"?"#EDE4F7":"transparent"}`,borderRadius:6,padding:"4px 6px",cursor:"pointer",fontSize:12,color:MUTED,lineHeight:1}}>☰</button>
             </div>
           </div>
 
@@ -332,22 +398,19 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
             </div>
           ):(
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {filteredAll.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:"#6B6B8A",fontSize:13}}>No patterns yet. Add your first!</div>}
+              {filteredAll.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:MUTED,fontSize:13}}>No patterns yet. Add your first!</div>}
               {filteredAll.map((p,i)=>(
                 <div key={p.id} className="fu" onClick={()=>openDetail(p)} style={{display:"flex",gap:12,background:CARD.bg,border:CARD.border,borderRadius:CARD.radius,padding:10,cursor:"pointer",animationDelay:i*.04+"s",boxShadow:CARD.shadow}}>
                   <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",flexShrink:0,background:T.linen}}><Photo src={p.cover_image_url||p.photo||catFallbackPhoto(p.cat)} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}/></div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontFamily:T.serif,fontSize:15,fontWeight:600,color:"#2D2D4E",lineHeight:1.3}}>{p.title}</div>
-                    <div style={{fontSize:12,color:"#6B6B8A",marginTop:2}}>{p.cat&&p.cat.toLowerCase()!=="uncategorized"?p.cat:""}{pct(p)>0?" · "+pct(p)+"%":""}{p.isStarter?" · Free Starter":""}</div>
+                    <div style={{fontFamily:T.serif,fontSize:15,fontWeight:600,color:INK,lineHeight:1.3}}>{p.title}</div>
+                    <div style={{fontSize:12,color:MUTED,marginTop:2}}>{p.cat&&p.cat.toLowerCase()!=="uncategorized"?p.cat:""}{pct(p)>0?" · "+pct(p)+"%":""}{p.isStarter?" · Free Starter":""}</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* ZONE D — Brag Shelf */}
-        <BragShelf patterns={visible} pct={pct} />
       </div>
     </div>
   );
