@@ -55,8 +55,9 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,
   const isParked=p.status==="parked";
   const cardPhoto=p.cover_image_url||(PILL.includes(p.photo)?catFallbackPhoto(p.cat):p.photo)||catFallbackPhoto(p.cat);
   const isPlaceholder=!p.cover_image_url&&PILL.includes(p.photo);
+  const hasImage = !!cardPhoto && !isPlaceholder;
   return (
-    <div className="card fu" onClick={onClick} style={{background:CARD.bg,borderRadius:CARD.radius,overflow:"hidden",border:CARD.border,cursor:"pointer",animationDelay:delay+"s",position:"relative",boxShadow:CARD.shadow}}>
+    <div className="card fu" onClick={onClick} style={{background:CARD.bg,borderRadius:CARD.radius,overflow:"hidden",border:CARD.border,cursor:"pointer",animationDelay:delay+"s",position:"relative",boxShadow:CARD.shadow,transition:"transform 0.15s ease, box-shadow 0.15s ease"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 32px rgba(155,126,200,0.15)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=CARD.shadow;}}>
       {renaming&&<RenameModal pattern={p} onCancel={()=>setRenaming(false)} onSave={newTitle=>{setRenaming(false);onRename&&onRename(p,newTitle);}}/>}
       {!p.isStarter&&(onPark||onDelete)&&<div style={{position:"absolute",top:8,right:8,zIndex:5}}>
         <button onClick={e=>{e.stopPropagation();setMenuOpen(!menuOpen);}} style={{background:"rgba(0,0,0,.45)",backdropFilter:"blur(4px)",border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>⋮</button>
@@ -70,9 +71,15 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,
           <div onClick={()=>{setMenuOpen(false);onDelete&&onDelete(p);}} style={{padding:"10px 14px",fontSize:13,color:"#C05A5A",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Delete pattern</div>
         </div>}
       </div>}
-      <div style={{position:"relative",aspectRatio:"1",overflow:"hidden",background:T.linen}}>
-        <Photo src={cardPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top"}}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(28,23,20,.5) 0%,transparent 55%)"}}/>
+      {/* Image container — 200px height, full bleed */}
+      <div style={{position:"relative",height:200,overflow:"hidden",borderRadius:`${CARD.radius}px ${CARD.radius}px 0 0`,background:"linear-gradient(135deg, #EDE4F7 0%, #F5F0FA 100%)"}}>
+        {hasImage
+          ? <Photo src={cardPhoto} alt={p.title} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center top",display:"block"}}/>
+          : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontFamily:PF,fontSize:36,color:ACCENT,opacity:0.5}}>{(p.title||"?")[0]}</span>
+            </div>
+        }
+        {/* Status badges */}
         {isParked?<div style={{position:"absolute",top:10,left:10,background:"rgba(92,79,68,.8)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Parked</div>
         :p.isStarter?<div style={{position:"absolute",top:10,left:10,background:"rgba(184,144,44,.9)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:600,padding:"3px 8px",borderRadius:99}}>Free Starter</div>
         :done===100?<div style={{position:"absolute",top:10,right:10,background:T.sage,color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99,letterSpacing:".07em"}}>DONE</div>
@@ -82,10 +89,11 @@ const PatternCard = ({p,onClick,onPark,onUnpark,onDelete,onCoverChange,onRename,
         {!p.isStarter&&p.snapConfidence&&<div style={{position:"absolute",top:10,left:10,background:"rgba(155,126,200,.85)",backdropFilter:"blur(4px)",color:"#fff",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:99}}>✨ {p.snapConfidence}%</div>}
         {isPlaceholder&&!p.isStarter&&onCoverChange&&<button onClick={e=>{e.stopPropagation();onCoverChange(p);}} style={{position:"absolute",bottom:10,left:"50%",transform:"translateX(-50%)",background:"rgba(255,255,255,.15)",backdropFilter:"blur(4px)",border:`1.5px solid ${T.terra}`,borderRadius:10,padding:"6px 14px",fontSize:11,fontWeight:600,color:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>Set cover image</button>}
       </div>
-      <div style={{padding:"12px 14px 16px"}}>
-        {p.cat&&p.cat.toLowerCase()!=="uncategorized"&&<div style={{fontSize:12,color:T.ink2,textTransform:"uppercase",letterSpacing:".08em",marginBottom:3}}>{p.cat}</div>}
-        <div style={{fontFamily:T.serif,fontSize:15,fontWeight:600,color:INK,lineHeight:1.3,marginBottom:7,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",whiteSpace:"normal"}}>{p.title}</div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><Stars val={p.rating} ro/><span style={{fontSize:11,color:MUTED}}>{p.source}</span></div>
+      {/* Card body */}
+      <div style={{padding:"14px 16px 16px"}}>
+        {p.cat&&p.cat.toLowerCase()!=="uncategorized"&&<div style={{fontFamily:INTER,fontSize:10,fontWeight:600,color:ACCENT,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>{p.cat}</div>}
+        <div style={{fontFamily:PF,fontSize:15,fontWeight:600,color:NAVY,lineHeight:1.3,margin:"0 0 6px",overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",whiteSpace:"normal"}}>{p.title}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><Stars val={p.rating} ro/><span style={{fontFamily:INTER,fontSize:11,color:"#9B87B8"}}>{p.source}</span></div>
         {p.isStarter&&<div style={{fontSize:12,color:MUTED,opacity:.6,marginTop:6,fontStyle:"italic"}}>A gift from Wovely — yours to keep</div>}
       </div>
     </div>
@@ -132,15 +140,20 @@ const BevCorner = ({ patterns, isMobile }) => {
   return (
     <div style={{
       gridColumn: "1 / -1",
-      background: CARD.bg, borderRadius: CARD.radius, boxShadow: CARD.shadow, border: CARD.border,
-      borderLeft: `4px solid ${ACCENT}`, display: "flex", alignItems: "center", gap: 16,
-      padding: "20px 24px",
+      display: "flex", alignItems: "flex-start", gap: 16,
+      padding: "20px 24px", background: CARD.bg, borderRadius: CARD.radius,
+      border: CARD.border, marginBottom: 20,
     }}>
       <img src="/bev_neutral.png" alt="Bev" style={{
-        width: 64, height: "auto", flexShrink: 0,
-        filter: "drop-shadow(0 3px 10px rgba(155,126,200,0.3))",
+        width: isMobile ? 60 : 80, height: "auto", flexShrink: 0,
+        filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.35))",
       }} />
-      <div style={{ fontFamily: INTER, fontSize: 15, color: INK, lineHeight: 1.5 }}>{content}</div>
+      <div style={{
+        position: "relative", background: "#F8F6FF",
+        borderRadius: "4px 18px 18px 18px", padding: "14px 18px", flex: 1,
+      }}>
+        <div style={{ fontFamily: INTER, fontSize: 15, color: INK, lineHeight: 1.6 }}>{content}</div>
+      </div>
     </div>
   );
 };
@@ -328,7 +341,7 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
   return (
     <div style={{
       background: "linear-gradient(160deg, #FAF8F5 0%, #F5F0FA 100%)",
-      minHeight: "100%",
+      minHeight: "100vh",
       padding: isMobile ? "20px 16px 120px" : "28px 32px 80px",
     }}>
       {/* Two-column grid on desktop, single column on mobile */}
@@ -341,8 +354,8 @@ const CollectionView = ({userPatterns,starterPatterns,cat,setCat,search,setSearc
 
         {/* Page header — full width */}
         <div style={{ gridColumn: "1 / -1" }}>
-          <div style={{ fontFamily: PF, fontSize: 28, fontWeight: 600, color: NAVY }}>My Wovely</div>
-          <div style={{ fontFamily: INTER, fontSize: 13, color: MUTED, marginTop: 2 }}>Your crochet space</div>
+          <div style={{ fontFamily: PF, fontSize: "clamp(28px, 4vw, 38px)", fontWeight: 700, color: NAVY, lineHeight: 1.1, margin: 0 }}>My Wovely</div>
+          <div style={{ fontFamily: INTER, fontSize: 14, color: "#9B87B8", marginTop: 4, marginBottom: 28, letterSpacing: "0.02em" }}>Your crochet space</div>
         </div>
 
         {/* ZONE A — Bev Corner — full width */}
