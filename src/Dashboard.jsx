@@ -4,7 +4,12 @@ import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, getSession, supabaseAuth } from "./supabase.js";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
-const hoursSince = (dateStr) => dateStr ? (Date.now() - new Date(dateStr).getTime()) / 3600000 : Infinity;
+const hoursSince = (dateStr) => {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 0;
+  return (Date.now() - d.getTime()) / 3600000;
+};
 const timeAgo = (dateStr) => {
   if (!dateStr) return "";
   const h = hoursSince(dateStr);
@@ -167,7 +172,8 @@ const BevCorner = ({ patterns, isMobile }) => {
     const hr = new Date().getHours();
 
     if (mostRecent) {
-      const days = Math.floor((Date.now() - new Date(mostRecent.updated_at)) / 86400000);
+      const days = Math.floor(hoursSince(mostRecent.updated_at) / 24);
+      const dayStr = days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
       if (days === 0) msgs.push(`You touched ${mostRecent.title} today. Bev noticed. Keep going. 💜`);
       else if (days === 1) msgs.push(`${mostRecent.title} was just yesterday. Pick it back up? 🧶`);
       else msgs.push(`${mostRecent.title} has been waiting ${days} days. No judgment from Bev. (Okay, a little judgment.) 👀`);
@@ -277,6 +283,11 @@ const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto
         borderRadius: GLASS.radius, boxShadow: GLASS.shadow, border: GLASS.border,
         overflow: "hidden", cursor: "pointer", width: "100%", maxWidth: "100%", boxSizing: "border-box",
       }}>
+        {/* TODO: PDF Cover Intelligence (future session)
+            Currently the import pipeline saves the first page of a PDF as the cover image.
+            For text-heavy PDFs this results in a poor hero image. Future improvement:
+            scan PDF pages for the most image-rich page and use that as the cover instead
+            of always page 1. See master doc: Bev's Read / Collections session. */}
         {/* Hero image — blurred backdrop treatment (matches detail page PatternHeader) */}
         <div style={{ height: isMobile ? 180 : 220, overflow: "hidden", borderRadius: `${GLASS.radius}px ${GLASS.radius}px 0 0`, position: "relative", background: ACCENT }}>
           {/* Layer 1: blurred backdrop */}
