@@ -277,21 +277,19 @@ const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto
         borderRadius: GLASS.radius, boxShadow: GLASS.shadow, border: GLASS.border,
         overflow: "hidden", cursor: "pointer", width: "100%", maxWidth: "100%", boxSizing: "border-box",
       }}>
-        {/* Hero image with cinematic fades */}
-        <div style={{ height: isMobile ? 160 : 200, overflow: "hidden", borderRadius: `${GLASS.radius}px ${GLASS.radius}px 0 0`, position: "relative", background: "linear-gradient(135deg, #EDE4F7 0%, #D4C5ED 50%, #F5F0FA 100%)" }}>
+        {/* Hero image — blurred backdrop treatment (matches detail page PatternHeader) */}
+        <div style={{ height: isMobile ? 180 : 220, overflow: "hidden", borderRadius: `${GLASS.radius}px ${GLASS.radius}px 0 0`, position: "relative", background: ACCENT }}>
+          {/* Layer 1: blurred backdrop */}
+          {heroHasImage && <img src={heroCardPhoto} alt="" style={{ position: "absolute", width: "100%", height: "100%", objectFit: "cover", filter: "blur(20px) saturate(1.2) brightness(0.6)", transform: "scale(1.1)", pointerEvents: "none" }} />}
+          {/* Layer 2: sharp centered image */}
           {heroHasImage
-            ? <Photo src={heroCardPhoto} alt={hero.title} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block", position: "relative", zIndex: 0 }} />
-            : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontFamily: PF, fontSize: 40, color: ACCENT, opacity: 0.5 }}>{(hero.title || "?")[0]}</span>
+            ? <img src={heroCardPhoto} alt={hero.title} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", height: "100%", width: "auto", objectFit: "contain", zIndex: 1 }} />
+            : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+                <span style={{ fontFamily: PF, fontSize: 48, color: "#fff", opacity: 0.4 }}>{(hero.title || "?")[0]}</span>
               </div>
           }
-          {/* Bottom fade */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "65%", background: "linear-gradient(to top, rgba(255,255,255,0.97) 0%, transparent 100%)", zIndex: 1 }} />
-          {/* Side fades for PDF/non-cover patterns */}
-          {!hasCoverPhoto && <>
-            <div style={{ position: "absolute", top: 0, left: 0, width: "15%", height: "100%", background: "linear-gradient(to right, rgba(255,255,255,0.6) 0%, transparent 100%)", zIndex: 1 }} />
-            <div style={{ position: "absolute", top: 0, right: 0, width: "15%", height: "100%", background: "linear-gradient(to left, rgba(255,255,255,0.6) 0%, transparent 100%)", zIndex: 1 }} />
-          </>}
+          {/* Layer 3: dark gradient overlay */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(20,14,10,0.88) 0%, rgba(20,14,10,0.2) 50%, rgba(20,14,10,0.05) 100%)", zIndex: 2 }} />
         </div>
         <div style={{ padding: isMobile ? 16 : "20px 22px 22px", boxSizing: "border-box", width: "100%" }}>
           <div style={{ fontFamily: PF, fontSize: 18, fontWeight: 600, color: NAVY, marginBottom: 6 }}>{hero.title}</div>
