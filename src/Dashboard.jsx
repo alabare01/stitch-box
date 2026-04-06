@@ -363,7 +363,7 @@ const OnTheHook = ({ inProgress, openDetail, onAddPattern, pct, catFallbackPhoto
       {/* Contextual link to full On the Hook page */}
       {inProgress.length > 0 && (
         <div onClick={() => navigate("/builds")} style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", cursor: "pointer" }}>
-          <span style={{ fontFamily: INTER, fontSize: 12, fontWeight: 500, color: ACCENT, letterSpacing: "0.01em" }}>View all in progress →</span>
+          <span style={{ fontFamily: INTER, fontSize: 12, fontWeight: 500, color: ACCENT, letterSpacing: "0.01em" }}>Pick up where you left off →</span>
         </div>
       )}
     </div>
