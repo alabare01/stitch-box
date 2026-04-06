@@ -90,26 +90,34 @@ const CATEGORIES = [
   { label: "Love it ❤️", value: "Love it" },
 ];
 
+const FB_DRAFT_KEY = "wovely_feedback_draft";
+
 export default function FeedbackWidget({ user }) {
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(() => { try { const d=sessionStorage.getItem(FB_DRAFT_KEY); return d?JSON.parse(d).category||"":""; } catch { return ""; } });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const { isMobile } = useBreakpoint();
 
-  // Bug fields
-  const [bugWhat, setBugWhat] = useState("");
+  // Bug fields — restore from draft
+  const [bugWhat, setBugWhat] = useState(() => { try { return JSON.parse(sessionStorage.getItem(FB_DRAFT_KEY)||"{}").bugWhat||""; } catch { return ""; } });
   const [bugSteps, setBugSteps] = useState("");
   const [bugExpected, setBugExpected] = useState("");
   const [bugSeverity, setBugSeverity] = useState("");
 
   // Idea fields
-  const [ideaWhat, setIdeaWhat] = useState("");
+  const [ideaWhat, setIdeaWhat] = useState(() => { try { return JSON.parse(sessionStorage.getItem(FB_DRAFT_KEY)||"{}").ideaWhat||""; } catch { return ""; } });
   const [ideaWhy, setIdeaWhy] = useState("");
 
   // Love it field
-  const [loveMsg, setLoveMsg] = useState("");
+  const [loveMsg, setLoveMsg] = useState(() => { try { return JSON.parse(sessionStorage.getItem(FB_DRAFT_KEY)||"{}").loveMsg||""; } catch { return ""; } });
+
+  // Save draft on changes
+  useEffect(() => {
+    if (!open) return;
+    try { sessionStorage.setItem(FB_DRAFT_KEY, JSON.stringify({ category, bugWhat, ideaWhat, loveMsg })); } catch {}
+  }, [open, category, bugWhat, ideaWhat, loveMsg]);
 
   // File attachment (bug only)
   const [attachedFile, setAttachedFile] = useState(null); // { name, url } or null
@@ -121,9 +129,17 @@ export default function FeedbackWidget({ user }) {
     setCategory(""); setBugWhat(""); setBugSteps(""); setBugExpected(""); setBugSeverity("");
     setIdeaWhat(""); setIdeaWhy(""); setLoveMsg(""); setError("");
     setAttachedFile(null); setUploadError("");
+    try { sessionStorage.removeItem(FB_DRAFT_KEY); } catch {}
+  };
+
+  const handleAttachClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTimeout(() => { fileInputRef.current?.click(); }, 100);
   };
 
   const handleFileSelect = async (e) => {
+    e.stopPropagation();
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { setUploadError("File must be under 10MB"); return; }
@@ -200,7 +216,7 @@ export default function FeedbackWidget({ user }) {
     }
   };
 
-  const handleClose = () => { if (!success) { setOpen(false); setError(""); } };
+  const handleClose = () => { if (!success) { setOpen(false); setError(""); try { sessionStorage.removeItem(FB_DRAFT_KEY); } catch {} } };
 
   // ── Heart button ──
   const heartBtn = (
@@ -211,6 +227,7 @@ export default function FeedbackWidget({ user }) {
         background: "none", border: "none", cursor: "pointer", padding: 4,
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         animation: "fbHeartPulse 2.5s ease-in-out infinite", flexShrink: 0,
+        position: "relative", zIndex: 60, pointerEvents: "auto",
       }}
     >
       <svg width="28" height="26" viewBox="0 0 24 24" fill={C.lavender} xmlns="http://www.w3.org/2000/svg">
@@ -248,7 +265,7 @@ export default function FeedbackWidget({ user }) {
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4, fontFamily: T.sans }}>Attach a file (optional)</div>
         <div style={{ fontSize: 11, color: C.sub, marginBottom: 8, fontFamily: T.sans }}>Screenshot, PDF, or pattern file — helps us fix it faster</div>
-        <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf" onChange={handleFileSelect} style={{ display: "none" }} />
+        <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf" onChange={handleFileSelect} onClick={e=>e.stopPropagation()} style={{ display: "none" }} />
         {attachedFile ? (
           <div style={{
             border: `1px solid #5C9E7A`, borderRadius: 12, padding: "12px 16px",
@@ -261,7 +278,7 @@ export default function FeedbackWidget({ user }) {
             }}>✕</button>
           </div>
         ) : (
-          <div onClick={() => !uploading && fileInputRef.current?.click()} style={{
+          <div onClick={e => { if (!uploading) handleAttachClick(e); }} style={{
             border: `2px dashed ${C.border}`, borderRadius: 12, padding: "12px 16px",
             cursor: uploading ? "default" : "pointer", display: "flex", alignItems: "center", gap: 10,
           }}>
