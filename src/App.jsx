@@ -894,9 +894,9 @@ const BrowseSitesView = ({onImportUrl}) => {
     setUrl("");
   };
   return (
-    <div style={{padding:isDesktop?"24px 0 80px":"16px 20px 100px",background:"#FFFFFF",maxWidth:900,margin:"0 auto"}}>
+    <div style={{padding:isDesktop?"24px 24px 80px":"16px 20px 100px",maxWidth:960,margin:"0 auto",background:"transparent"}}>
       {/* Section 1 — URL Import */}
-      <div style={{background:"#FFFFFF",borderRadius:16,border:`1px solid ${T.border}`,padding:isDesktop?"32px":"24px 20px",marginBottom:32,boxShadow:"0 2px 12px rgba(155,126,200,.06)",maxWidth:700}}>
+      <div style={{background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,border:"1px solid rgba(255,255,255,0.6)",padding:isDesktop?"32px":"24px 20px",marginBottom:32,boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)",maxWidth:700}}>
         <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,color:"#2D2D4E",marginBottom:8,borderLeft:"3px solid #9B7EC8",paddingLeft:10}}>Import a Pattern</div>
         <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Find a pattern on any crochet site, copy the URL from your browser, and paste it below to import it directly into Wovely.</div>
         <div style={{display:"flex",gap:10,flexDirection:isMobile?"column":"row"}}>
@@ -915,7 +915,7 @@ const BrowseSitesView = ({onImportUrl}) => {
         <div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.7,marginBottom:20}}>Open any site below to browse their patterns. When you find one you love, copy the URL and paste it above.</div>
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(3,1fr)":isTablet?"repeat(2,1fr)":"1fr",gap:16}}>
           {SITES.map(s=>(
-            <div key={s.name} style={{background:"#FFFFFF",borderRadius:16,border:"1px solid #EDE4F7",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",overflow:"hidden",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(155,126,200,0.12)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.06)";}}>
+            <div key={s.name} style={{background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)",overflow:"hidden",transition:"transform .15s,box-shadow .15s"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 32px rgba(155,126,200,0.2)";}} onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)";}}>
               <div style={{background:"linear-gradient(135deg, #EDE4F7 0%, #F8F6FF 100%)",height:72,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
                 <div style={{fontFamily:T.serif,fontSize:17,fontWeight:600,color:"#2D2D4E"}}>{s.name}</div>
                 <div style={{position:"absolute",top:10,right:10}}><div style={{background:s.free?"#5C9E7A":"#2D3A7C",borderRadius:9999,padding:"2px 8px",fontSize:9,fontWeight:700,color:"#fff"}}>{s.free?"FREE":"FREE + PAID"}</div></div>
