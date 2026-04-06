@@ -107,7 +107,7 @@ const StitchCheck = () => {
       clearInterval(intv); setProgress(90); setPhase("Reading results\u2026");
       const rawText = await res.text();
       console.log("[Wovely] Stitch Check response status:", res.status, "body preview:", rawText.substring(0, 500));
-      if (!res.ok) throw new Error("Gemini API error: " + res.status + " \u2014 " + rawText.substring(0, 200));
+      if (!res.ok) throw new Error("Gemini API error: " + res.status + " — " + rawText.substring(0, 200));
       let data; try { data = JSON.parse(rawText); } catch (e) { throw new Error("Invalid JSON wrapper: " + rawText.substring(0, 200)); }
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       console.log("[Wovely] Stitch Check extracted text:", raw.substring(0, 300));
@@ -182,7 +182,7 @@ const StitchCheck = () => {
         )}
 
         <div style={{ padding: "0 8px", textAlign: "center", marginBottom: 20 }}>
-          <p style={{ fontSize: 12, color: T.sage, lineHeight: 1.7, fontStyle: "italic", margin: 0 }}>A lower score doesn't mean your pattern won't work \u2014 think of it like adding a handwritten recipe card to your recipe box. Mom's notes, doodles, and shorthand are part of the charm. Wovely can import any pattern regardless of its Stitch Check score.</p>
+          <p style={{ fontSize: 12, color: T.sage, lineHeight: 1.7, fontStyle: "italic", margin: 0 }}>A lower score doesn't mean your pattern won't work — think of it like adding a handwritten recipe card to your recipe box. Mom's notes, doodles, and shorthand are part of the charm. Wovely can import any pattern regardless of its Stitch Check score.</p>
         </div>
         <button onClick={reset} style={{ width: "100%", background: "#FFFFFF", color: T.ink2, border: `1.5px solid ${T.terra}`, borderRadius: 9999, padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Check another pattern</button>
       </div>
@@ -191,8 +191,8 @@ const StitchCheck = () => {
 
   return (
     <div style={{ padding: isDesktop ? "24px 24px 80px" : "0 18px 80px", maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>Bev's Notes</div>
-      <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24, lineHeight: 1.6 }}>Before you pick up your hook \u2014 let Wovely check the math.</div>
+      <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>BevCheck</div>
+      <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24, lineHeight: 1.6 }}>Before you pick up your hook — let Wovely check the math.</div>
 
       {error && (
         <div style={{ ...CARD, background: "#FFF0EE", borderColor: "rgba(192,90,90,.2)", marginBottom: 20 }}>
@@ -230,7 +230,7 @@ const StitchCheck = () => {
       {!loading && mode === "text" && (
         <div style={CARD}>
           <div style={LABEL}>paste your pattern</div>
-          <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste your pattern text here \u2014 rounds, rows, instructions, everything\u2026" rows={12} style={{ width: "100%", padding: "16px 0", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: T.ink, fontSize: 14, resize: "vertical", lineHeight: 1.7, outline: "none", fontFamily: T.sans, transition: "border-color .2s" }} onFocus={e => e.target.style.borderBottomColor = T.terra} onBlur={e => e.target.style.borderBottomColor = "transparent"} />
+          <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste your pattern text here — rounds, rows, instructions, everything\u2026" rows={12} style={{ width: "100%", padding: "16px 0", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: T.ink, fontSize: 14, resize: "vertical", lineHeight: 1.7, outline: "none", fontFamily: T.sans, transition: "border-color .2s" }} onFocus={e => e.target.style.borderBottomColor = T.terra} onBlur={e => e.target.style.borderBottomColor = "transparent"} />
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button onClick={handleTextSubmit} disabled={!text.trim()} style={{ flex: 1, background: T.terra, color: "#fff", border: "none", borderRadius: 9999, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: text.trim() ? "pointer" : "not-allowed", opacity: text.trim() ? 1 : .5 }}>Run Stitch Check</button>
             <button onClick={reset} style={{ background: "#FFFFFF", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 9999, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Back</button>

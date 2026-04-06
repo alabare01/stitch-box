@@ -18,7 +18,7 @@ export const CHANGELOG = [
     date: "2026-04-04",
     updates: [
       { emoji: "🌀", text: "Stitch Vision is now Stitch-O-Vision — same magic, way better name" },
-      { emoji: "💜", text: "Stitch Check is now Bev's Notes in the nav" },
+      { emoji: "💜", text: "Stitch Check is now BevCheck in the nav" },
       { emoji: "🔗", text: "Stitch-O-Vision share links now work — send your results to the whole group chat" },
       { emoji: "🐛", text: "Fixed: feedback heart now properly floats above everything on iOS" },
       { emoji: "🧠", text: "Stitch-O-Vision is smarter — no longer confuses construction techniques with stitches" },
