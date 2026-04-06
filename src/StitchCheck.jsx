@@ -71,7 +71,7 @@ const displayScore = (report) => {
   return allPass ? 100 : report.score;
 };
 
-const CARD = {background:"#FFFFFF",borderRadius:16,padding:24,border:`1px solid ${T.border}`,boxShadow:T.shadow};
+const CARD = {background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,padding:24,border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)"};
 const LABEL = {fontSize:11,fontWeight:600,color:T.ink2,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6};
 
 const StitchCheck = () => {
@@ -145,7 +145,7 @@ const StitchCheck = () => {
     const score = displayScore(report);
     const badge = badgeForScore(score);
     return (
-      <div style={{ padding: isDesktop ? "0 0 80px" : "0 18px 80px" }}>
+      <div style={{ padding: isDesktop ? "24px 24px 80px" : "0 18px 80px", maxWidth: 960, margin: "0 auto" }}>
         <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>Stitch Check Report</div>
         <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24 }}>Pattern validation results</div>
 
@@ -190,7 +190,7 @@ const StitchCheck = () => {
   }
 
   return (
-    <div style={{ padding: isDesktop ? "0 0 80px" : "0 18px 80px" }}>
+    <div style={{ padding: isDesktop ? "24px 24px 80px" : "0 18px 80px", maxWidth: 960, margin: "0 auto" }}>
       <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>Bev's Notes</div>
       <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24, lineHeight: 1.6 }}>Before you pick up your hook \u2014 let Wovely check the math.</div>
 
