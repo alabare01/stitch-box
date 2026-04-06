@@ -119,27 +119,36 @@ const StitchResultPage = () => {
 
           <div style={{ padding: "20px 20px 24px" }}>
             {r.confidence === "low" && (
-              <div style={{ background: "#FFF8EC", border: "1px solid #F0D9A8", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#8B6914", lineHeight: 1.5 }}>
-                We're not 100% sure — this is our best guess
+              <div style={{ textAlign: "center", marginBottom: 16 }}>
+                <img src="/bev_neutral.png" alt="Bev" style={{ width: 80, height: "auto", margin: "0 auto 12px", display: "block", filter: "drop-shadow(0 4px 12px rgba(155,126,200,0.3))" }} />
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: "#2D3A7C", marginBottom: 4 }}>Bev's not quite sure about this one...</div>
+                <div style={{ fontSize: 13, color: "#6B6B8A" }}>This might be a <span style={{ fontWeight: 600, color: "#9B7EC8" }}>{r.stitch_name}</span></div>
               </div>
             )}
 
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>{r.stitch_name}</div>
+            {r.confidence !== "low" && <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>{r.stitch_name}</div>}
 
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-              <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{r.difficulty}</span>
+              {r.confidence !== "low" && <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{r.difficulty}</span>}
               {r.confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
+              {r.base_stitch && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Base stitch: {r.base_stitch}</span>}
               {(r.also_known_as || []).map(name => (
                 <span key={name} style={{ background: "#EDE4F7", color: "#9B7EC8", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{name}</span>
               ))}
             </div>
 
-            <div style={{ fontSize: 14, color: "#6B6B8A", lineHeight: 1.8, marginBottom: 16 }}>{r.description}</div>
+            {r.description && r.description.trim() && <div style={{ fontSize: 14, color: "#6B6B8A", lineHeight: 1.8, marginBottom: 16 }}>{r.description}</div>}
 
-            {r.common_uses && (
+            {r.common_uses && r.common_uses.trim() && (
               <div style={{ marginBottom: 20, padding: "12px 14px", background: "#F8F6FF", borderRadius: 10 }}>
                 <div style={{ fontSize: 10, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4, fontWeight: 600 }}>Common uses</div>
                 <div style={{ fontSize: 13, color: "#6B6B8A", lineHeight: 1.6 }}>{r.common_uses}</div>
+              </div>
+            )}
+
+            {r.confidence === "low" && (
+              <div style={{ background: "#F8F6FF", border: "1px solid #EDE4F7", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: "#2D2D4E", lineHeight: 1.6 }}>💡 Try a closer shot focusing just on the stitch texture — Bev gets more confident with detail shots!</div>
               </div>
             )}
 

@@ -205,29 +205,51 @@ const StitchVision = ({ isPro, onUpgrade }) => {
     );
 
     const diffColor = DIFF_COLORS[result.difficulty] || T.ink3;
+    const isLowConf = result.confidence === "low" || !result.description || !result.description.trim();
+
+    // ── LOW CONFIDENCE / UNSURE STATE ──
+    if (isLowConf) return (
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px", textAlign: "center" }}>
+        {thumb && <img src={thumb} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
+        <img src="/bev_neutral.png" alt="Bev" style={{ width: 120, height: "auto", margin: "0 auto 16px", display: "block", filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.3))" }} />
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>Bev's not quite sure about this one...</div>
+        {result.stitch_name && <div style={{ fontSize: 14, color: "#6B6B8A", marginBottom: 16 }}>This might be a <span style={{ fontWeight: 600, color: "#9B7EC8" }}>{result.stitch_name}</span></div>}
+        {result.base_stitch && <div style={{ display: "inline-block", background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600, marginBottom: 16 }}>Base stitch: {result.base_stitch}</div>}
+        <div style={{ background: "#F8F6FF", border: "1px solid #EDE4F7", borderRadius: 12, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+          <div style={{ fontSize: 13, color: "#2D2D4E", lineHeight: 1.6 }}>💡 Try a closer shot focusing just on the stitch texture — Bev gets more confident with detail shots!</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {shareId && result.stitch_name && (
+            <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              {copied ? "✓ Copied!" : "🔗 Copy share link"}
+            </button>
+          )}
+          <button onClick={reset} style={{ width: "100%", background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try another photo</button>
+        </div>
+      </div>
+    );
+
+    // ── CONFIDENT RESULT ──
     return (
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px" }}>
         {thumb && <img src={thumb} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 16 }} />}
-
-        {result.confidence === "low" && (
-          <div style={{ background: "#FFF8EC", border: "1px solid #F0D9A8", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#8B6914", lineHeight: 1.5 }}>
-            We're not 100% sure — this is our best guess
-          </div>
-        )}
 
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: "#2D3A7C", marginBottom: 6 }}>{result.stitch_name}</div>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
           <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{result.difficulty}</span>
           {result.confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
+          {result.base_stitch && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Base stitch: {result.base_stitch}</span>}
           {(result.also_known_as || []).map(name => (
             <span key={name} style={{ background: T.terraLt, color: T.terra, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{name}</span>
           ))}
         </div>
 
-        <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 16 }}>{result.description}</div>
+        {result.description && result.description.trim() && (
+          <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 16 }}>{result.description}</div>
+        )}
 
-        {result.common_uses && (
+        {result.common_uses && result.common_uses.trim() && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>Common uses</div>
             <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>{result.common_uses}</div>

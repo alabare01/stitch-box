@@ -19,10 +19,16 @@ const PROMPT = `You are an expert crochet stitch identifier with deep knowledge 
 
 Analyze this image and identify the specific crochet stitch or stitch pattern shown. Focus exclusively on the stitch texture and structure — ignore yarn color, yarn weight, and the overall shape of the finished object.
 
-IMPORTANT — Stitches vs Construction Techniques:
-A STITCH is a specific technique for forming individual loops — examples: Single Crochet, Double Crochet, Bobble Stitch, Moss Stitch, Shell Stitch. A CONSTRUCTION TECHNIQUE is how a project is assembled — examples: Amigurumi, Granny Square, In the Round, Tapestry Crochet, Tunisian. These are NOT stitches.
-If the image shows a construction technique rather than a specific stitch pattern, identify the DOMINANT STITCH used within that construction. For example, if you see Amigurumi, identify the stitch being used (likely Single Crochet or Magic Ring Single Crochet). If you see a Granny Square, identify the stitch pattern within it.
-Never return a construction technique, project type, or color pattern as the stitch_name. stitch_name must always be a specific crochet stitch.
+IMPORTANT — Two Scenarios:
+
+Scenario A — Single stitch texture visible (close-up or clear repeating pattern):
+Return the specific stitch name as stitch_name (e.g. "Moss Stitch", "Shell Stitch", "Bobble Stitch").
+Do NOT return construction techniques like "Corner-to-Corner C2C" as stitch_name in this case.
+
+Scenario B — Full project or blanket visible (multiple stitches, overall construction visible):
+Return the PRIMARY construction technique as stitch_name (e.g. "Corner-to-Corner (C2C)", "Granny Square", "Amigurumi").
+ALSO identify the base stitch used within that construction in a new field called "base_stitch" (e.g. "Half Double Crochet", "Single Crochet").
+In description, acknowledge this is a full project view and describe what you observe.
 
 Rules:
 - Be specific. "Single crochet" is better than "basic stitch." "Moss stitch" is better than "textured stitch."
@@ -36,10 +42,11 @@ Rules:
 Return ONLY a valid JSON object with no markdown, no backticks, no explanation before or after:
 {
   "stitch_name": "specific name of the stitch or stitch pattern",
+  "base_stitch": "the underlying stitch technique if stitch_name is a construction technique, otherwise null",
   "also_known_as": ["alternate names if any, otherwise empty array"],
   "difficulty": "Beginner" or "Intermediate" or "Advanced",
-  "description": "2-3 sentences describing what makes this stitch distinctive, how it is worked, and what the texture looks like",
-  "common_uses": "what this stitch is typically used for",
+  "description": "2-3 sentences describing what makes this stitch distinctive, how it is worked, and what the texture looks like. NEVER leave this empty.",
+  "common_uses": "what this stitch is typically used for. NEVER leave this empty.",
   "tutorial_search": "best YouTube search term to find a tutorial for this exact stitch",
   "confidence": "high" or "medium" or "low",
   "not_crochet": false
