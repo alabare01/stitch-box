@@ -1054,10 +1054,10 @@ const ShoppingList = () => {
   const addItem=()=>{if(!newItem.trim())return;setItems(p=>[...p,{id:Date.now(),name:newItem.trim(),qty:1,unit:"",checked:false}]);setNewItem("");};
   const unchecked=items.filter(i=>!i.checked),checked=items.filter(i=>i.checked);
   const SC_LABEL = {fontSize:10,fontVariant:"small-caps",color:T.ink3,textTransform:"lowercase",letterSpacing:".14em",fontWeight:500};
-  const CARD = {background:T.card,borderRadius:16,padding:24,boxShadow:T.shadowLg};
+  const CARD = {background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,border:"1px solid rgba(255,255,255,0.6)",padding:24,boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)"};
 
   if(items.length===0) return (
-    <div style={{padding:isDsl?"0 0 100px":"0 18px 100px"}}>
+    <div style={{padding:isDsl?"24px 24px 100px":"0 18px 100px",maxWidth:960,margin:"0 auto"}}>
       <div style={{fontFamily:T.serif,fontSize:22,color:T.ink,marginBottom:4,fontWeight:700}}>Supply Run</div>
       <div style={{fontSize:13,color:T.ink3,marginBottom:24}}>Everything you need for your current projects.</div>
       <div style={{...CARD,textAlign:"center",padding:"60px 32px"}}>
@@ -1073,7 +1073,7 @@ const ShoppingList = () => {
   );
 
   return (
-    <div style={{padding:isDsl?"0 0 100px":"0 18px 100px"}}>
+    <div style={{padding:isDsl?"24px 24px 100px":"0 18px 100px",maxWidth:960,margin:"0 auto"}}>
       <div style={{fontFamily:T.serif,fontSize:22,color:T.ink,marginBottom:4,fontWeight:700}}>Supply Run</div>
       <div style={{fontSize:13,color:T.ink3,marginBottom:24}}>Everything you need for your current projects.</div>
 
