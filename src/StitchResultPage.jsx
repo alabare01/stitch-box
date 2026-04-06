@@ -30,6 +30,16 @@ const StitchResultPage = () => {
 
   const pageStyle = { minHeight: "100vh", background: "#F8F6FF", fontFamily: "Inter,-apple-system,sans-serif" };
 
+  const backLink = (
+    <a href="https://wovely.app" style={{
+      display: "flex", alignItems: "center", gap: 6, color: "#9B7EC8",
+      fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 500,
+      textDecoration: "none", padding: "12px 16px", position: "sticky",
+      top: 0, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)", zIndex: 10, borderBottom: "1px solid #EDE4F7",
+    }}>← Back to Wovely</a>
+  );
+
   const headerStyle = {
     background: "#fff",
     borderBottom: "1px solid #EDE4F7",
@@ -45,6 +55,7 @@ const StitchResultPage = () => {
 
   if (loading) return (
     <div style={pageStyle}>
+      {backLink}
       <style>{`@keyframes srSpin{to{transform:rotate(360deg)}}`}</style>
       <header style={headerStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -67,6 +78,7 @@ const StitchResultPage = () => {
 
   if (error) return (
     <div style={pageStyle}>
+      {backLink}
       <header style={headerStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <img src="/bev_neutral.png" alt="Bev" style={{ width: 28, height: 28, objectFit: "contain" }} />
@@ -90,6 +102,7 @@ const StitchResultPage = () => {
 
   return (
     <div style={pageStyle}>
+      {backLink}
       <style>{`@media(min-width:640px){.sr-card{box-shadow:0 4px 32px rgba(155,126,200,.15);border-radius:20px!important;}.sr-image{border-radius:12px 12px 0 0!important;}}`}</style>
 
       <header style={headerStyle}>
