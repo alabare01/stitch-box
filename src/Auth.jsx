@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { supabaseAuth, getSession, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase.js";
-import { APP_VERSION } from "./constants.js";
 
 /* ── Typewriter hook ── */
 const BEV_LINES = [
@@ -42,14 +41,17 @@ const useTypewriter = (lines, typeSpeed = 38, deleteSpeed = 18, pauseEnd = 2200,
 const GLASS = {
   background: "rgba(255,255,255,0.84)",
   border: "1px solid rgba(155,126,200,0.18)",
-  borderRadius: 13,
-  padding: "16px 18px",
-  marginBottom: 4,
+  borderRadius: 14,
+  padding: "18px 20px",
 };
 const TAG = (bg, color) => ({
   display: "inline-block", background: bg, color, borderRadius: 99,
   padding: "3px 9px", fontSize: 9.5, fontWeight: 600, lineHeight: 1,
 });
+const THUMB = {
+  width: 72, height: 72, borderRadius: 12, objectFit: "cover", flexShrink: 0,
+  boxShadow: "0 2px 8px rgba(45,58,124,0.12)",
+};
 const INPUT_STYLE = {
   width: "100%", height: 41, padding: "0 14px", background: "#F8F6FF",
   border: "1px solid #EDE4F7", borderRadius: 10, fontSize: 13,
@@ -57,93 +59,15 @@ const INPUT_STYLE = {
   transition: "border-color .15s",
 };
 
-/* ── Skeleton card (loading state) ── */
-const SkeletonCard = () => (
-  <div style={{ ...GLASS, overflow: "hidden" }}>
-    <style>{`@keyframes skPulse{0%,100%{opacity:.6}50%{opacity:1}}`}</style>
-    <div style={{ display: "flex", alignItems: "center", gap: 11, animation: "skPulse 1.5s ease-in-out infinite" }}>
-      <div style={{ width: 48, height: 48, borderRadius: 10, background: "rgba(155,126,200,0.08)", flexShrink: 0 }} />
-      <div style={{ flex: 1 }}>
-        <div style={{ width: "70%", height: 12, borderRadius: 4, background: "rgba(155,126,200,0.08)", marginBottom: 8 }} />
-        <div style={{ width: "50%", height: 10, borderRadius: 4, background: "rgba(155,126,200,0.08)", marginBottom: 6 }} />
-        <div style={{ width: "100%", height: 4, borderRadius: 2, background: "rgba(155,126,200,0.08)" }} />
-      </div>
-    </div>
-  </div>
-);
-
-/* ── Pattern thumbnail ── */
-const Thumb = ({ src }) => {
-  const isBase64 = src && src.startsWith("data:");
-  const url = src && !isBase64 ? src : null;
-  return url
-    ? <img src={url} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-    : <div style={{ width: 48, height: 48, borderRadius: 10, background: "linear-gradient(135deg,#C4ADE6,#9B7EC8)", flexShrink: 0 }} />;
-};
-
-/* ── BevCheck score circle ── */
-const ScoreCircle = ({ score }) => {
-  const R = 28, C = 2 * Math.PI * R;
-  const pct = Math.min(Math.max(score || 0, 0), 100);
-  const offset = C - (C * pct / 100);
-  const color = pct >= 80 ? "#5B9B6B" : pct >= 60 ? "#C9A84C" : "#C0544A";
-  return (
-    <div style={{ position: "relative", width: 68, height: 68, flexShrink: 0 }}>
-      <style>{`@keyframes scFill{from{stroke-dashoffset:${C}}to{stroke-dashoffset:${offset}}}`}</style>
-      <svg width="68" height="68" viewBox="0 0 68 68" style={{ transform: "rotate(-90deg)" }}>
-        <circle cx="34" cy="34" r={R} fill="none" stroke="#EDE4F7" strokeWidth="4" />
-        <circle cx="34" cy="34" r={R} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round"
-          strokeDasharray={C} style={{ animation: "scFill 0.8s ease-out forwards" }} />
-      </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#2D2D4E", fontFamily: T.serif }}>{pct}%</span>
-      </div>
-    </div>
-  );
-};
-
-/* ── Fetch showcase patterns ── */
-const useShowcasePatterns = () => {
-  const [patterns, setPatterns] = useState(null);
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/patterns?is_showcase=eq.true&limit=3&select=id,title,photo,cover_image_url,row_count,validation_report,rows,source_file_url`,
-          { headers: { "apikey": SUPABASE_ANON_KEY } }
-        );
-        if (res.ok) { const d = await res.json(); if (d.length > 0) setPatterns(d); }
-      } catch { /* fall back to static */ }
-    })();
-  }, []);
-  return patterns;
-};
-
-/* ── Static fallback data ── */
-const FALLBACK = [
-  { id: 1, title: "Floral Burst Square", row_count: 30, rows: new Array(14), source_file_url: "x", photo: null, validation_report: null },
-  { id: 2, title: "Nordic Star Blanket", row_count: 40, rows: new Array(35), source_file_url: "x", photo: null, validation_report: { score: 88, summary: "Pattern reviewed with minor notes.", flags: [{},{},{}] } },
-];
-
 /* ── Left Column: Product Preview ── */
 const ProductPreview = () => {
   const bevText = useTypewriter(BEV_LINES);
-  const livePatterns = useShowcasePatterns();
-  const patterns = livePatterns || FALLBACK;
-  const loading = livePatterns === null;
-
-  // Find the pattern with the highest BevCheck score
-  const bevCheckPattern = [...patterns].sort((a, b) => {
-    const sa = a.validation_report?.score ?? -1;
-    const sb = b.validation_report?.score ?? -1;
-    return sb - sa;
-  }).find(p => p.validation_report?.score != null);
-
-  // Remaining patterns for the "Your patterns" section
-  const displayPatterns = patterns.filter(p => p !== bevCheckPattern).slice(0, 2);
+  const C = 2 * Math.PI * 22; // circumference for score circle r=22
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "48px 40px", justifyContent: "center", minHeight: "100vh", boxSizing: "border-box" }}>
+      <style>{`@keyframes drawCircle{from{stroke-dashoffset:138.2}to{stroke-dashoffset:4.1}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
+
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <img src="/bev_neutral.png" alt="Wovely" style={{ width: 36, height: 36, objectFit: "contain" }} />
@@ -160,99 +84,105 @@ const ProductPreview = () => {
         </div>
       </div>
 
-      {/* Pattern cards — live data */}
-      {loading && !livePatterns ? (
-        <>{[0,1].map(i => <SkeletonCard key={i} />)}</>
-      ) : displayPatterns.map(p => {
-        const rowsDone = Array.isArray(p.rows) ? p.rows.filter(r => r && r.done).length : (Array.isArray(p.rows) ? p.rows.length : 0);
-        const total = p.row_count || 0;
-        const pct = total > 0 ? Math.round((rowsDone / total) * 100) : 0;
-        const title = (p.title || "Untitled").slice(0, 32) + ((p.title || "").length > 32 ? "\u2026" : "");
-        const img = p.cover_image_url || p.photo;
-        return (
-          <div key={p.id} style={GLASS}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Your patterns</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 10 }}>
-              <Thumb src={img} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#2D2D4E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
-                <div style={{ fontSize: 11, color: "#6B6B8A" }}>
-                  {total > 0 ? `Row ${rowsDone} of ${total} \u00b7 In progress` : "Rows extracted"}
-                </div>
-                <div style={{ height: 4, borderRadius: 2, background: "#EDE4F7", marginTop: 5 }}>
-                  <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "#9B7EC8", transition: "width .6s ease" }} />
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {p.source_file_url && <span style={TAG("rgba(92,158,122,0.12)", "#5B9B6B")}>PDF imported</span>}
-              {total > 0 && <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rows tracked</span>}
-              {p.validation_report?.score != null && <span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}>{p.validation_report.score}% clean</span>}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* BevCheck card — real score */}
-      {loading && !livePatterns ? <SkeletonCard /> : bevCheckPattern ? (() => {
-        const vr = bevCheckPattern.validation_report;
-        const score = vr?.score ?? 0;
-        const flags = vr?.flags || vr?.checks || [];
-        const flagCount = Array.isArray(flags) ? flags.length : 0;
-        const summary = (vr?.summary || "").slice(0, 80) + ((vr?.summary || "").length > 80 ? "\u2026" : "");
-        const title = (bevCheckPattern.title || "Untitled").slice(0, 32) + ((bevCheckPattern.title || "").length > 32 ? "\u2026" : "");
-        return (
-          <div style={GLASS}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>BevCheck</div>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#2D2D4E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
-                <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>
-                  {flagCount > 0 ? `Pattern reviewed \u00b7 ${flagCount} notes found` : "Pattern reviewed \u00b7 Clean pattern"}
-                </div>
-                {summary && (
-                  <div style={{ fontSize: 11, color: "#6B6B8A", lineHeight: 1.5, marginTop: 6, position: "relative", overflow: "hidden", maxHeight: 34 }}>
-                    {summary}
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 16, background: "linear-gradient(transparent, rgba(255,255,255,0.84))" }} />
-                  </div>
-                )}
-              </div>
-              <ScoreCircle score={score} />
-            </div>
-          </div>
-        );
-      })() : null}
-
-      {/* Stitch-O-Vision — static */}
+      {/* Card 1 — Your Patterns (two rows) */}
       <div style={GLASS}>
-        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Stitch-O-Vision</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#2D2D4E" }}>Moss Stitch</div>
-            <div style={{ fontSize: 11, color: "#6B6B8A" }}>Tap any photo to identify your stitch</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#5B9B6B" }}>94% match</div>
-            <div style={{ width: 60, height: 4, borderRadius: 2, background: "#EDE4F7", marginTop: 4 }}>
-              <div style={{ width: "94%", height: "100%", borderRadius: 2, background: "#5B9B6B" }} />
+        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Your patterns</div>
+        {/* Row 1 — Floral Burst */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={THUMB} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#2D2D4E" }}>Floral Burst Granny Square</div>
+            <div style={{ fontSize: 11, color: "#6B6B8A" }}>Round 8 of 11 &middot; In progress</div>
+            <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
+              <div style={{ width: "72%", height: "100%", borderRadius: 2, background: "#9B7EC8" }} />
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 8 }}>
-          <a href="/stitch-vision" style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, textDecoration: "none" }}>Try it free &rarr;</a>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
+          <span style={TAG("rgba(92,158,122,0.12)", "#5B9B6B")}>PDF imported</span>
+          <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rounds tracked</span>
+        </div>
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(155,126,200,0.1)", margin: "0 0 12px" }} />
+        {/* Row 2 — Summer Meadows */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775493229/covers/p72xeeug1izyj0mwonha.jpg" alt="" style={THUMB} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#2D2D4E" }}>Summer Meadows Baby Blanket</div>
+            <div style={{ fontSize: 11, color: "#6B6B8A" }}>Row 156 of 197 &middot; Almost there!</div>
+            <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
+              <div style={{ width: "79%", height: "100%", borderRadius: 2, background: "#C9A84C" }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>197 rows tracked</span>
+          <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>Yarn stash linked</span>
         </div>
       </div>
 
-      {/* Bev typing card — solid lavender */}
-      <div style={{ background: "#9B7EC8", borderRadius: 13, padding: "16px 18px", marginBottom: 4, display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <style>{`@keyframes bevPulseW{0%{box-shadow:0 0 0 0 rgba(255,255,255,0.3)}70%{box-shadow:0 0 0 8px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
-        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#fff", flexShrink: 0, overflow: "hidden", animation: "bevPulseW 2s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <img src="/bev_neutral.png" alt="Bev" style={{ width: 30, height: 30, objectFit: "cover" }} />
+      {/* Card 2 — BevCheck */}
+      <div style={GLASS}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>BevCheck</div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775221393/covers/nhkp1grswddqxw0np1ux.jpg" alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: "0 2px 8px rgba(45,58,124,0.12)" }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "#2D2D4E" }}>Mommy Fiora the Forest Dragon</div>
+                <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>Pattern reviewed &middot; Clean result</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, fontStyle: "italic", color: "#6B6B8A", lineHeight: 1.5, overflow: "hidden", maxHeight: 34, WebkitMaskImage: "linear-gradient(to right, #000 70%, transparent 100%)", maskImage: "linear-gradient(to right, #000 70%, transparent 100%)" }}>
+              Well-structured with accurate stitch counts throughout. All round sequences verified...
+            </div>
+          </div>
+          {/* Score circle */}
+          <div style={{ flexShrink: 0 }}>
+            <svg width="56" height="56" viewBox="0 0 56 56">
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#EDE4F7" strokeWidth="4" />
+              <circle cx="28" cy="28" r="22" fill="none" stroke="#5B9B6B" strokeWidth="4"
+                strokeLinecap="round" strokeDasharray="138.2 138.2"
+                style={{ animation: "drawCircle 0.8s ease-out forwards", transformOrigin: "center", transform: "rotate(-90deg)" }} />
+              <text x="28" y="28" textAnchor="middle" dominantBaseline="middle"
+                style={{ fontSize: 11, fontWeight: 600, fill: "#2D2D4E" }}>97%</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Card 3 — Stitch-O-Vision */}
+      <div style={GLASS}>
+        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>Stitch-O-Vision</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775216417/covers/txihqunzlfgnu9i7pkdw.jpg" alt="" style={THUMB} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#2D2D4E" }}>Gingham Stitch</div>
+            <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>Identified from pattern cover</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <div style={{ flex: 1, height: 3, borderRadius: 2, background: "#EDE4F7" }}>
+                <div style={{ width: "91%", height: "100%", borderRadius: 2, background: "#5B9B6B" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 500, color: "#5B9B6B", flexShrink: 0 }}>91% match</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <a href="/stitch-vision" style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, textDecoration: "none" }}>
+            Point your camera at any stitch &mdash; Bev will name it &rarr;
+          </a>
+        </div>
+      </div>
+
+      {/* Card 4 — Bev (solid lavender) */}
+      <div style={{ background: "#9B7EC8", borderRadius: 14, padding: "14px 16px", display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", flexShrink: 0, overflow: "hidden", animation: "bevPulse 2s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img src="/bev_neutral.png" alt="Bev" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: "50%" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#fff", marginBottom: 3 }}>Bev</div>
-          <div style={{ fontSize: 12, color: "#fff", lineHeight: 1.5, minHeight: 18 }}>
-            {bevText}<span style={{ display: "inline-block", width: 1.5, height: 14, background: "#fff", marginLeft: 1, verticalAlign: "text-bottom", animation: "cursorBlink 1s step-end infinite" }} />
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#fff", marginBottom: 3 }}>Bev</div>
+          <div style={{ fontSize: 12.5, color: "#fff", fontStyle: "italic", lineHeight: 1.5, minHeight: 18 }}>
+            {bevText}<span style={{ display: "inline-block", width: 2, height: 13, background: "#fff", marginLeft: 1, verticalAlign: "text-bottom", animation: "cursorBlink 1s step-end infinite" }} />
           </div>
         </div>
       </div>
@@ -260,12 +190,12 @@ const ProductPreview = () => {
       {/* App Store / Google Play badges */}
       <div style={{ display: "flex", gap: 10 }}>
         <div style={{ flex: 1, background: "#fff", border: "1px solid #EDE4F7", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <svg width="24" height="28" viewBox="0 0 384 512" fill="#000"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
-          <div><div style={{ fontSize: 9, color: "#6B6B8A" }}>Download on the</div><div style={{ fontSize: 13, fontWeight: 700, color: "#2D2D4E" }}>App Store</div></div>
+          <svg width="22" height="26" viewBox="0 0 384 512" fill="#000"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+          <div><div style={{ fontSize: 9, color: "#6B6B8A" }}>Download on the</div><div style={{ fontSize: 13, fontWeight: 600, color: "#2D2D4E" }}>App Store</div></div>
         </div>
         <div style={{ flex: 1, background: "#fff", border: "1px solid #EDE4F7", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <svg width="22" height="24" viewBox="0 0 512 512"><path d="M93.6 28.3l187.2 107.5L93.6 483.7c-5.1-4.4-8.2-10.8-8.2-18V46.3c0-7.2 3.1-13.6 8.2-18z" fill="#4285F4"/><path d="M116.3 11.3L330 135.8 282.4 256 116.3 11.3z" fill="#34A853"/><path d="M116.3 500.7L282.4 256l47.6 120.2-213.7 124.5z" fill="#EA4335"/><path d="M345.6 256l80.8-46.4c14.3-8.2 14.3-28.9 0-37.2L345.6 126l-52.8 130 52.8 130z" fill="#FBBC05"/></svg>
-          <div><div style={{ fontSize: 9, color: "#6B6B8A" }}>Get it on</div><div style={{ fontSize: 13, fontWeight: 700, color: "#2D2D4E" }}>Google Play</div></div>
+          <div><div style={{ fontSize: 9, color: "#6B6B8A" }}>Get it on</div><div style={{ fontSize: 13, fontWeight: 600, color: "#2D2D4E" }}>Google Play</div></div>
         </div>
       </div>
     </div>
