@@ -65,7 +65,7 @@ const ProductPreview = () => {
   const R = 26, CIRC = 2 * Math.PI * R, SC_OFF = CIRC * (1 - 0.97); // score circle r=26, 97%
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "48px 40px", justifyContent: "center", minHeight: "100vh", boxSizing: "border-box" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "48px 40px", boxSizing: "border-box" }}>
       <style>{`@keyframes drawCircle{from{stroke-dashoffset:${CIRC}}to{stroke-dashoffset:${SC_OFF}}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
 
       {/* Logo */}
@@ -84,40 +84,40 @@ const ProductPreview = () => {
         </div>
       </div>
 
-      {/* Card 1 — Your Patterns (two rows) */}
-      <div style={GLASS}>
-        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>Your patterns</div>
+      {/* Card 1 — Your Patterns (magazine strips) */}
+      <div style={{ background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden" }}>
         {/* Row 1 — Floral Burst */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={THUMB} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex" }}>
+          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={{ width: 80, flexShrink: 0, objectFit: "cover" }} />
+          <div style={{ flex: 1, padding: "12px 14px", minWidth: 0 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Your patterns</div>
             <div style={{ fontSize: 13, fontWeight: 500, color: "#2D2D4E" }}>Floral Burst Granny Square</div>
             <div style={{ fontSize: 11, color: "#6B6B8A" }}>Round 8 of 11 &middot; In progress</div>
             <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
               <div style={{ width: "72%", height: "100%", borderRadius: 2, background: "#9B7EC8" }} />
             </div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
+              <span style={TAG("rgba(92,158,122,0.12)", "#5B9B6B")}>PDF imported</span>
+              <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rounds tracked</span>
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
-          <span style={TAG("rgba(92,158,122,0.12)", "#5B9B6B")}>PDF imported</span>
-          <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rounds tracked</span>
-        </div>
         {/* Divider */}
-        <div style={{ height: 1, background: "rgba(155,126,200,0.1)", margin: "0 0 12px" }} />
+        <div style={{ height: 1, background: "rgba(155,126,200,0.1)" }} />
         {/* Row 2 — Summer Meadows */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775493229/covers/p72xeeug1izyj0mwonha.jpg" alt="" style={THUMB} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex" }}>
+          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775493229/covers/p72xeeug1izyj0mwonha.jpg" alt="" style={{ width: 80, flexShrink: 0, objectFit: "cover" }} />
+          <div style={{ flex: 1, padding: "12px 14px", minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: "#2D2D4E" }}>Summer Meadows Baby Blanket</div>
             <div style={{ fontSize: 11, color: "#6B6B8A" }}>Row 156 of 197 &middot; Almost there!</div>
             <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
               <div style={{ width: "79%", height: "100%", borderRadius: 2, background: "#C9A84C" }} />
             </div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
+              <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>197 rows tracked</span>
+              <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>Yarn stash linked</span>
+            </div>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>197 rows tracked</span>
-          <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>Yarn stash linked</span>
         </div>
       </div>
 
@@ -359,6 +359,7 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
         flex: isMobile ? "none" : 1.15,
         background: "rgba(243,238,255,0.45)",
         overflow: "auto",
+        display: "flex", flexDirection: "column", justifyContent: "center",
         ...(isMobile ? {} : { minHeight: "100vh" }),
       }}>
         <ProductPreview />
