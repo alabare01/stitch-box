@@ -45,7 +45,7 @@ const TAG = (bg, color) => ({
 const LABEL = { fontSize: 9, textTransform: "uppercase", letterSpacing: "0.8px", color: "#9B7EC8", fontWeight: 600, marginBottom: 4, fontFamily: "Inter,sans-serif" };
 const TITLE = { fontSize: 13, fontWeight: 500, color: "#2D2D4E", margin: 0, lineHeight: 1.3, fontFamily: "Inter,sans-serif" };
 const SUB = { fontSize: 11, color: "#6B6B8A", marginTop: 2, fontFamily: "Inter,sans-serif" };
-const CARD = { background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden", display: "flex", width: "100%", marginBottom: 12, minHeight: 120 };
+const CARD = { background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden", display: "flex", width: "100%", marginBottom: 12 };
 const IMG_PANEL = { width: 88, flexShrink: 0, alignSelf: "stretch", objectFit: "cover", display: "block" };
 const CONTENT = { flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
 const INPUT_STYLE = {
@@ -83,7 +83,7 @@ const ProductPreview = () => {
         {/* Card 1 — Your Patterns (no image panel, two rows stacked) */}
         <div style={{ ...CARD, flexDirection: "column", padding: 0 }}>
           {/* Row 1 — Floral Burst */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
             <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={LABEL}>YOUR PATTERNS</div>
@@ -101,7 +101,7 @@ const ProductPreview = () => {
           {/* Divider */}
           <div style={{ height: 1, background: "rgba(155,126,200,0.1)", margin: "0 16px" }} />
           {/* Row 2 — Summer Meadows */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
             <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775493229/covers/p72xeeug1izyj0mwonha.jpg" alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={TITLE}>Summer Meadows Baby Blanket</div>
@@ -163,7 +163,7 @@ const ProductPreview = () => {
         </div>
 
         {/* Card 4 — Bev (solid lavender, no image panel) */}
-        <div style={{ background: "#9B7EC8", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 12, minHeight: 64 }}>
+        <div style={{ background: "#9B7EC8", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", flexShrink: 0, overflow: "hidden", animation: "bevPulse 2s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <img src="/bev_neutral.png" alt="Bev" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: "50%" }} />
           </div>
