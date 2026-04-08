@@ -19,6 +19,8 @@ const PROMPT = `You are an expert crochet stitch identifier with deep knowledge 
 
 Analyze this image and identify the specific crochet stitch or stitch pattern shown. Focus exclusively on the stitch texture and structure — ignore yarn color, yarn weight, and the overall shape of the finished object.
 
+IMPORTANT: The image may contain crochet hooks, knitting needles, hands, or other tools in the foreground. IGNORE these objects entirely. Your job is to identify the stitch pattern visible in the yarn or fabric — look past any tools or hands to the textile itself. If a hook or needle is present, it is simply being used to work the stitch — focus on the fabric structure, texture, and stitch pattern in the yarn surrounding or behind the tool. There will always be enough fabric visible to make a confident identification.
+
 IMPORTANT — Two Scenarios:
 
 Scenario A — Single stitch texture visible (close-up or clear repeating pattern):
@@ -36,7 +38,7 @@ Rules:
 - Only set confidence to "low" if the image is genuinely unclear, blurry, or too zoomed out to identify the stitch. If you can see the stitch texture clearly, use "high" or "medium."
 - ALWAYS populate description, common_uses, also_known_as, tutorial_search, and difficulty regardless of confidence level. confidence only reflects how certain you are of the stitch_name — it never affects whether other fields are filled in. Even at low confidence, provide your best description of what you see.
 - Never return empty string for description or common_uses. If unsure, describe what you observe visually.
-- Only set not_crochet to true if this is definitively not a crochet item. When in doubt, attempt identification.
+- Only set not_crochet to true if this is definitively not a crochet item AND there is no yarn or fabric visible at all. When in doubt, attempt identification. If a crochet hook, knitting needle, or hands are visible alongside any yarn or fabric, this is a crochet work-in-progress — NEVER return not_crochet: true in this case. Treat it as low confidence instead and identify the stitch pattern in the visible fabric.
 - For also_known_as, include regional name variations (US vs UK) and common alternate names.
 
 Return ONLY a valid JSON object with no markdown, no backticks, no explanation before or after:
