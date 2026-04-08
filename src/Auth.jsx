@@ -328,7 +328,8 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
   const { isDesktop, isMobile } = useBreakpoint();
 
   return (
-    <div style={{ minHeight: "100vh", fontFamily: T.sans, display: "flex", flexDirection: isMobile ? "column" : "row" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.sans }}>
+    <div style={{ maxWidth: 1100, width: "100%", display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh" }}>
       {/* Left — Product Preview */}
       <div style={{
         flex: isMobile ? "none" : 1.15,
@@ -351,6 +352,7 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
       }}>
         <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
       </div>
+    </div>
     </div>
   );
 };
