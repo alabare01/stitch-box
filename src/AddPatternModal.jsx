@@ -754,6 +754,8 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [extracted,setExtracted]=useState(null);
   const [fileInfo,setFileInfo]=useState(null);
   const [errorMsg,setErrorMsg]=useState("");
+  const [errorType,setErrorType]=useState(""); // 'server_hiccup' | 'extraction_failed' | ''
+  const lastFileRef=useRef(null);
   const [editTitle,setEditTitle]=useState("");
   const [editDesigner,setEditDesigner]=useState("");
   const [editHook,setEditHook]=useState("");
@@ -774,7 +776,8 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [compExpanded,setCompExpanded]=useState({});
   const coverFileRef=useRef(null);
   const handleFile=async(e)=>{
-    const f=e.target.files?.[0];if(!f)return;
+    const f=e.target?.files?.[0]||e;if(!f)return;
+    lastFileRef.current=f;
     onExtractionStart?.();
     // Size check before anything
     if(f.size>50*1024*1024){onExtractionEnd?.();setStage("error");setErrorMsg("Pattern file is too large (max 50MB). Try a smaller file.");return;}
@@ -883,7 +886,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();setStage("error");setErrorMsg("We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=ex.message&&(ex.message.includes("503")||ex.message.includes("500")||ex.message.includes("UNAVAILABLE")||ex.message.includes("Server extraction failed"));setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
       clearInterval(intv2);clearInterval(intv3);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
@@ -917,7 +920,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           setValidating(false);
         })();
       }
-      await new Promise(r=>setTimeout(r,400));setStage("review");onExtractionEnd?.();    }catch(ex){console.error("[Wovely] PDF import error:",ex);onExtractionEnd?.();setStage("error");setErrorMsg("Something went wrong. Try again or use manual entry.");}
+      await new Promise(r=>setTimeout(r,400));setStage("review");onExtractionEnd?.();    }catch(ex){console.error("[Wovely] PDF import error:",ex);onExtractionEnd?.();const isHiccup=ex.message&&(ex.message.includes("503")||ex.message.includes("500")||ex.message.includes("UNAVAILABLE")||ex.message.includes("Server extraction failed"));setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"Something went wrong. Try again or use manual entry.");}
   };
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
@@ -926,6 +929,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
     onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
   };
   const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
+  const handleRetry=()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);if(lastFileRef.current){const f=lastFileRef.current;setTimeout(()=>handleFile(f),100);}};
   if(stage==="pick") return (
     <div style={{paddingBottom:8}}>
       <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:14}}>Upload your pattern — PDF or photo. We'll read it and set up your workspace.</div>
@@ -961,26 +965,34 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       <style>{`@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
-  if(stage==="error") return (
-    <div style={{padding:"24px 0"}}>
-      <div style={{fontSize:36,textAlign:"center",marginBottom:12}}>🧶</div>
-      <div style={{fontFamily:T.serif,fontSize:17,color:T.ink,textAlign:"center",marginBottom:6}}>This one stumped us</div>
-      <div style={{fontSize:13,color:T.ink2,textAlign:"center",lineHeight:1.7,marginBottom:20}}>
-        {fileInfo ? "We saved your file. Tap below to start building — your PDF will be right there as you go." : "We had trouble reading this pattern. Try another file or enter your rows manually."}
-      </div>
-      {fileInfo&&(
-        <div style={{background:T.sageLt,borderRadius:14,padding:"16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontSize:20}}>📎</span>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.sage,marginBottom:2}}>Pattern saved with file attached</div>
-            <div style={{fontSize:12,color:T.ink2}}>You can view it anytime while building your rows</div>
-          </div>
+  if(stage==="error") {
+    const isHiccup=errorType==="server_hiccup";
+    return (
+      <div style={{padding:"24px 0"}}>
+        <div style={{fontSize:36,textAlign:"center",marginBottom:12}}>🧶</div>
+        <div style={{fontFamily:T.serif,fontSize:17,color:T.ink,textAlign:"center",marginBottom:6}}>
+          {isHiccup?"Bev got a little tangled":"This one stumped us"}
         </div>
-      )}
-      {fileInfo&&<Btn onClick={handleFallbackSave}>Start building — view PDF as I go</Btn>}
-      <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");setComplexity(null);setComplexityStats(null);}}>Try a different file</Btn></div>
-    </div>
-  );
+        <div style={{fontSize:13,color:T.ink2,textAlign:"center",lineHeight:1.7,marginBottom:20}}>
+          {isHiccup
+            ?"The server hiccuped mid-import. It happens! Give it another go — it usually works on the second try."
+            :(fileInfo?"We saved your file. Tap below to start building — your PDF will be right there as you go.":"We had trouble reading this pattern. Try another file or enter your rows manually.")}
+        </div>
+        {isHiccup&&<div style={{marginBottom:8}}><Btn onClick={handleRetry}>Try again →</Btn></div>}
+        {!isHiccup&&fileInfo&&(
+          <div style={{background:T.sageLt,borderRadius:14,padding:"16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:20}}>📎</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.sage,marginBottom:2}}>Pattern saved with file attached</div>
+              <div style={{fontSize:12,color:T.ink2}}>You can view it anytime while building your rows</div>
+            </div>
+          </div>
+        )}
+        {!isHiccup&&fileInfo&&<Btn onClick={handleFallbackSave}>Start building — view PDF as I go</Btn>}
+        <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);}}>Try a different file</Btn></div>
+      </div>
+    );
+  }
   const totalRows=(extracted?.components||[]).reduce((s,c)=>(s+(c.rows||[]).length),0);
   const heroImg=coverUrl||fileInfo?.coverUrl||null;
   const matList=(extracted?.materials||[]);
