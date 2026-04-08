@@ -19,7 +19,8 @@ export default async function handler(req, res) {
   if (!rawText) return res.status(400).json({ error: "pdfText required" });
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
-  console.log("[extract-pattern] ENV:", GEMINI_KEY ? "KEY EXISTS" : "KEY MISSING", "pdfText length:", rawText.length, "pageCount:", pageCount);
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+  console.log("[extract-pattern] ENV:", GEMINI_KEY ? "GEMINI EXISTS" : "GEMINI MISSING", ANTHROPIC_KEY ? "ANTHROPIC EXISTS" : "ANTHROPIC MISSING", "pdfText length:", rawText.length, "pageCount:", pageCount);
   if (!GEMINI_KEY) return res.status(500).json({ error: "API key not configured on server" });
 
   // Hard truncation: cap at 15k chars to prevent memory issues
@@ -133,6 +134,58 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
     }
   };
 
+  const callClaude = async (text) => {
+    if (!ANTHROPIC_KEY) throw new Error("Anthropic API key not configured");
+    const claudePrompt = `You are a crochet pattern extraction specialist. Extract the pattern below into structured JSON.
+
+Return ONLY valid JSON with no markdown, no backticks, no explanation. Use this exact structure:
+{"title":"string","designer":"string","source_url":null,"finished_size":"string","difficulty":"Beginner or Intermediate or Advanced","yarn_weight":"string","hook_size":"string","gauge":"string or null","confidence":"low or medium or high","materials":[{"name":"string","amount":"string","notes":"string"}],"abbreviations":[{"abbr":"string","meaning":"string"}],"abbreviations_map":{},"suggested_resources":[],"pattern_notes":"string","components":[{"name":"string","make_count":1,"independent":false,"rows":[{"id":"rnd-1","label":"RND 1","text":"full instruction text","stitch_count":null,"note":null,"action_item":false,"repeat_brackets":[]}]}],"assembly_notes":"string","image_description":"string"}
+
+Rules:
+- Extract EVERY round/row as its own entry — never skip or collapse ranges
+- Use RND for rounds worked in the round, ROW for flat rows
+- Expand ranges like "RND 10-23" into individual entries RND 10, RND 11... each with the same instruction
+- Keep bracket notation exactly as written: (sc, inc) x 6
+- Set confidence: "high" if 10+ rounds extracted, "medium" otherwise
+- Extract all materials, hook size, yarn weight
+
+PATTERN TEXT:
+${text}`;
+
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 8000,
+        messages: [{ role: "user", content: claudePrompt }],
+      }),
+    });
+
+    if (!r.ok) {
+      const errBody = await r.text();
+      console.error("[extract-pattern] Claude HTTP error:", r.status, errBody.substring(0, 300));
+      throw new Error(`Claude API error ${r.status}: ${errBody.substring(0, 200)}`);
+    }
+
+    const data = await r.json();
+    const rawText = data.content?.[0]?.text || "";
+    if (!rawText) throw new Error("Claude returned empty response");
+
+    const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const toParse = cleaned.startsWith("{") ? cleaned : rawText.trim();
+    try {
+      return JSON.parse(toParse);
+    } catch (parseErr) {
+      console.error("[extract-pattern] Claude JSON parse failed, text starts:", toParse.substring(0, 300));
+      throw new Error("Claude JSON parse failed: " + parseErr.message);
+    }
+  };
+
   // Attempt 1: full structured prompt
   console.log("[extract-pattern] Attempt 1: full prompt, pages:", pageCount || "unknown", "chars:", pdfText.length);
   try {
@@ -165,14 +218,31 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
     return res.status(200).json(result);
   } catch (e2) {
     console.error("[extract-pattern] Attempt 2 also failed:", e2.message);
+  }
+
+  // Attempt 3: Claude Haiku fallback — silent, user never sees this happen
+  console.log("[extract-pattern] Attempt 3: Claude Haiku fallback");
+  try {
+    const result = await callClaude(pdfText);
+    console.log("[extract-pattern] Claude fallback success:", result.title);
     if (_url && _key) {
       await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[extract-pattern] error: extraction failed after 2 attempts (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 500, project_id: 'wovely' })
+        body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'info', message: `POST /api/extract-pattern → 200 claude-fallback (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 200, project_id: 'wovely' })
       }).catch(() => {});
     }
-    return res.status(500).json({ error: "Pattern extraction failed after 2 attempts" });
+    return res.status(200).json(result);
+  } catch (e3) {
+    console.error("[extract-pattern] Claude fallback also failed:", e3.message);
+    if (_url && _key) {
+      await fetch(`${_url}/rest/v1/vercel_logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[extract-pattern] error: all 3 attempts failed (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 500, project_id: 'wovely' })
+      }).catch(() => {});
+    }
+    return res.status(500).json({ error: "Pattern extraction failed after 3 attempts" });
   }
 
   } catch (err) {
