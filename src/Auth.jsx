@@ -42,12 +42,8 @@ const TAG = (bg, color) => ({
   display: "inline-block", background: bg, color, borderRadius: 20,
   padding: "2px 8px", fontSize: 10, fontWeight: 600, lineHeight: 1.4,
 });
-const LABEL = { fontSize: 9, textTransform: "uppercase", letterSpacing: "0.8px", color: "#9B7EC8", fontWeight: 600, marginBottom: 4, fontFamily: "Inter,sans-serif" };
-const TITLE = { fontSize: 13, fontWeight: 500, color: "#2D2D4E", margin: 0, lineHeight: 1.3, fontFamily: "Inter,sans-serif" };
-const SUB = { fontSize: 11, color: "#6B6B8A", marginTop: 2, fontFamily: "Inter,sans-serif" };
-const CARD = { background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden", display: "flex", width: "100%", marginBottom: 12 };
-const IMG_PANEL = { width: 88, flexShrink: 0, alignSelf: "stretch", objectFit: "cover", display: "block" };
-const CONTENT = { flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+const LBL = { fontSize: 9, textTransform: "uppercase", letterSpacing: "0.8px", color: "#9B7EC8", fontWeight: 600, fontFamily: "Inter,sans-serif" };
+const CARD_SHELL = { background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden" };
 const INPUT_STYLE = {
   width: "100%", height: 41, padding: "0 14px", background: "#F8F6FF",
   border: "1px solid #EDE4F7", borderRadius: 10, fontSize: 13,
@@ -61,7 +57,7 @@ const ProductPreview = () => {
 
   return (
     <div style={{ padding: "40px 36px", boxSizing: "border-box" }}>
-      <style>{`@keyframes drawCircle{from{stroke-dashoffset:163.4}to{stroke-dashoffset:4.9}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
+      <style>{`@keyframes drawScore{from{stroke-dashoffset:87.96}to{stroke-dashoffset:2.64}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
 
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 20 }}>
@@ -77,106 +73,93 @@ const ProductPreview = () => {
         Import any PDF, follow every row, and let Bev keep you on track.
       </div>
 
-      {/* Cards container */}
-      <div style={{ display: "flex", flexDirection: "column" }}>
-
-        {/* Card 1 — Your Patterns (no image panel, two rows stacked) */}
-        <div style={{ ...CARD, flexDirection: "column", padding: 0 }}>
-          {/* Row 1 — Floral Burst */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
-            <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={LABEL}>YOUR PATTERNS</div>
-              <div style={TITLE}>Floral Burst Granny Square</div>
-              <div style={SUB}>Round 8 of 11 &middot; In progress</div>
-              <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
-                <div style={{ width: "72%", height: "100%", borderRadius: 2, background: "#9B7EC8" }} />
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
-                <span style={TAG("rgba(92,158,122,0.12)", "#5B9B6B")}>PDF imported</span>
-                <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rounds tracked</span>
-              </div>
-            </div>
+      {/* ── HERO PATTERN CARD ── */}
+      <div style={{ ...CARD_SHELL, display: "flex", flexDirection: "row", height: 160 }}>
+        <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775584145/covers/acqcbj3e8y5jytqgzvtu.jpg" alt="" style={{ width: 140, flexShrink: 0, height: "100%", objectFit: "cover", display: "block" }} />
+        <div style={{ flex: 1, padding: "16px 18px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div>
+            <div style={LBL}>NOW CRAFTING</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#2D2D4E", fontFamily: T.serif, marginTop: 4 }}>Floral Burst Granny Square</div>
+            <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>Round 8 of 11 &middot; In progress</div>
           </div>
-          {/* Divider */}
-          <div style={{ height: 1, background: "rgba(155,126,200,0.1)", margin: "0 16px" }} />
-          {/* Row 2 — Summer Meadows */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
-            <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775493229/covers/p72xeeug1izyj0mwonha.jpg" alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={TITLE}>Summer Meadows Baby Blanket</div>
-              <div style={SUB}>Row 156 of 197 &middot; Almost there!</div>
-              <div style={{ height: 3, borderRadius: 2, background: "#EDE4F7", marginTop: 6 }}>
-                <div style={{ width: "79%", height: "100%", borderRadius: 2, background: "#C9A84C" }} />
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6 }}>
-                <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>197 rows tracked</span>
-                <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Yarn stash linked</span>
-              </div>
+          <div>
+            <div style={{ height: 4, borderRadius: 2, background: "#EDE4F7" }}>
+              <div style={{ width: "72%", height: "100%", borderRadius: 2, background: "#9B7EC8" }} />
             </div>
-          </div>
-        </div>
-
-        {/* Card 2 — BevCheck (magazine — image panel left) */}
-        <div style={{ ...CARD, flexDirection: "row" }}>
-          <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775221393/covers/nhkp1grswddqxw0np1ux.jpg" alt="" style={IMG_PANEL} />
-          <div style={{ ...CONTENT, position: "relative" }}>
-            <div>
-              <div style={LABEL}>BEVCHECK</div>
-              <div style={TITLE}>Mommy Fiora the Forest Dragon</div>
-              <div style={SUB}>Pattern reviewed &middot; Clean result</div>
-              <div style={{ fontSize: 11, fontStyle: "italic", color: "#6B6B8A", lineHeight: 1.5, marginTop: 6, overflow: "hidden", maxHeight: 34, WebkitMaskImage: "linear-gradient(to right, black 65%, transparent 100%)", maskImage: "linear-gradient(to right, black 65%, transparent 100%)" }}>
-                Well-structured with accurate stitch counts throughout. All round sequences verified...
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 500, color: "#9B7EC8" }}>72% complete</span>
+              <span style={{ fontSize: 10, color: "#6B6B8A" }}>8 of 11 rounds</span>
             </div>
-            {/* Score circle — absolute right, vertically centered */}
-            <svg width="64" height="64" viewBox="0 0 64 64" style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)" }}>
-              <circle cx="32" cy="32" r="26" fill="none" stroke="#EDE4F7" strokeWidth="4" />
-              <circle cx="32" cy="32" r="26" fill="none" stroke="#5B9B6B" strokeWidth="4"
-                strokeLinecap="round" strokeDasharray="163.4 163.4"
-                style={{ animation: "drawCircle 0.8s ease-out forwards", transformOrigin: "center", transform: "rotate(-90deg)" }} />
-              <text x="32" y="32" textAnchor="middle" dominantBaseline="middle"
-                style={{ fontSize: 11, fontWeight: 600, fill: "#2D2D4E" }}>97%</text>
-            </svg>
-          </div>
-        </div>
-
-        {/* Card 3 — Stitch-O-Vision (magazine — image panel left) */}
-        <div style={{ ...CARD, flexDirection: "row" }}>
-          <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={IMG_PANEL} />
-          <div style={CONTENT}>
-            <div>
-              <div style={LABEL}>STITCH-O-VISION</div>
-              <div style={TITLE}>Moss Stitch</div>
-              <div style={{ fontSize: 11, fontStyle: "italic", color: "#6B6B8A", marginTop: 2 }}>Also known as: Linen Stitch, Granite Stitch</div>
-              <div style={{ marginTop: 4 }}><span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}>High confidence</span></div>
-              <div style={{ fontSize: 11, color: "#6B6B8A", lineHeight: 1.5, marginTop: 6, overflow: "hidden", maxHeight: 34, WebkitMaskImage: "linear-gradient(to right, black 65%, transparent 100%)", maskImage: "linear-gradient(to right, black 65%, transparent 100%)" }}>
-                Creates a dense, slightly textured fabric with a woven appearance. Popular for blankets, scarves, and garments...
-              </div>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <a href="/stitch-vision" style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>
-                Point your camera at any stitch &mdash; Bev will name it &rarr;
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4 — Bev (solid lavender, no image panel) */}
-        <div style={{ background: "#9B7EC8", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", flexShrink: 0, overflow: "hidden", animation: "bevPulse 2s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src="/bev_neutral.png" alt="Bev" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: "50%" }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: "#fff", marginBottom: 2 }}>Bev</div>
-            <div style={{ fontSize: 12, color: "#fff", fontStyle: "italic", minHeight: 16, lineHeight: 1.5 }}>
-              {bevText}<span style={{ display: "inline-block", width: 2, height: 12, background: "#fff", marginLeft: 1, verticalAlign: "text-bottom", animation: "cursorBlink 1s step-end infinite" }} />
+            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+              <span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}>PDF imported</span>
+              <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>Rounds tracked</span>
+              <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>Yarn stash linked</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* App badges */}
+      {/* ── TWO MAGAZINE CARDS SIDE BY SIDE ── */}
+      <div style={{ display: "flex", flexDirection: "row", gap: 10, marginTop: 12 }}>
+
+        {/* LEFT — BevCheck */}
+        <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "column", height: 160 }}>
+          <div style={{ height: 72, overflow: "hidden" }}>
+            <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775221393/covers/nhkp1grswddqxw0np1ux.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          </div>
+          <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={LBL}>BEVCHECK</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#2D2D4E", marginTop: 2 }}>Mommy Fiora</div>
+              <div style={{ fontSize: 10, color: "#6B6B8A", marginTop: 1 }}>Pattern reviewed</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 10, fontWeight: 500, color: "#5B9B6B" }}>Clean result</span>
+              <svg width="40" height="40" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="14" fill="none" stroke="#EDE4F7" strokeWidth="3" />
+                <circle cx="20" cy="20" r="14" fill="none" stroke="#5B9B6B" strokeWidth="3"
+                  strokeLinecap="round" strokeDasharray="87.96 87.96"
+                  style={{ animation: "drawScore 0.8s ease-out forwards", transformOrigin: "center", transform: "rotate(-90deg)" }} />
+                <text x="20" y="20" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: 8, fontWeight: 600, fill: "#2D2D4E" }}>97%</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT — Stitch-O-Vision */}
+        <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "column", height: 160 }}>
+          <div style={{ height: 72, overflow: "hidden" }}>
+            <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          </div>
+          <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={LBL}>STITCH-O-VISION</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#2D2D4E", marginTop: 2 }}>Moss Stitch</div>
+              <div style={{ fontSize: 10, fontStyle: "italic", color: "#6B6B8A", marginTop: 1 }}>Linen &middot; Granite Stitch</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}><span style={{ fontSize: 9 }}>High confidence</span></span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#5B9B6B" }}>91%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BEV CARD ── */}
+      <div style={{ background: "#9B7EC8", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", flexShrink: 0, overflow: "hidden", animation: "bevPulse 2s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img src="/bev_neutral.png" alt="Bev" style={{ width: 32, height: 32, objectFit: "cover", borderRadius: "50%" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#fff", marginBottom: 2 }}>Bev</div>
+          <div style={{ fontSize: 12, color: "#fff", fontStyle: "italic", minHeight: 16, lineHeight: 1.5 }}>
+            {bevText}<span style={{ display: "inline-block", width: 2, height: 12, background: "#fff", marginLeft: 1, verticalAlign: "text-bottom", animation: "cursorBlink 1s step-end infinite" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── APP BADGES ── */}
       <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
         <div style={{ flex: 1, background: "#fff", border: "1px solid #EDE4F7", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
           <svg width="22" height="26" viewBox="0 0 384 512" fill="#000"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
