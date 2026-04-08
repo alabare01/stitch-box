@@ -860,7 +860,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
                 headers:{"Content-Type":"application/json"},
                 body:JSON.stringify({images:pageImages,pageCount:pageMatches,fileName:f.name}),
               });
-              if(!extractRes.ok){const errBody=await extractRes.json().catch(()=>({}));throw new Error(errBody.error||"Server extraction failed: "+extractRes.status);}
+              if(!extractRes.ok){const errBody=await extractRes.json().catch(()=>({}));const err=new Error(errBody.error||"Server extraction failed: "+extractRes.status);err.httpStatus=extractRes.status;throw err;}
               result=await extractRes.json();
             }
           } else {
@@ -877,7 +877,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
             headers:{"Content-Type":"application/json"},
             body:JSON.stringify({pdfText,pageCount:pageMatches}),
           });
-          if(!extractRes.ok){const errBody=await extractRes.json().catch(()=>({}));throw new Error(errBody.error||"Server extraction failed: "+extractRes.status);}
+          if(!extractRes.ok){const errBody=await extractRes.json().catch(()=>({}));const err=new Error(errBody.error||"Server extraction failed: "+extractRes.status);err.httpStatus=extractRes.status;throw err;}
           result=await extractRes.json();
           }
         } else {
@@ -886,7 +886,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=ex.message&&(ex.message.includes("503")||ex.message.includes("500")||ex.message.includes("UNAVAILABLE")||ex.message.includes("Server extraction failed"));setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
       clearInterval(intv2);clearInterval(intv3);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
@@ -920,7 +920,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           setValidating(false);
         })();
       }
-      await new Promise(r=>setTimeout(r,400));setStage("review");onExtractionEnd?.();    }catch(ex){console.error("[Wovely] PDF import error:",ex);onExtractionEnd?.();const isHiccup=ex.message&&(ex.message.includes("503")||ex.message.includes("500")||ex.message.includes("UNAVAILABLE")||ex.message.includes("Server extraction failed"));setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"Something went wrong. Try again or use manual entry.");}
+      await new Promise(r=>setTimeout(r,400));setStage("review");onExtractionEnd?.();    }catch(ex){console.error("[Wovely] PDF import error:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"Something went wrong. Try again or use manual entry.");}
   };
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
