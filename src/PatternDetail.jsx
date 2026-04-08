@@ -276,19 +276,18 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const upAccum=useRef(0);
   const [headerHidden,setHeaderHidden]=useState(false);
   useEffect(()=>{
-    const el=scrollRef.current;if(el) el.scrollTop=0;
+    window.scrollTo(0,0);
   },[p.id||p._supabaseId]);
   useEffect(()=>{
-    const el=scrollRef.current;if(!el) return;
     const onScroll=()=>{
-      const y=el.scrollTop;
+      const y=window.scrollY||window.pageYOffset;
       if(y<=0){upAccum.current=0;setHeaderHidden(false);}
       else if(y>lastScrollY.current){upAccum.current=0;if(y>10) setHeaderHidden(true);}
       else if(y<lastScrollY.current){upAccum.current+=lastScrollY.current-y;if(upAccum.current>=15) setHeaderHidden(false);}
       lastScrollY.current=y;
     };
-    el.addEventListener("scroll",onScroll,{passive:true});
-    return ()=>el.removeEventListener("scroll",onScroll);
+    window.addEventListener("scroll",onScroll,{passive:true});
+    return ()=>window.removeEventListener("scroll",onScroll);
   },[]);
   const _initRows=ensureRepeatBrackets(p.rows);
   const _isFreshPattern=_initRows.filter(r=>!r.isHeader).every(r=>!r.done);
@@ -327,7 +326,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
   const saveMyField=(key,val)=>{const updated={...p,rows,[key]:val||null};onSave(updated);};
   const detailPhoto=p.cover_image_url||pdfThumbUrl(p.source_file_url)||p.photo;
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,overflow:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",minHeight:"100vh",background:T.bg}}>
       <CSS/>
       {showScale&&<ScaleModal pattern={p} onClose={()=>setShowScale(false)} Btn={Btn}/>}
       {showShare&&<ShareCardModal pattern={{...p,rows}} onClose={()=>setShowShare(false)} pct={pct} Btn={Btn}/>}
@@ -340,7 +339,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
           <iframe src={pdfViewerUrl} title="Source Pattern" style={{flex:1,border:"none",width:"100%"}}/>
         </div>
       )}
-      <div ref={scrollRef} style={{flex:1,overflowY:"auto"}}>
+      <div ref={scrollRef} style={{flex:1,WebkitOverflowScrolling:"touch"}}>
         <div style={{position:"sticky",top:0,zIndex:10,transform:headerHidden?"translateY(-100%)":"translateY(0)",transition:"transform 220ms ease"}}>
           <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
           <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
