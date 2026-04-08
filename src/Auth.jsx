@@ -333,7 +333,7 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
       {/* Left — Product Preview */}
       <div style={{
         flex: isMobile ? "none" : 1.15,
-        background: "rgba(243,238,255,0.45)",
+        background: "transparent",
         overflow: "auto",
         display: "flex", flexDirection: "column", justifyContent: "center",
         position: "relative",
