@@ -39,6 +39,19 @@ export const supabaseAuth = {
     }
     saveSession(null);
   },
+  signInWithOtp: async (email) => {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+      method:"POST", headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+      body: JSON.stringify({email, options:{emailRedirectTo:APP_ORIGIN}}),
+    });
+    const data = await res.json();
+    if(!res.ok) return {error: data};
+    return {data};
+  },
+  signInWithOAuth: async (provider) => {
+    const redirectTo = APP_ORIGIN;
+    window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+  },
   getUser: () => {
     const s = getSession(); if(!s?.access_token) return null;
     try {

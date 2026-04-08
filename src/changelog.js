@@ -5,6 +5,7 @@ export const CHANGELOG = [
     updates: [
       { emoji: "🔧", text: "Fixed: import spinner now clears correctly when a pattern upload fails" },
       { emoji: "📝", text: "Improved: \"Rows\" tab renamed to \"Instructions/Rows\" for all pattern types" },
+      { emoji: "🏠", text: "Redesigned landing page — product preview, Bev typewriter, magic link + Apple sign-in" },
     ]
   },
   {
