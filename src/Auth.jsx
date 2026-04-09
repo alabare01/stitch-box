@@ -106,7 +106,7 @@ const ProductPreview = () => {
         {/* LEFT — BevCheck */}
         <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "row", height: 160 }}>
           <div style={{ width: 90, flexShrink: 0, alignSelf: "stretch", overflow: "hidden" }}>
-            <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/v1775221393/covers/nhkp1grswddqxw0np1ux.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }} />
+            <img src="/mommy_fiora.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }} />
           </div>
           <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div>
