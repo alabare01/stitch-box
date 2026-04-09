@@ -83,12 +83,12 @@ export default function Founders() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [data, setData] = useState({
-    patterns: [], stitches: [], pvDay: [], events: [], sources: [], locations: [], topPages: [],
+    patterns: [], stitches: [], pvDay: [], events: [], sources: [], locations: [], topPages: [], aiLogs: [],
   });
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [patterns, stitches, pvDay, events, sources, locations, topPages] = await Promise.all([
+    const [patterns, stitches, pvDay, events, sources, locations, topPages, aiLogs] = await Promise.all([
       sbFetch("patterns", "select=user_id,status,updated_at,is_starter&status=neq.deleted&limit=500"),
       sbFetch("stitch_results", "select=user_id,created_at&limit=500"),
       phQuery("SELECT toDate(timestamp) as day, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 7 day GROUP BY day ORDER BY day ASC"),
@@ -96,8 +96,9 @@ export default function Founders() {
       phQuery("SELECT properties.$referring_domain as d, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY d ORDER BY n DESC LIMIT 8"),
       phQuery("SELECT properties.$geoip_city_name as city, properties.$geoip_country_name as country, count() as n FROM events WHERE event = 'user_logged_in' AND timestamp >= now() - interval 30 day GROUP BY city, country ORDER BY n DESC LIMIT 8"),
       phQuery("SELECT properties.$current_url as url, count() as n FROM events WHERE event = '$pageview' AND properties.$current_url LIKE '%wovely.app%' AND timestamp >= now() - interval 30 day GROUP BY url ORDER BY n DESC LIMIT 8"),
+      sbFetch("vercel_logs", "select=timestamp,message,status_code,level&request_path=eq./api/extract-pattern&order=timestamp.desc&limit=50"),
     ]);
-    setData({ patterns: patterns || [], stitches: stitches || [], pvDay: pvDay || [], events: events || [], sources: sources || [], locations: locations || [], topPages: topPages || [] });
+    setData({ patterns: patterns || [], stitches: stitches || [], pvDay: pvDay || [], events: events || [], sources: sources || [], locations: locations || [], topPages: topPages || [], aiLogs: aiLogs || [] });
     setLastRefresh(new Date());
     setLoading(false);
   }, []);
@@ -272,6 +273,67 @@ export default function Founders() {
             )) : <div style={{ color: MUTED, fontSize: 13 }}>No data</div>}
           </div>
         </div>
+
+        {/* ── AI HEALTH ── */}
+        {(() => {
+          const parseProvider = (row) => {
+            const msg = row.message || "";
+            if (msg.includes("claude-fallback")) return "Claude ✦";
+            if (msg.includes("simplified")) return "Gemini (simplified)";
+            if (msg.includes("all 3 attempts failed")) return "All failed";
+            if (row.status_code === 500) return "Failed";
+            return "Gemini";
+          };
+          const parseDuration = (msg) => {
+            const m = (msg || "").match(/\((\d+)ms\)/);
+            return m ? (parseInt(m[1]) / 1000).toFixed(1) + "s" : "—";
+          };
+          const providerColor = (p) => {
+            if (p.startsWith("Claude")) return "#5B9B6B";
+            if (p === "All failed" || p === "Failed") return "#C0544A";
+            return ACCENT;
+          };
+          const rows = data.aiLogs.map(r => ({
+            time: new Date(r.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + new Date(r.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+            provider: parseProvider(r),
+            duration: parseDuration(r.message),
+            status: r.status_code,
+          }));
+          const geminiCount = rows.filter(r => r.provider.startsWith("Gemini")).length;
+          const claudeCount = rows.filter(r => r.provider.startsWith("Claude")).length;
+          const failedCount = rows.filter(r => r.provider === "All failed" || r.provider === "Failed").length;
+          return (
+            <div style={card}>
+              <div style={secHead}>AI Health — Import Pipeline</div>
+              <div style={{ fontSize: 12, color: MUTED, marginBottom: 16 }}>
+                <span style={{ color: ACCENT, fontWeight: 600 }}>Gemini: {geminiCount}</span>
+                {" · "}
+                <span style={{ color: "#5B9B6B", fontWeight: 600 }}>Claude saves: {claudeCount}</span>
+                {" · "}
+                <span style={{ color: "#C0544A", fontWeight: 600 }}>Failed: {failedCount}</span>
+              </div>
+              {rows.length > 0 ? (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>{["Time", "Provider", "Duration", "Status"].map(h => (
+                      <th key={h} style={{ textAlign: "left", padding: "0 8px 10px 0", fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, borderBottom: "1px solid #F0EAF9" }}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: "8px 8px 8px 0", fontSize: 12, color: "#2D2D4E", borderBottom: "1px solid #F8F5FF", whiteSpace: "nowrap" }}>{r.time}</td>
+                        <td style={{ padding: "8px 8px 8px 0", fontSize: 12, fontWeight: 600, color: providerColor(r.provider), borderBottom: "1px solid #F8F5FF" }}>{r.provider}</td>
+                        <td style={{ padding: "8px 8px 8px 0", fontSize: 12, color: "#2D2D4E", borderBottom: "1px solid #F8F5FF" }}>{r.duration}</td>
+                        <td style={{ padding: "8px 8px 8px 0", fontSize: 12, borderBottom: "1px solid #F8F5FF" }}>{r.status === 200 ? "✅" : "❌"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div style={{ color: MUTED, fontSize: 13 }}>No extract-pattern logs found</div>}
+            </div>
+          );
+        })()}
 
         {/* ── FOOTER ── */}
         <div style={{ textAlign: "center", padding: 20 }}>
