@@ -756,6 +756,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [errorMsg,setErrorMsg]=useState("");
   const [errorType,setErrorType]=useState(""); // 'server_hiccup' | 'extraction_failed' | ''
   const lastFileRef=useRef(null);
+  const [autoRetried,setAutoRetried]=useState(false);
   const [editTitle,setEditTitle]=useState("");
   const [editDesigner,setEditDesigner]=useState("");
   const [editHook,setEditHook]=useState("");
@@ -775,9 +776,19 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [matExpanded,setMatExpanded]=useState(false);
   const [compExpanded,setCompExpanded]=useState({});
   const coverFileRef=useRef(null);
+  useEffect(()=>{
+    if(stage==='error'&&errorType==='server_hiccup'&&!autoRetried&&lastFileRef.current){
+      setAutoRetried(true);
+      setStage('extracting');
+      setStageText("Bev's untangling a few stitches...");
+      setProgress(20);
+      setTimeout(()=>{handleFile(lastFileRef.current);},1500);
+    }
+  },[stage,errorType,autoRetried]);
   const handleFile=async(e)=>{
     const f=e.target?.files?.[0]||e;if(!f)return;
     lastFileRef.current=f;
+    setAutoRetried(false);
     onExtractionStart?.();
     // Size check before anything
     if(f.size>50*1024*1024){onExtractionEnd?.();setStage("error");setErrorMsg("Pattern file is too large (max 50MB). Try a smaller file.");return;}
@@ -929,7 +940,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
     onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
   };
   const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
-  const handleRetry=()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);if(lastFileRef.current){const f=lastFileRef.current;setTimeout(()=>handleFile(f),100);}};
+  const handleRetry=()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);setAutoRetried(false);if(lastFileRef.current){const f=lastFileRef.current;setTimeout(()=>handleFile(f),100);}};
   if(stage==="pick") return (
     <div style={{paddingBottom:8}}>
       <div style={{fontSize:13,color:T.ink2,lineHeight:1.7,marginBottom:14}}>Upload your pattern — PDF or photo. We'll read it and set up your workspace.</div>
@@ -989,7 +1000,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           </div>
         )}
         {!isHiccup&&fileInfo&&<Btn onClick={handleFallbackSave}>Start building — view PDF as I go</Btn>}
-        <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);}}>Try a different file</Btn></div>
+        <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);setAutoRetried(false);}}>Try a different file</Btn></div>
       </div>
     );
   }

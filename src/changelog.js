@@ -1,5 +1,22 @@
 export const CHANGELOG = [
   {
+    version: "Session 42",
+    date: "2026-04-09",
+    updates: [
+      { emoji: "🛡️", text: "Import is now bulletproof — if our servers hiccup, a backup AI catches it silently" },
+      { emoji: "⚡", text: "Faster failure recovery — server timeouts now cut off in 4 seconds instead of waiting" },
+      { emoji: "🎨", text: "Landing page updated — better pattern images, app store badges coming soon" },
+    ]
+  },
+  {
+    version: "Session 41",
+    date: "2026-04-08",
+    updates: [
+      { emoji: "🧶", text: "Import hiccups now show a friendly retry screen instead of a dead end" },
+      { emoji: "🔁", text: "One-tap retry on failed imports — no need to start over from scratch" },
+    ]
+  },
+  {
     version: "Session 40",
     date: "2026-04-07",
     updates: [
