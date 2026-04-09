@@ -75,7 +75,7 @@ const ProductPreview = () => {
 
       {/* ── HERO PATTERN CARD ── */}
       <div style={{ ...CARD_SHELL, display: "flex", flexDirection: "row", height: 160 }}>
-        <img src="https://res.cloudinary.com/dmaupzhcx/image/upload/c_fill,w_400,h_300,g_auto/v1775093741/covers/wdgiwyeem6fsvxyncv4a.jpg" alt="" style={{ width: 140, flexShrink: 0, height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }} />
+        <img src="/manatee_hero.png" alt="" style={{ width: 140, flexShrink: 0, height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }} />
         <div style={{ flex: 1, padding: "16px 18px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
             <div style={LBL}>NOW CRAFTING</div>
