@@ -314,7 +314,11 @@ CROCHET STITCH MATH RULES — you MUST follow these when verifying stitch counts
 • When a round says "(sc, inc) x 6 (12)", verify: 6 repeats × 2 stitches produced per repeat = 12. This is CORRECT.
 • When a round says "6 sc, inc (8)" from a starting count of 7: 6 sc (6 stitches) + 1 inc (2 stitches) = 8 total. Consumes 6 + 1 = 7 from previous round. This is CORRECT.
 • Common correct progression: MR 6 → (sc, inc) x 6 = 12 → (2 sc, inc) x 4 = 16 → etc. Each inc adds 1 extra stitch to the total per repeat.
-• Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch. When in doubt, mark as "pass" not "fail".
+• Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch.
+• Use the three-state system for EVERY check:
+  - "pass" — verified correct, or no issues found in this category
+  - "warn" — ambiguous, unusual, or could not fully verify (e.g. missing stitch counts, unclear notation, possible but unconfirmed issue). Explain what looks suspicious and why you're unsure.
+  - "fail" — you have confirmed an actual error with specific evidence (e.g. "RND 5 says (12) but math gives 14"). Only use "fail" when you can show the arithmetic or cite the specific contradiction.
 
 SCORING RULES — do NOT penalize for any of the following:
 • PDF formatting artifacts (OCR typos in tip/intro sections, formatting inconsistencies, page headers/footers)
@@ -328,7 +332,8 @@ Be specific in detail fields. Name exact round numbers where issues occur. If ev
 const BEVCHECK_SIMPLE_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object — no markdown, no backticks:
 {"overall":"valid or review or issues","score":0-100,"checks":[{"id":"string","label":"string","status":"pass or warn or fail","detail":"string"}],"summary":"string"}
 Check: sequential rounds, stitch count math, duplicate rounds, cross-references, translation artifacts, structure. Be specific. Aim 80-100 for clean patterns.
-CRITICAL stitch math: inc = 2 stitches produced (not 1), dec/sc2tog = 1 stitch produced from 2. "(sc, inc) x 6 (12)" is CORRECT: 6 × 2 = 12. Do NOT flag counts as wrong unless you confirm the arithmetic yourself.`;
+CRITICAL stitch math: inc = 2 stitches produced (not 1), dec/sc2tog = 1 stitch produced from 2. "(sc, inc) x 6 (12)" is CORRECT: 6 × 2 = 12. Do NOT flag counts as wrong unless you confirm the arithmetic yourself.
+Three-state checks: "pass" = verified correct, "warn" = ambiguous or unverifiable (explain why), "fail" = confirmed error with specific evidence only.`;
 
 async function handleBevCheck(req, res, _url, _key, _t0) {
   const { patternText } = req.body || {};
