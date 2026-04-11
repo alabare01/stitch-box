@@ -304,6 +304,18 @@ Check for:
 5. Translation artifacts — does phrasing suggest a translated pattern that may have errors? (id: "translation")
 6. Component structure — are section headers clear and consistent? (id: "structure")
 
+CROCHET STITCH MATH RULES — you MUST follow these when verifying stitch counts:
+• "inc" (increase) = 2 stitches worked into 1 stitch. It CONSUMES 1 stitch from the previous round but PRODUCES 2 stitches in the current round.
+• "dec" / "sc2tog" / "inv dec" (decrease) = 1 stitch worked over 2 stitches. It CONSUMES 2 stitches but PRODUCES 1 stitch.
+• "sc", "hdc", "dc", "tr", "sl st" = each is exactly 1 stitch (consumes 1, produces 1).
+• "ch" (chain) inside a round adds 1 stitch to the count but does NOT consume a stitch from the previous round.
+• Magic ring (MR/MC) is the starting point — it has 0 stitches before the first round's instructions.
+• Bracket repeats: "(sc, inc) x 6" means the sequence "sc, inc" is worked 6 times. That's 6 × (1 + 2) = 18 stitches produced, consuming 6 × 2 = 12 stitches from the previous round.
+• When a round says "(sc, inc) x 6 (12)", verify: 6 repeats × 2 stitches produced per repeat = 12. This is CORRECT.
+• When a round says "6 sc, inc (8)" from a starting count of 7: 6 sc (6 stitches) + 1 inc (2 stitches) = 8 total. Consumes 6 + 1 = 7 from previous round. This is CORRECT.
+• Common correct progression: MR 6 → (sc, inc) x 6 = 12 → (2 sc, inc) x 4 = 16 → etc. Each inc adds 1 extra stitch to the total per repeat.
+• Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch. When in doubt, mark as "pass" not "fail".
+
 SCORING RULES — do NOT penalize for any of the following:
 • PDF formatting artifacts (OCR typos in tip/intro sections, formatting inconsistencies, page headers/footers)
 • Print-Friendly page duplications — if the pattern appears duplicated at the end under a "Print-Friendly" or similar heading, ignore the duplicate section entirely. This is a common PDF feature, not a pattern error.
@@ -315,7 +327,8 @@ Be specific in detail fields. Name exact round numbers where issues occur. If ev
 
 const BEVCHECK_SIMPLE_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object — no markdown, no backticks:
 {"overall":"valid or review or issues","score":0-100,"checks":[{"id":"string","label":"string","status":"pass or warn or fail","detail":"string"}],"summary":"string"}
-Check: sequential rounds, stitch count math, duplicate rounds, cross-references, translation artifacts, structure. Be specific. Aim 80-100 for clean patterns.`;
+Check: sequential rounds, stitch count math, duplicate rounds, cross-references, translation artifacts, structure. Be specific. Aim 80-100 for clean patterns.
+CRITICAL stitch math: inc = 2 stitches produced (not 1), dec/sc2tog = 1 stitch produced from 2. "(sc, inc) x 6 (12)" is CORRECT: 6 × 2 = 12. Do NOT flag counts as wrong unless you confirm the arithmetic yourself.`;
 
 async function handleBevCheck(req, res, _url, _key, _t0) {
   const { patternText } = req.body || {};

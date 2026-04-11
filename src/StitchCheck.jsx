@@ -28,6 +28,15 @@ SCORING RULES — do NOT penalize for any of the following:
 • Minor grammatical issues that do not affect the crochet instructions
 These may be noted as informational "pass" items at most, never scored as warnings or failures.
 
+CROCHET STITCH MATH RULES — you MUST follow these when verifying stitch counts:
+• "inc" (increase) = 2 stitches worked into 1 stitch. It CONSUMES 1 stitch from the previous round but PRODUCES 2 stitches in the current round.
+• "dec" / "sc2tog" / "inv dec" (decrease) = 1 stitch worked over 2 stitches. It CONSUMES 2 stitches but PRODUCES 1 stitch.
+• "sc", "hdc", "dc", "tr", "sl st" = each is exactly 1 stitch (consumes 1, produces 1).
+• Bracket repeats: "(sc, inc) x 6" means the sequence "sc, inc" is worked 6 times. That's 6 × (1 + 2) = 18 stitches produced, consuming 6 × 2 = 12 stitches from the previous round.
+• When a round says "(sc, inc) x 6 (12)", verify: 6 repeats × 2 stitches produced per repeat = 12. This is CORRECT.
+• Common correct progression: MR 6 → (sc, inc) x 6 = 12 → (2 sc, inc) x 4 = 16 → etc.
+• Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch. When in doubt, mark as "pass" not "fail".
+
 Be specific in detail fields. Name exact round numbers where issues occur. If everything looks clean, say so clearly. Aim for scores 80-100 for patterns with no structural issues.`;
 
 // Load pdf.js dynamically (same approach as AddPatternModal)
