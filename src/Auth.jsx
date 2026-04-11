@@ -61,8 +61,8 @@ const ProductPreview = () => {
 
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 20 }}>
-        <img src="/bev_neutral.png" alt="Wovely" style={{ width: 40, height: 40, objectFit: "contain" }} />
-        <div style={{ fontFamily: T.serif, fontSize: 26, fontWeight: 700, color: "#2D2D4E" }}>Wovely</div>
+        <img src="/bev_neutral.png" alt="Bev" style={{ height: 36, width: "auto", objectFit: "contain" }} />
+        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C" }}>Wovely</div>
       </div>
 
       {/* Headline */}
@@ -329,12 +329,46 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
   );
 };
 
+/* ── Floating Mobile CTA ── */
+const MobileCTA = () => {
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem("wovely_landing_cta_dismissed") === "true");
+
+  useEffect(() => {
+    if (dismissed) return;
+    const onScroll = () => setVisible(window.scrollY > 200);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [dismissed]);
+
+  if (dismissed || !visible) return null;
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80,
+      background: "rgba(155,126,200,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.3)", borderRadius: "16px 16px 0 0",
+      display: "flex", alignItems: "center", gap: 12,
+      transform: "translateY(0)", transition: "transform 300ms ease",
+    }}>
+      <button onClick={() => { setDismissed(true); localStorage.setItem("wovely_landing_cta_dismissed", "true"); }} style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+      <img src="/bev_neutral.png" alt="Bev" style={{ height: 40, width: "auto", objectFit: "contain", flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.3 }}>Your patterns deserve a home.</div>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.3, marginTop: 2 }}>Free to start. No credit card.</div>
+      </div>
+      <a href="/signup" style={{ background: "#fff", color: "#9B7EC8", fontSize: 13, fontWeight: 600, borderRadius: 20, padding: "8px 16px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>Join free →</a>
+    </div>
+  );
+};
+
 /* ── Main Auth Component ── */
 const Auth = ({ onEnter, onEnterAsNew }) => {
   const { isDesktop, isMobile } = useBreakpoint();
 
   return (
     <div style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "stretch", fontFamily: T.sans }}>
+    <style>{`@media(min-width:768px){.wovely-mobile-cta{display:none!important;}}`}</style>
     <div style={{ maxWidth: 1280, width: "100%", margin: "0 auto", display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh" }}>
       {/* Left — Product Preview */}
       <div style={{
@@ -359,6 +393,7 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
         <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
       </div>
     </div>
+    <div className="wovely-mobile-cta"><MobileCTA /></div>
     </div>
   );
 };
