@@ -1632,6 +1632,7 @@ export default function Wovely() {
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [justCompletedOnboarding,setJustCompletedOnboarding]=useState(false);
   const [createdPattern,setCreatedPattern]=useState(null);
+  const [pendingScrollToRow,setPendingScrollToRow]=useState(null);
   const [readyPromptPattern,setReadyPromptPattern]=useState(null);
   const [deleteTarget,setDeleteTarget]=useState(null);
   const [upgradeToast,setUpgradeToast]=useState(null);
@@ -2086,7 +2087,14 @@ export default function Wovely() {
     const localId=p.id||"local_"+Date.now();
     const localPattern={...p,id:localId,title:dedupTitle};
     setUserPatterns(prev=>[localPattern,...prev]);
-    setCreatedPattern(localPattern);
+    // "Review Issue →" flow: skip overlay, go directly to detail with scrollToRow
+    if(p._reviewRowNumber!==undefined){
+      setPendingScrollToRow(p._reviewRowNumber);
+      setAddOpen(false);setAddMinimized(false);
+      setTimeout(()=>{startAndOpenPattern(localPattern);},100);
+    } else {
+      setCreatedPattern(localPattern);
+    }
     // Persist to Supabase
     if(user&&session){
       try{
@@ -2194,7 +2202,7 @@ export default function Wovely() {
         <div style={{flex:1,padding:"0 32px",minHeight:"100vh"}}>
           {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={openAddModal} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} onRename={handleRenamePattern} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
           {view==="wip"&&<div style={{padding:"24px 0 80px"}}><button onClick={()=>navigateToView("collection")} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:13,fontWeight:600,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Back</button>{inProgress.length===0?<div style={{textAlign:"center",padding:"80px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
-          {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/></div>}
+          {view==="detail"&&selected&&<div style={{margin:"0 -40px"}}><Detail p={selected} onBack={()=>{setPendingScrollToRow(null);detailOnBack();}} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn} scrollToRow={pendingScrollToRow}/></div>}
           {view==="browse"&&<BrowseSitesView onImportUrl={handleImportUrl}/>}
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
@@ -2239,7 +2247,7 @@ export default function Wovely() {
       <div style={{flex:1,overflowY:"auto",paddingBottom:100,minHeight:"100vh"}}>
         {view==="collection"&&<CollectionView userPatterns={userPatterns} starterPatterns={starterPatterns} cat={cat} setCat={setCat} search={search} setSearch={setSearch} openDetail={openDetail} onAddPattern={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} isPro={isPro} tier={tier} onNavigate={navigateToView} onPark={handleParkPattern} onUnpark={handleUnparkPattern} onDelete={handleDeletePattern} onCoverChange={handleCoverChange} onRename={handleRenamePattern} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars} CATS={CATS} TIER_CONFIG={TIER_CONFIG}/>}
         {view==="wip"&&<div style={{padding:"16px 18px 80px"}}>{inProgress.length===0?<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:48,marginBottom:14}}>🪡</div><div style={{fontFamily:T.serif,fontSize:18,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Nothing in progress</div><div style={{fontSize:14,color:"#6B6B8A",lineHeight:1.6}}>Open a pattern and start checking off rows.</div></div>:<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{inProgress.map((p,i)=><PatternCard key={p.id} p={p} delay={i*.06} onClick={()=>openDetail(p)} pct={pct} catFallbackPhoto={catFallbackPhoto} Photo={Photo} Bar={Bar} Stars={Stars}/>)}</div>}</div>}
-        {view==="detail"&&selected&&<Detail p={selected} onBack={detailOnBack} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn}/>}
+        {view==="detail"&&selected&&<Detail p={selected} onBack={()=>{setPendingScrollToRow(null);detailOnBack();}} onSave={detailOnSave} pct={pct} estYards={estYards} estSkeins={estSkeins} pdfThumbUrl={pdfThumbUrl} CSS={CSS} Bar={Bar} Photo={Photo} Stars={Stars} WireframeViewer={WireframeViewer} Btn={Btn} scrollToRow={pendingScrollToRow}/>}
         {view==="browse"&&<BrowseSitesView onImportUrl={handleImportUrl}/>}
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
