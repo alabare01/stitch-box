@@ -8,7 +8,7 @@ const VALIDATION_PROMPT = `You are a crochet pattern validator. Analyze this pat
   "overall": "valid" or "review" or "issues",
   "score": number 0-100,
   "checks": [
-    { "id": "string", "label": "string", "status": "pass" or "warn" or "fail", "detail": "string" }
+    { "id": "string", "label": "string", "status": "pass" or "warning" or "fail", "detail": "string" }
   ],
   "summary": "string"
 }
@@ -36,10 +36,12 @@ CROCHET STITCH MATH RULES — you MUST follow these when verifying stitch counts
 • When a round says "(sc, inc) x 6 (12)", verify: 6 repeats × 2 stitches produced per repeat = 12. This is CORRECT.
 • Common correct progression: MR 6 → (sc, inc) x 6 = 12 → (2 sc, inc) x 4 = 16 → etc.
 • Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch.
-• Use the three-state system for EVERY check:
-  - "pass" — verified correct, or no issues found in this category
-  - "warn" — ambiguous, unusual, or could not fully verify (e.g. missing stitch counts, unclear notation, possible but unconfirmed issue). Explain what looks suspicious and why you're unsure.
-  - "fail" — you have confirmed an actual error with specific evidence (e.g. "RND 5 says (12) but math gives 14"). Only use "fail" when you can show the arithmetic or cite the specific contradiction.
+
+UNCERTAINTY RULE:
+If you can confidently verify the math is correct → "pass"
+If you can confidently verify the math is wrong → "fail"
+If you cannot confidently verify due to ambiguous notation, unusual abbreviations, complex construction, or stitch types not listed above → return status "warning" with a brief explanation of what could not be verified.
+Never guess. Never silently pass something you cannot calculate with confidence.
 
 Be specific in detail fields. Name exact round numbers where issues occur. If everything looks clean, say so clearly. Aim for scores 80-100 for patterns with no structural issues.`;
 
@@ -76,7 +78,7 @@ const extractTextFromPDF = async (file) => {
 
 const BADGE = { valid: { color: "#5B9B6B", bg: T.sageLt, emoji: "\u2705", label: "Pattern Looks Good" }, review: { color: "#C9A84C", bg: "#FFF8EC", emoji: "\u26A0\uFE0F", label: "Review Suggested" }, issues: { color: "#C0544A", bg: "#FFF0EE", emoji: "\u274C", label: "Issues Found" } };
 const badgeForScore = (score) => score >= 80 ? BADGE.valid : score >= 60 ? BADGE.review : BADGE.issues;
-const CHECK_ICON = { pass: "\u2705", warn: "\u26A0\uFE0F", fail: "\u274C" };
+const CHECK_ICON = { pass: "\u2705", warn: "\u26A0\uFE0F", warning: "\u26A0\uFE0F", fail: "\u274C" };
 const displayScore = (report) => {
   if (!report?.checks?.length) return report?.score || 0;
   const allPass = report.checks.every(c => c.status === "pass");
@@ -175,14 +177,17 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
         <div style={{ marginBottom: 20 }}>
           <div style={{ ...LABEL, marginBottom: 12 }}>checks</div>
           {(report.checks || []).map(c => {
-            const isActionable = onNavigateToRow && (c.status === "fail" || c.status === "warn");
+            const isWarning = c.status === "warning" || c.status === "warn";
+            const isFail = c.status === "fail";
+            const isActionable = onNavigateToRow && (isFail || isWarning);
             const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
             return (
             <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s" }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
               <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{c.label}</div>
                 <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
+                {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
                 {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
               </div>
             </div>
