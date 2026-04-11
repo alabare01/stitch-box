@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { supabaseAuth, getSession, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase.js";
 
@@ -44,6 +44,11 @@ const TAG = (bg, color) => ({
 });
 const LBL = { fontSize: 9, textTransform: "uppercase", letterSpacing: "0.8px", color: "#9B7EC8", fontWeight: 600, fontFamily: "Inter,sans-serif" };
 const CARD_SHELL = { background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 14, overflow: "hidden" };
+const CARD_LABEL = { fontSize: 9, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#9B7EC8", marginBottom: 4, fontFamily: "'Inter', sans-serif" };
+const CARD_TITLE = { fontSize: 14, fontWeight: 700, color: "#2D2D4E", lineHeight: 1.3, marginBottom: 2, fontFamily: "'Playfair Display', serif" };
+const CARD_SUBTITLE = { fontSize: 11, color: "#6B6B8A", lineHeight: 1.4 };
+const CARD_PILL = { fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 20, background: "#F8F6FF", color: "#6B6B8A", border: "1px solid #EDE4F7", whiteSpace: "nowrap" };
+const BADGE = { width: 32, height: 32, flexShrink: 0 };
 const INPUT_STYLE = {
   width: "100%", height: 41, padding: "0 14px", background: "#F8F6FF",
   border: "1px solid #EDE4F7", borderRadius: 10, fontSize: 13,
@@ -56,13 +61,13 @@ const ProductPreview = () => {
   const bevText = useTypewriter(BEV_LINES);
 
   return (
-    <div style={{ padding: "40px 36px", boxSizing: "border-box" }}>
-      <style>{`@keyframes drawScore{from{stroke-dashoffset:87.96}to{stroke-dashoffset:2.64}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
+    <div style={{ padding: "40px 36px 16px", boxSizing: "border-box" }}>
+      <style>{`@keyframes drawScore{from{stroke-dashoffset:87.96}to{stroke-dashoffset:2.64}}@keyframes bevPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}@media(min-width:768px){.pill-desktop-only{display:inline-block!important}}`}</style>
 
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 20 }}>
-        <img src="/bev_neutral.png" alt="Wovely" style={{ width: 40, height: 40, objectFit: "contain" }} />
-        <div style={{ fontFamily: T.serif, fontSize: 26, fontWeight: 700, color: "#2D2D4E" }}>Wovely</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <img src="/bev_neutral.png" alt="Bev" style={{ height: 56, width: "auto", objectFit: "contain" }} />
+        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 32, fontWeight: 700, color: "#2D3A7C" }}>Wovely</div>
       </div>
 
       {/* Headline */}
@@ -79,25 +84,25 @@ const ProductPreview = () => {
           <img src="/manatee_hero.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(12px)", transform: "scale(1.15)", opacity: 0.85 }} />
           <img src="/manatee_hero.png" alt="" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain", zIndex: 1 }} />
         </div>
-        <div style={{ flex: 1, padding: "16px 18px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ flex: 1, padding: 14, background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div>
-            <div style={LBL}>NOW CRAFTING</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#2D2D4E", fontFamily: T.serif, marginTop: 4 }}>Marina the Manatee</div>
-            <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>Beth Folchetti (Mama Crochetti)</div>
-            <div style={{ fontSize: 11, color: "#6B6B8A", marginTop: 2 }}>Round 22 of 30 &middot; In progress</div>
+            <div style={CARD_LABEL}>NOW CRAFTING</div>
+            <div style={{ ...CARD_TITLE, fontSize: 16 }}>Marina the Manatee</div>
+            <div style={CARD_SUBTITLE}>Beth Folchetti (Mama Crochetti)</div>
+            <div style={{ ...CARD_SUBTITLE, marginTop: 2 }}>Round 22 of 30 &middot; In progress</div>
           </div>
           <div>
             <div style={{ height: 4, borderRadius: 2, background: "#EDE4F7" }}>
               <div style={{ width: "73%", height: "100%", borderRadius: 2, background: "#9B7EC8" }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-              <span style={{ fontSize: 10, fontWeight: 500, color: "#9B7EC8" }}>73% complete</span>
-              <span style={{ fontSize: 10, color: "#6B6B8A" }}>85 rows</span>
+              <span style={CARD_SUBTITLE}>73% complete</span>
+              <span style={CARD_SUBTITLE}>85 rows</span>
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-              <span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}>PDF imported</span>
-              <span style={TAG("rgba(155,126,200,0.12)", "#9B7EC8")}>85 rows</span>
-              <span style={TAG("rgba(201,168,76,0.12)", "#C9A84C")}>Yarn stash linked</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+              <span style={{ ...CARD_PILL }}>PDF imported</span>
+              <span style={{ ...CARD_PILL }}>85 rows</span>
+              <span className="pill-desktop-only" style={{ ...CARD_PILL, display: "none" }}>Yarn stash</span>
             </div>
           </div>
         </div>
@@ -107,46 +112,41 @@ const ProductPreview = () => {
       <div style={{ display: "flex", flexDirection: "row", gap: 10, marginTop: 12 }}>
 
         {/* LEFT — BevCheck */}
-        <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "row", height: 160 }}>
-          <div style={{ width: 90, flexShrink: 0, position: "relative", overflow: "hidden", alignSelf: "stretch", borderRadius: "13px 0 0 13px" }}>
-            <img src="/mommy_fiora.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(12px)", transform: "scale(1.15)", opacity: 0.85 }} />
-            <img src="/mommy_fiora.png" alt="" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain", zIndex: 1 }} />
-          </div>
-          <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 12, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 160, height: "auto" }}>
+          <img src="/mommy_fiora.png" alt="" style={{ width: "100%", height: 140, objectFit: "cover", objectPosition: "50% 20%", borderRadius: "12px 12px 0 0", display: "block" }} />
+          <div style={{ padding: "10px 12px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, minHeight: 0 }}>
             <div>
-              <div style={LBL}>BEVCHECK</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#2D2D4E", marginTop: 2 }}>Mommy Fiora</div>
-              <div style={{ fontSize: 10, color: "#6B6B8A", marginTop: 1 }}>Pattern reviewed</div>
+              <div style={CARD_LABEL}>BEVCHECK</div>
+              <div style={CARD_TITLE}>Mommy Fiora</div>
+              <div style={CARD_SUBTITLE}>Pattern reviewed</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 10, fontWeight: 500, color: "#5B9B6B" }}>Clean result</span>
-              <svg width="40" height="40" viewBox="0 0 40 40">
-                <circle cx="20" cy="20" r="14" fill="none" stroke="#EDE4F7" strokeWidth="3" />
-                <circle cx="20" cy="20" r="14" fill="none" stroke="#5B9B6B" strokeWidth="3"
-                  strokeLinecap="round" strokeDasharray="87.96 87.96"
-                  style={{ animation: "drawScore 0.8s ease-out forwards", transformOrigin: "center", transform: "rotate(-90deg)" }} />
-                <text x="20" y="20" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: 8, fontWeight: 600, fill: "#2D2D4E" }}>97%</text>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>Clean result</span>
+              <svg width={BADGE.width} height={BADGE.height} viewBox="0 0 32 32" style={{ flexShrink: BADGE.flexShrink }}>
+                <circle cx="16" cy="16" r="15" fill="#5B9B6B" />
+                <text x="16" y="17" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: 11, fontWeight: 700, fill: "#fff" }}>97%</text>
               </svg>
             </div>
           </div>
         </div>
 
         {/* RIGHT — Stitch-O-Vision */}
-        <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "row", height: 160 }}>
-          <div style={{ width: 90, flexShrink: 0, position: "relative", overflow: "hidden", alignSelf: "stretch", borderRadius: "13px 0 0 13px" }}>
-            <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(12px)", transform: "scale(1.15)", opacity: 0.85 }} />
-            <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain", zIndex: 1 }} />
-          </div>
-          <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 12, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 160, height: "auto" }}>
+          <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "12px 12px 0 0", display: "block" }} />
+          <div style={{ padding: "10px 12px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, minHeight: 0 }}>
             <div>
-              <div style={LBL}>STITCH-O-VISION</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#2D2D4E", marginTop: 2 }}>Moss Stitch</div>
-              <div style={{ fontSize: 10, fontStyle: "italic", color: "#6B6B8A", marginTop: 1 }}>Linen &middot; Granite Stitch</div>
+              <div style={{ ...CARD_LABEL, whiteSpace: "nowrap", fontSize: 8 }}>STITCH-O-VISION</div>
+              <div style={CARD_TITLE}>Moss Stitch</div>
+              <div style={CARD_SUBTITLE}>Linen &middot; Granite Stitch</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={TAG("rgba(91,155,107,0.12)", "#5B9B6B")}><span style={{ fontSize: 9 }}>High confidence</span></span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#5B9B6B" }}>91%</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>High confidence</span>
+              <svg width={BADGE.width} height={BADGE.height} viewBox="0 0 32 32" style={{ flexShrink: BADGE.flexShrink }}>
+                <circle cx="16" cy="16" r="15" fill="#5B9B6B" />
+                <text x="16" y="17" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: 11, fontWeight: 700, fill: "#fff" }}>91%</text>
+              </svg>
             </div>
           </div>
         </div>
@@ -329,12 +329,55 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
   );
 };
 
+/* ── Sticky Mobile Scroll CTA ── */
+const MobileCTA = ({ signupRef }) => {
+  const [formVisible, setFormVisible] = useState(false);
+
+  useEffect(() => {
+    if (!signupRef?.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFormVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    observer.observe(signupRef.current);
+    return () => observer.disconnect();
+  }, [signupRef]);
+
+  const show = !formVisible;
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80,
+      background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      padding: "14px 20px", borderTop: "2px solid #EDE4F7", borderRadius: "16px 16px 0 0",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      transform: show ? "translateY(0)" : "translateY(100%)",
+      transition: "transform 300ms ease",
+      pointerEvents: show ? "auto" : "none",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: "50%", background: "#F8F6FF", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <img src="/bev_neutral.png" alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
+        </div>
+        <span style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "#2D2D4E" }}>Ready to start crafting?</span>
+      </div>
+      <button onClick={() => signupRef?.current?.scrollIntoView({ behavior: "smooth" })} style={{ background: "#9B7EC8", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 20, padding: "8px 18px", border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Sign up free ↓</button>
+    </div>
+  );
+};
+
 /* ── Main Auth Component ── */
 const Auth = ({ onEnter, onEnterAsNew }) => {
   const { isDesktop, isMobile } = useBreakpoint();
+  const signupRef = useRef(null);
 
   return (
     <div style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "stretch", fontFamily: T.sans }}>
+    <style>{`
+      @media(min-width:768px){.wovely-mobile-cta{display:none!important;}}
+      /* Hide third-party floating widgets (PostHog toolbar, surveys, etc.) on landing page */
+      #__ph_survey_widget,div[class*="PostHog"],div[id*="posthog"],.__ph-toolbar{display:none!important;}
+    `}</style>
     <div style={{ maxWidth: 1280, width: "100%", margin: "0 auto", display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh" }}>
       {/* Left — Product Preview */}
       <div style={{
@@ -351,14 +394,27 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
       {/* Right — Signup Form */}
       <div style={{
         flex: isMobile ? "none" : 0.85,
-        background: "rgba(255,255,255,0.96)",
-        borderLeft: isMobile ? "none" : "1px solid #EDE4F7",
+        background: "transparent",
+        borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.45)",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: isMobile ? "20px 16px 80px" : 0,
         ...(isMobile ? { minHeight: "auto" } : { minHeight: "100vh" }),
       }}>
-        <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
+        <div ref={signupRef} style={{
+          background: "rgba(255,255,255,0.82)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          border: "1px solid rgba(255,255,255,0.45)",
+          borderRadius: 16,
+          boxShadow: "0 4px 24px rgba(45,58,124,0.08)",
+          maxWidth: 480,
+          width: "100%",
+        }}>
+          <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
+        </div>
       </div>
     </div>
+    <div className="wovely-mobile-cta"><MobileCTA signupRef={signupRef} /></div>
     </div>
   );
 };
