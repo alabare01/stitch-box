@@ -52,7 +52,7 @@ const INPUT_STYLE = {
 };
 
 /* ── Left Column: Product Preview ── */
-const ProductPreview = () => {
+const ProductPreview = ({ badgesRef }) => {
   const bevText = useTypewriter(BEV_LINES);
 
   return (
@@ -61,8 +61,8 @@ const ProductPreview = () => {
 
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <img src="/bev_neutral.png" alt="Bev" style={{ height: 48, width: "auto", objectFit: "contain" }} />
-        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 28, fontWeight: 700, color: "#2D3A7C" }}>Wovely</div>
+        <img src="/bev_neutral.png" alt="Bev" style={{ height: 56, width: "auto", objectFit: "contain" }} />
+        <div style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 32, fontWeight: 700, color: "#2D3A7C" }}>Wovely</div>
       </div>
 
       {/* Headline */}
@@ -108,13 +108,13 @@ const ProductPreview = () => {
 
         {/* LEFT — BevCheck */}
         <div style={{ ...CARD_SHELL, flex: 1, display: "flex", flexDirection: "row", height: 160 }}>
-          <div style={{ width: 90, flexShrink: 0, position: "relative", overflow: "hidden", alignSelf: "stretch", borderRadius: "13px 0 0 13px" }}>
+          <div style={{ width: 80, flexShrink: 0, position: "relative", overflow: "hidden", alignSelf: "stretch", borderRadius: "13px 0 0 13px" }}>
             <img src="/mommy_fiora.png" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(12px)", transform: "scale(1.15)", opacity: 0.85 }} />
             <img src="/mommy_fiora.png" alt="" style={{ position: "relative", width: "100%", height: "100%", objectFit: "contain", zIndex: 1 }} />
           </div>
-          <div style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, padding: "10px 10px", background: "rgba(255,255,255,0.84)", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
             <div>
-              <div style={LBL}>BEVCHECK</div>
+              <div style={{ ...LBL, whiteSpace: "nowrap" }}>BEVCHECK</div>
               <div style={{ fontSize: 12, fontWeight: 500, color: "#2D2D4E", marginTop: 2 }}>Mommy Fiora</div>
               <div style={{ fontSize: 10, color: "#6B6B8A", marginTop: 1 }}>Pattern reviewed</div>
             </div>
@@ -166,7 +166,7 @@ const ProductPreview = () => {
       </div>
 
       {/* ── APP BADGES ── */}
-      <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+      <div ref={badgesRef} style={{ display: "flex", gap: 10, marginTop: 12 }}>
         <div style={{ flex: 1, background: "#fff", border: "1px solid #EDE4F7", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, opacity: 0.5, cursor: "default" }}>
           <svg width="22" height="26" viewBox="0 0 384 512" fill="#000"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
           <div><div style={{ fontSize: 9, color: "#6B6B8A" }}>Download on the</div><div style={{ fontSize: 12, fontWeight: 600, color: "#2D2D4E" }}>App Store</div><div style={{ fontSize: 10, color: "#9B7EC8" }}>Coming soon</div></div>
@@ -329,48 +329,37 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
   );
 };
 
-/* ── Floating Mobile CTA ── */
-const MobileCTA = ({ signupRef }) => {
-  const [scrolled, setScrolled] = useState(false);
-  const [formVisible, setFormVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem("wovely_landing_cta_dismissed") === "true");
+/* ── Sticky Mobile Scroll CTA ── */
+const MobileCTA = ({ badgesRef, signupRef }) => {
+  const [badgesVisible, setBadgesVisible] = useState(true);
 
   useEffect(() => {
-    if (dismissed) return;
-    const onScroll = () => setScrolled(window.scrollY > 200);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [dismissed]);
-
-  useEffect(() => {
-    if (dismissed || !signupRef?.current) return;
+    if (!badgesRef?.current) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setFormVisible(entry.isIntersecting),
-      { threshold: 0.1 }
+      ([entry]) => setBadgesVisible(entry.isIntersecting),
+      { threshold: 0 }
     );
-    observer.observe(signupRef.current);
+    observer.observe(badgesRef.current);
     return () => observer.disconnect();
-  }, [dismissed, signupRef]);
+  }, [badgesRef]);
 
-  const show = !dismissed && scrolled && !formVisible;
+  const show = badgesVisible;
 
   return (
     <div style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80,
-      background: "rgba(155,126,200,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-      padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.3)", borderRadius: "16px 16px 0 0",
-      display: "flex", alignItems: "center", gap: 12,
+      background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      padding: "14px 20px", borderTop: "2px solid #EDE4F7", borderRadius: "16px 16px 0 0",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
       transform: show ? "translateY(0)" : "translateY(100%)",
       transition: "transform 300ms ease",
       pointerEvents: show ? "auto" : "none",
     }}>
-      <button onClick={() => { setDismissed(true); localStorage.setItem("wovely_landing_cta_dismissed", "true"); }} style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
-      <img src="/bev_neutral.png" alt="Bev" style={{ height: 40, width: "auto", objectFit: "contain", flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.3 }}>Your patterns deserve a home.</div>
-        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.3, marginTop: 2 }}>Free to start. No credit card.</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <img src="/bev_neutral.png" alt="Bev" style={{ height: 36, width: "auto", objectFit: "contain", flexShrink: 0 }} />
+        <span style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 600, color: "#2D2D4E" }}>Ready to start crafting?</span>
       </div>
-      <button onClick={() => signupRef?.current?.scrollIntoView({ behavior: "smooth" })} style={{ background: "#fff", color: "#9B7EC8", fontSize: 13, fontWeight: 600, borderRadius: 20, padding: "8px 16px", border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Join free →</button>
+      <button onClick={() => signupRef?.current?.scrollIntoView({ behavior: "smooth" })} style={{ background: "#9B7EC8", color: "#fff", fontSize: 13, fontWeight: 600, borderRadius: 20, padding: "8px 18px", border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Sign up free ↓</button>
     </div>
   );
 };
@@ -379,6 +368,7 @@ const MobileCTA = ({ signupRef }) => {
 const Auth = ({ onEnter, onEnterAsNew }) => {
   const { isDesktop, isMobile } = useBreakpoint();
   const signupRef = useRef(null);
+  const badgesRef = useRef(null);
 
   return (
     <div style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "stretch", fontFamily: T.sans }}>
@@ -397,21 +387,33 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
         position: "relative",
         ...(isMobile ? {} : { minHeight: "100vh" }),
       }}>
-        <ProductPreview />
+        <ProductPreview badgesRef={badgesRef} />
       </div>
 
       {/* Right — Signup Form */}
       <div ref={signupRef} style={{
         flex: isMobile ? "none" : 0.85,
-        background: "rgba(255,255,255,0.96)",
-        borderLeft: isMobile ? "none" : "1px solid #EDE4F7",
+        background: "transparent",
+        borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.45)",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: isMobile ? "24px 16px" : 0,
         ...(isMobile ? { minHeight: "auto" } : { minHeight: "100vh" }),
       }}>
-        <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
+        <div style={{
+          background: "rgba(255,255,255,0.82)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          border: "1px solid rgba(255,255,255,0.45)",
+          borderRadius: 16,
+          boxShadow: "0 4px 24px rgba(45,58,124,0.08)",
+          maxWidth: 480,
+          width: "100%",
+        }}>
+          <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
+        </div>
       </div>
     </div>
-    <div className="wovely-mobile-cta"><MobileCTA signupRef={signupRef} /></div>
+    <div className="wovely-mobile-cta"><MobileCTA badgesRef={badgesRef} signupRef={signupRef} /></div>
     </div>
   );
 };
