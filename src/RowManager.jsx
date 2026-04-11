@@ -109,6 +109,15 @@ const RowManager = ({
   const prevDone=useRef(pct({...p,rows:p.rows}));
   const currentRowIdx=rows.findIndex(r=>!r.done&&!r.isHeader);
 
+  // BevCheck flagged rows lookup — maps row number → status ("fail" | "warning")
+  const flaggedRowMap=useMemo(()=>{
+    const fr=p.validation_report?.flaggedRows;
+    if(!fr||!fr.length) return null;
+    const map={};
+    fr.forEach(f=>{if(f.rowNumber!=null) map[f.rowNumber]=f.status;});
+    return Object.keys(map).length?map:null;
+  },[p.validation_report]);
+
   // ── Linear progress: section locking & row sequencing ──
   const linearSections=useMemo(()=>{
     const secs=[];let cur={header:null,rows:[]};
@@ -242,8 +251,8 @@ const RowManager = ({
               <div style={{width:60}}><Bar val={secTotal?secDone/secTotal*100:0} color={secComplete?T.sage:T.terra} h={3}/></div>
             </button>}
             {(open||!sec.header)&&<div style={{border:sec.header?`1px solid ${T.border}`:"none",borderTop:"none",borderRadius:sec.header?"0 0 10px 10px":0,overflow:"hidden"}}>
-              {sec.rows.map((r,i)=>{const globalIdx=r._gi;const isCurrent=globalIdx===currentRowIdx;const rowLocked=!r.done&&!isRowCheckable(globalIdx,sec,si);const newAbbr=r.done?[]:findNewAbbr(r.text,seenAbbr);return(
-        <div key={r.id} id={`row-${i + 1}`} data-row={i + 1} style={{borderBottom:`1px solid ${T.border}`,background:r.isAction&&!rowLocked?"rgba(184,144,44,.06)":"transparent"}}>
+              {sec.rows.map((r,i)=>{const globalIdx=r._gi;const isCurrent=globalIdx===currentRowIdx;const rowLocked=!r.done&&!isRowCheckable(globalIdx,sec,si);const newAbbr=r.done?[]:findNewAbbr(r.text,seenAbbr);const rowNumFromId=r.id?parseInt((r.id.match(/\d+$/)||[])[0],10):null;const flagStatus=flaggedRowMap&&rowNumFromId?flaggedRowMap[rowNumFromId]:null;return(
+        <div key={r.id} id={`row-${i + 1}`} data-row={i + 1} style={{borderBottom:`1px solid ${T.border}`,background:flagStatus==="fail"?"rgba(192,84,74,0.08)":flagStatus==="warning"?"rgba(201,168,76,0.08)":r.isAction&&!rowLocked?"rgba(184,144,44,.06)":"transparent",borderLeft:flagStatus==="fail"?"3px solid #C0544A":flagStatus==="warning"?"3px solid #C9A84C":"none"}}>
           <div onClick={()=>{if(!rowLocked)toggle(r.id);}} style={{display:"flex",gap:13,alignItems:"flex-start",cursor:rowLocked?"default":"pointer",background:isCurrent&&!rowLocked?"rgba(155,126,200,.04)":"transparent",padding:"14px 8px",margin:"0 -8px",opacity:rowLocked?.45:1,transition:"opacity .15s"}}>
             <div style={{width:26,height:26,borderRadius:7,flexShrink:0,marginTop:1,background:r.done?T.terra:rowLocked?"#E8E4DF":T.surface,border:"1.5px solid "+(r.done?T.terra:isCurrent&&!rowLocked?T.terra:rowLocked?"#D5D0CA":T.border),display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",boxShadow:r.done?"0 2px 8px rgba(155,126,200,.3)":isCurrent&&!rowLocked?"0 0 0 3px rgba(155,126,200,.15)":"none"}}>
               {r.done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}{!r.done&&isCurrent&&!rowLocked&&<div style={{width:8,height:8,borderRadius:99,background:T.terra}}/>}
@@ -251,7 +260,7 @@ const RowManager = ({
             <div style={{flex:1,minWidth:0}}>
               {isCurrent&&!rowLocked&&<div style={{fontSize:10,color:T.terra,fontWeight:600,letterSpacing:".06em",marginBottom:2}}>CURRENT ROW</div>}
               {!isCurrent&&r.isAction&&!rowLocked&&<div style={{fontSize:10,color:T.gold,fontWeight:600,letterSpacing:".06em",marginBottom:2}}>ACTION</div>}
-              {!isCurrent&&!r.isAction&&!rowLocked&&<div style={{fontSize:10,color:T.ink3,letterSpacing:".06em",marginBottom:2}}>ROW {i+1}</div>}
+              {!isCurrent&&!r.isAction&&!rowLocked&&<div style={{fontSize:10,color:flagStatus==="fail"?"#C0544A":flagStatus==="warning"?"#C9A84C":T.ink3,letterSpacing:".06em",marginBottom:2}}>{flagStatus==="fail"?"✗ ":flagStatus==="warning"?"⚠ ":""}ROW {i+1}</div>}
               {rowLocked&&<div style={{fontSize:10,color:T.ink3,letterSpacing:".06em",marginBottom:2}}>ROW {i+1}</div>}
               {rowEditing?.id===r.id
                 ?<div style={{display:"flex",gap:6,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
