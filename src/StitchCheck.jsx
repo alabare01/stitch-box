@@ -73,7 +73,12 @@ const displayScore = (report) => {
 const CARD = {background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,padding:24,border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)"};
 const LABEL = {fontSize:11,fontWeight:600,color:T.ink2,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6};
 
-const StitchCheck = () => {
+const extractFirstRowNumber = (text) => {
+  const match = text.match(/(?:rnd|row|round)\s+(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+};
+
+const StitchCheck = ({ onNavigateToRow } = {}) => {
   const [mode, setMode] = useState(null); // null | "pdf" | "text"
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -156,15 +161,20 @@ const StitchCheck = () => {
         {/* Individual checks */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ ...LABEL, marginBottom: 12 }}>checks</div>
-          {(report.checks || []).map(c => (
-            <div key={c.id} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start" }}>
+          {(report.checks || []).map(c => {
+            const isActionable = onNavigateToRow && (c.status === "fail" || c.status === "warn");
+            const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
+            return (
+            <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s" }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
               <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, marginBottom: 4 }}>{c.label}</div>
                 <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
+                {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Summary */}
@@ -235,5 +245,5 @@ const StitchCheck = () => {
   );
 };
 
-export { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON, displayScore };
+export { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON, displayScore, extractFirstRowNumber };
 export default StitchCheck;
