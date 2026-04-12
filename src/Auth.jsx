@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { supabaseAuth, getSession, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase.js";
-import BevGauge from "./components/BevGauge.jsx";
 
 /* ── Typewriter hook ── */
 const BEV_LINES = [
@@ -119,8 +118,28 @@ const ProductPreview = () => {
             <div>
               <div style={CARD_LABEL}>BEVCHECK</div>
               <div style={CARD_TITLE}>Mommy Fiora</div>
+              <div style={CARD_SUBTITLE}>Pattern reviewed</div>
             </div>
-            <BevGauge state="issues" />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>&nbsp;</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <svg viewBox="0 0 100 55" style={{ width: 120, height: 60, display: "block" }}>
+                  <defs>
+                    <linearGradient id="miniGaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#EDE4F7" />
+                      <stop offset="100%" stopColor="#9B7EC8" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 8 50 A 42 42 0 0 1 92 50" fill="none" stroke="#EDE4F7" strokeWidth="6" strokeLinecap="round" />
+                  <path d="M 8 50 A 42 42 0 0 1 92 50" fill="none" stroke="url(#miniGaugeGrad)" strokeWidth="6" strokeLinecap="round" />
+                  <g style={{ transform: "rotate(-38deg)", transformOrigin: "50px 50px" }}>
+                    <line x1="50" y1="50" x2="50" y2="18" stroke="#9B7EC8" strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                  <circle cx="50" cy="50" r="3" fill="#9B7EC8" />
+                </svg>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9B7EC8", fontFamily: "'Inter', sans-serif", marginTop: -2 }}>Issues Found</div>
+              </div>
+            </div>
           </div>
         </div>
 
