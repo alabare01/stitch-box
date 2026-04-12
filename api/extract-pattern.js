@@ -416,36 +416,39 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
   };
 
   // Attempt 1: Gemini full prompt
-  console.log("[bevcheck] Attempt 1: Gemini full prompt, chars:", text.length);
+  const t1 = Date.now();
+  console.log("[bevcheck] → Attempt 1: Gemini full prompt, chars:", text.length);
   try {
     const result = await callGeminiBevCheck(BEVCHECK_PROMPT);
-    console.log("[bevcheck] Gemini full success, state:", result.state);
+    console.log("[bevcheck] ✓ Attempt 1 success, state:", result.state, "checks:", (result.checks||[]).length, `(${Date.now()-t1}ms)`);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 gemini (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "gemini" });
   } catch (e) {
-    console.error("[bevcheck] Attempt 1 failed:", e.message);
+    console.error("[bevcheck] ✗ Attempt 1 failed:", e.message, `(${Date.now()-t1}ms)`);
   }
 
   // Attempt 2: Gemini simplified prompt
-  console.log("[bevcheck] Attempt 2: Gemini simplified prompt");
+  const t2 = Date.now();
+  console.log("[bevcheck] → Attempt 2: Gemini simplified prompt");
   try {
     const result = await callGeminiBevCheck(BEVCHECK_SIMPLE_PROMPT);
-    console.log("[bevcheck] Gemini simplified success, state:", result.state);
+    console.log("[bevcheck] ✓ Attempt 2 success, state:", result.state, "checks:", (result.checks||[]).length, `(${Date.now()-t2}ms)`);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 gemini_simplified (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "gemini_simplified" });
   } catch (e2) {
-    console.error("[bevcheck] Attempt 2 failed:", e2.message);
+    console.error("[bevcheck] ✗ Attempt 2 failed:", e2.message, `(${Date.now()-t2}ms)`);
   }
 
   // Attempt 3: Claude Haiku fallback
-  console.log("[bevcheck] Attempt 3: Claude Haiku fallback");
+  const t3 = Date.now();
+  console.log("[bevcheck] → Attempt 3: Claude Haiku fallback, ANTHROPIC_KEY:", ANTHROPIC_KEY ? "EXISTS" : "MISSING");
   try {
     const result = await callClaudeBevCheck();
-    console.log("[bevcheck] Claude success, state:", result.state);
+    console.log("[bevcheck] ✓ Attempt 3 success, state:", result.state, "checks:", (result.checks||[]).length, `(${Date.now()-t3}ms)`);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 claude (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "claude" });
   } catch (e3) {
-    console.error("[bevcheck] Attempt 3 failed:", e3.message);
+    console.error("[bevcheck] ✗ Attempt 3 failed:", e3.message, e3.stack?.substring(0, 300), `(${Date.now()-t3}ms)`);
     logToSupabase('error', `[bevcheck] all 3 attempts failed (${Date.now() - _t0}ms)`, 500);
     return res.status(500).json({ error: true, message: "bev_tangled", provider: "failed" });
   }

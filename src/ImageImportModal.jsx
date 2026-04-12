@@ -54,6 +54,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
   const [dragIdx, setDragIdx] = useState(null);
   const [validating, setValidating] = useState(false);
   const [validationReport, setValidationReport] = useState(null);
+  const [bevCheckFailed, setBevCheckFailed] = useState(false);
+  const bevCheckTextRef = useRef(null);
   const [showFullReport, setShowFullReport] = useState(false);
   const [proUpgradeBanner, setProUpgradeBanner] = useState(false);
   const [coverUrl, setCoverUrl] = useState(null);
@@ -153,6 +155,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
         setValidating(true);
         const valText = JSON.stringify(result, null, 2);
         const trimmed = valText.length > 20000 ? valText.slice(0, valText.lastIndexOf("\n", 20000) || 20000) : valText;
+        bevCheckTextRef.current = trimmed;
         (async () => {
           try {
             const controller = new AbortController();
@@ -164,9 +167,9 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
             });
             clearTimeout(timeout);
             const rawText = await vr.text();
-            if (!vr.ok) { console.warn("[ImageImport] BevCheck API error:", vr.status, rawText.substring(0, 200)); setValidationReport({state:"warning",checks:[],summary:""}); setValidating(false); return; }
+            if (!vr.ok) { console.warn("[ImageImport] BevCheck API error:", vr.status, rawText.substring(0, 200)); setBevCheckFailed(true); setValidating(false); return; }
             const d = JSON.parse(rawText); const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || ""; const parsed = JSON.parse(raw.replace(/```json/g, "").replace(/```/g, "").trim()); setValidationReport(parsed);
-          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setValidationReport({state:"warning",checks:[],summary:""}); }
+          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setBevCheckFailed(true); }
           setValidating(false);
         })();
       }
@@ -437,6 +440,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
               </div>
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
+            </div>
+          ):bevCheckFailed?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
+              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText||!GEMINI_API_KEY){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),signal:controller.signal});clearTimeout(timeout);const rawText=await vr.text();if(!vr.ok){setBevCheckFailed(true);setValidating(false);return;}const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}catch(e){console.warn("[ImageImport] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
             </div>
           ):validationReport?(()=>{console.log("[Wovely] BevCheck compact card validationReport:",JSON.stringify(validationReport).substring(0,500));const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const scNeedle=NEEDLE_END[scState]||NEEDLE_END.warning;const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);console.log("[Wovely] BevCheck compact checks:",allChecks.length,"total,",scFailed.length,"failed, statuses:",allChecks.map(c=>c?.status));return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
