@@ -399,6 +399,7 @@ function checkDuplicateRounds(text) {
 }
 
 function checkStitchMath(text) {
+  console.log("[bevcheck] checkStitchMath: starting");
   // Parse stitch counts from parenthetical totals at end of row instructions
   const STITCH_COUNTS = {
     sc: 1, hdc: 1, dc: 1, tr: 1, slst: 1, 'sl st': 1, 'sl-st': 1,
@@ -468,11 +469,13 @@ function checkStitchMath(text) {
       }
     }
   }
-  return {
+  const result = {
     id: "stitch_math", label: "Stitch count math",
     status: flagged.length ? "fail" : "pass",
     detail: flagged.length ? flagged.join("; ") : "All verifiable stitch counts match."
   };
+  console.log("[bevcheck] checkStitchMath: done, status:", result.status, "flagged:", flagged.length);
+  return result;
 }
 
 function runDeterministicChecks(text) {
@@ -494,15 +497,20 @@ function runDeterministicChecks(text) {
 }
 
 function mergeChecks(llmResult, codeChecks) {
-  // Combine LLM checks with code-based checks, recalculate overall score
-  const allChecks = [...codeChecks, ...(llmResult.checks || [])];
+  // Code-based checks always win over LLM checks with the same ID
+  const codeIds = new Set(codeChecks.map(c => c.id));
+  const llmChecks = (llmResult.checks || []).filter(c => !codeIds.has(c.id));
+  const allChecks = [...codeChecks, ...llmChecks];
+
+  // Always score against exactly 6 checks for consistency
+  const EXPECTED_COUNT = 6;
   const failCount = allChecks.filter(c => c.status === "fail").length;
   const warnCount = allChecks.filter(c => c.status === "warning").length;
-  const total = allChecks.length;
   // Each check is worth equal weight; fails deduct full share, warnings deduct half
-  const score = total > 0 ? Math.round(100 * (1 - (failCount / total) - (warnCount / (2 * total)))) : 100;
+  const score = Math.round(100 * (1 - (failCount / EXPECTED_COUNT) - (warnCount / (2 * EXPECTED_COUNT))));
   const clampedScore = Math.max(0, Math.min(100, score));
   const overall = failCount > 0 ? "issues" : warnCount > 0 ? "review" : "valid";
+  console.log("[bevcheck] mergeChecks: code:", codeChecks.length, "llm:", llmChecks.length, "total:", allChecks.length, "score:", clampedScore);
   return { overall, score: clampedScore, checks: allChecks, summary: llmResult.summary || "" };
 }
 
