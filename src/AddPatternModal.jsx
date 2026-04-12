@@ -699,8 +699,8 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
           });
           clearTimeout(timeout);
           const rawText=await vr.text();
-          if(vr.ok){const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}
-        }catch(e){console.warn("[Wovely] URL BevCheck failed:",e);}
+          if(vr.ok){const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}else{setValidationReport({state:"warning",checks:[],summary:""});}
+        }catch(e){console.warn("[Wovely] URL BevCheck failed:",e);setValidationReport({state:"warning",checks:[],summary:""});}
         setValidating(false);
       })();
     }
@@ -926,9 +926,9 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
             });
             clearTimeout(timeout);
             const rawText=await vr.text();
-            if(!vr.ok){console.warn("[Wovely] BevCheck API error:",vr.status,rawText.substring(0,200));setValidating(false);return;}
+            if(!vr.ok){console.warn("[Wovely] BevCheck API error:",vr.status,rawText.substring(0,200));setValidationReport({state:"warning",checks:[],summary:""});setValidating(false);return;}
             const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);
-          }catch(e){console.warn("[Wovely] BevCheck background validation failed:",e);}
+          }catch(e){console.warn("[Wovely] BevCheck background validation failed:",e);setValidationReport({state:"warning",checks:[],summary:""});}
           setValidating(false);
         })();
       }
@@ -1087,22 +1087,22 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
             </div>
-          ):validationReport?(()=>{const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const failedChecks=(validationReport.checks||[]).filter(c=>c.status==="fail"||c.status==="warning"||c.status==="warn").slice(0,3);return isPro?(
+          ):validationReport?(()=>{const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const checks=Array.isArray(validationReport.checks)?validationReport.checks:[];const failedChecks=checks.filter(c=>c&&(c.status==="fail"||c.status==="warning"||c.status==="warn")).slice(0,3);return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
               <span style={{display:"inline-block",background:"#F8F6FF",border:"1px solid #9B7EC8",color:"#2D3A7C",fontSize:12,fontWeight:700,borderRadius:20,padding:"4px 12px"}}>{scLabel}</span>
-              {failedChecks.length>0&&<div style={{marginTop:10}}>{failedChecks.map(c=>(<div key={c.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}><span style={{fontSize:11,color:"#C0544A"}}>✕</span><span style={{fontSize:11,color:"#6B6B8A"}}>{sentenceCase(c.label)}</span></div>))}</div>}
+              {failedChecks.length>0&&<div style={{marginTop:10}}>{failedChecks.map((c,i)=>(<div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}><span style={{fontSize:11,color:"#C0544A"}}>✕</span><span style={{fontSize:11,color:"#6B6B8A"}}>{sentenceCase(c.label||"Check")}</span></div>))}</div>}
               <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:8,textDecoration:"underline"}}>Full Report →</button>
             </div>
           ):(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
               <span style={{display:"inline-block",background:"#F8F6FF",border:"1px solid #9B7EC8",color:"#2D3A7C",fontSize:12,fontWeight:700,borderRadius:20,padding:"4px 12px",filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none"}}>{scLabel}</span>
-              {validationReport.checks?.slice(0,2).map((c,i)=>(
+              {checks.length>0&&checks.slice(0,2).map((c,i)=>c?(
                 <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,marginTop:i===0?10:0}}>
                   <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"❓"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{sentenceCase(c.label)}</span>
+                  <span style={{fontSize:11,color:T.ink2}}>{sentenceCase(c.label||"Check")}</span>
                   <div style={{flex:1,height:12,background:`linear-gradient(to right,${T.ink3}22,transparent)`,borderRadius:4}}/>
                 </div>
-              ))}
+              ):null)}
               <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8}}>
                 <div style={{fontSize:10,color:T.ink3,marginBottom:6}}>🔒 Unlock full report</div>
                 <button onClick={()=>setProUpgradeBanner(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:10,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
