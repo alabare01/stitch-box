@@ -187,7 +187,7 @@ PATTERN TEXT:
 ${truncatedText}`;
 
     const controller = new AbortController();
-    const claudeTimeout = setTimeout(() => controller.abort(), 50000);
+    const claudeTimeout = setTimeout(() => controller.abort(), 45000);
     let r;
     try {
       r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -207,8 +207,8 @@ ${truncatedText}`;
     } catch (fetchErr) {
       clearTimeout(claudeTimeout);
       if (fetchErr.name === "AbortError") {
-        console.error("[extract-pattern] Claude aborted after 50s timeout");
-        throw new Error("Claude timeout after 50s");
+        console.error("[extract-pattern] Claude aborted after 45s timeout");
+        throw new Error("Claude timeout after 45s");
       }
       throw fetchErr;
     }
