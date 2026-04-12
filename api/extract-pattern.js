@@ -199,7 +199,7 @@ ${truncatedText}`;
         },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 8000,
+          max_tokens: 16000,
           messages: [{ role: "user", content: claudePrompt }],
         }),
         signal: controller.signal,
@@ -221,19 +221,39 @@ ${truncatedText}`;
     }
 
     const data = await r.json();
-    console.log("[extract-pattern] Claude response: stop_reason=", data.stop_reason, "usage=", JSON.stringify(data.usage), "content_blocks=", (data.content||[]).length, "first_type=", data.content?.[0]?.type);
+    console.log("[extract-pattern] Claude response: stop_reason=", data.stop_reason, "usage=", JSON.stringify(data.usage), "content_blocks=", (data.content||[]).length);
     const rawText = data.content?.[0]?.text || "";
-    console.log("[extract-pattern] Claude rawText length:", rawText.length, "starts:", rawText.substring(0, 150));
-    if (!rawText) throw new Error("Claude returned empty response, stop_reason=" + data.stop_reason + " content=" + JSON.stringify(data.content||[]).substring(0, 200));
+    console.log("[extract-pattern] Claude rawText length:", rawText.length, "truncated:", data.stop_reason === "max_tokens");
+    if (!rawText) throw new Error("Claude returned empty response, stop_reason=" + data.stop_reason);
 
     const jsonStart = rawText.indexOf("{");
-    const sliced = jsonStart >= 0 ? rawText.slice(jsonStart) : rawText.trim();
-    const jsonEnd = sliced.lastIndexOf("}");
-    const cleaned = jsonEnd >= 0 ? sliced.slice(0, jsonEnd + 1) : sliced;
+    let toParse = jsonStart >= 0 ? rawText.slice(jsonStart) : rawText.trim();
+
+    // If response was truncated by max_tokens, repair the JSON
+    if (data.stop_reason === "max_tokens") {
+      console.log("[extract-pattern] Claude output truncated — attempting JSON repair");
+      // Close any open strings, arrays, and objects to make it parseable
+      // Strip trailing incomplete value (after last comma or colon)
+      toParse = toParse.replace(/,\s*"[^"]*$/, "").replace(/,\s*$/, "").replace(/:\s*"[^"]*$/, ': ""');
+      // Count unclosed brackets and braces
+      let openBraces = 0, openBrackets = 0;
+      for (const ch of toParse) {
+        if (ch === "{") openBraces++;
+        else if (ch === "}") openBraces--;
+        else if (ch === "[") openBrackets++;
+        else if (ch === "]") openBrackets--;
+      }
+      toParse += "]".repeat(Math.max(0, openBrackets)) + "}".repeat(Math.max(0, openBraces));
+    } else {
+      // Normal path: find matching last brace
+      const jsonEnd = toParse.lastIndexOf("}");
+      toParse = jsonEnd >= 0 ? toParse.slice(0, jsonEnd + 1) : toParse;
+    }
+
     try {
-      return JSON.parse(cleaned);
+      return JSON.parse(toParse);
     } catch (parseErr) {
-      console.error("[extract-pattern] Claude JSON parse failed, text starts:", cleaned.substring(0, 300), "ends:", cleaned.substring(cleaned.length - 200));
+      console.error("[extract-pattern] Claude JSON parse failed, text starts:", toParse.substring(0, 300), "ends:", toParse.substring(toParse.length - 200));
       throw new Error("Claude JSON parse failed: " + parseErr.message);
     }
   };
