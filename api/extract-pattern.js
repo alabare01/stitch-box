@@ -221,8 +221,10 @@ ${truncatedText}`;
     }
 
     const data = await r.json();
+    console.log("[extract-pattern] Claude response: stop_reason=", data.stop_reason, "usage=", JSON.stringify(data.usage), "content_blocks=", (data.content||[]).length, "first_type=", data.content?.[0]?.type);
     const rawText = data.content?.[0]?.text || "";
-    if (!rawText) throw new Error("Claude returned empty response");
+    console.log("[extract-pattern] Claude rawText length:", rawText.length, "starts:", rawText.substring(0, 150));
+    if (!rawText) throw new Error("Claude returned empty response, stop_reason=" + data.stop_reason + " content=" + JSON.stringify(data.content||[]).substring(0, 200));
 
     const jsonStart = rawText.indexOf("{");
     const sliced = jsonStart >= 0 ? rawText.slice(jsonStart) : rawText.trim();
@@ -271,10 +273,11 @@ ${truncatedText}`;
   }
 
   // Attempt 3: Claude Haiku fallback — silent, user never sees this happen
-  console.log("[extract-pattern] Attempt 3: Claude Haiku fallback");
+  const t3 = Date.now();
+  console.log("[extract-pattern] Attempt 3: Claude Haiku fallback, ANTHROPIC_KEY:", ANTHROPIC_KEY ? "EXISTS" : "MISSING", "textLen:", pdfText.length);
   try {
     const result = await callClaude(pdfText);
-    console.log("[extract-pattern] Claude fallback success:", result.title);
+    console.log("[extract-pattern] Claude fallback success:", result.title, `(${Date.now()-t3}ms)`);
     if (_url && _key) {
       await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
@@ -284,12 +287,12 @@ ${truncatedText}`;
     }
     return res.status(200).json(result);
   } catch (e3) {
-    console.error("[extract-pattern] Claude fallback also failed:", e3.message);
+    console.error("[extract-pattern] Claude fallback also failed:", e3.message, e3.stack?.substring(0, 500), `(${Date.now()-t3}ms)`);
     if (_url && _key) {
       await fetch(`${_url}/rest/v1/vercel_logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': _key, 'Authorization': `Bearer ${_key}`, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[extract-pattern] error: all 3 attempts failed (${Date.now() - _t0}ms)`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 500, project_id: 'wovely' })
+        body: JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', message: `[extract-pattern] ALL 3 FAILED (${Date.now() - _t0}ms) | attempt3: ${e3.message}`, source: 'serverless', request_path: '/api/extract-pattern', request_method: 'POST', status_code: 500, project_id: 'wovely' })
       }).catch(() => {});
     }
     return res.status(500).json({ error: "Pattern extraction failed after 3 attempts" });
