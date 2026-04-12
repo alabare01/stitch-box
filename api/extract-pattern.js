@@ -399,7 +399,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
 
   const callGeminiBevCheck = async (prompt) => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
     let r;
     try {
       r = await fetch(
@@ -416,7 +416,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
       );
     } catch (fetchErr) {
       clearTimeout(timeout);
-      if (fetchErr.name === "AbortError") throw new Error("Gemini timeout after 45s");
+      if (fetchErr.name === "AbortError") throw new Error("Gemini timeout after 8s");
       throw fetchErr;
     }
     clearTimeout(timeout);
@@ -433,19 +433,30 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
 
   const callClaudeBevCheck = async () => {
     if (!ANTHROPIC_KEY) throw new Error("Anthropic API key not configured");
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: BEVCHECK_PROMPT + "\n\nPATTERN TEXT:\n" + text }],
-      }),
-    });
+    const controller = new AbortController();
+    const claudeTimeout = setTimeout(() => controller.abort(), 45000);
+    let r;
+    try {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 4000,
+          messages: [{ role: "user", content: BEVCHECK_PROMPT + "\n\nPATTERN TEXT:\n" + text }],
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(claudeTimeout);
+      if (fetchErr.name === "AbortError") throw new Error("Claude timeout after 45s");
+      throw fetchErr;
+    }
+    clearTimeout(claudeTimeout);
     if (!r.ok) {
       const errBody = await r.text();
       throw new Error(`Claude API error ${r.status}: ${errBody.substring(0, 200)}`);
@@ -492,6 +503,11 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
 
   // Attempt 3: Claude Haiku fallback
   const t3 = Date.now();
+  const elapsed = Date.now() - _t0;
+  if (elapsed > 50000) {
+    console.error("[bevcheck] Skipping Claude fallback — insufficient time budget, elapsed:", elapsed);
+    return res.status(500).json({ error: true, message: "bev_tangled", provider: "failed" });
+  }
   console.log("[bevcheck] → Attempt 3: Claude Haiku fallback, ANTHROPIC_KEY:", ANTHROPIC_KEY ? "EXISTS" : "MISSING");
   try {
     const result = await callClaudeBevCheck();
