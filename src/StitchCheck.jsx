@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import posthog from "posthog-js";
-import BevGauge, { deriveState } from "./components/BevGauge.jsx";
+import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
 
 // VALIDATION_PROMPT kept for export — used by AddPatternModal and ImageImportModal for client-side background validation
 const VALIDATION_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object with this exact structure — no markdown, no backticks, no explanation:
@@ -158,8 +158,8 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
   // Report card view
   if (report) {
     const resolvedState = deriveState(report);
-    const coreChecks = (report.checks || []).filter(c => c.tier === "core");
-    const advisoryChecks = (report.checks || []).filter(c => c.tier === "advisory");
+    const coreChecks = (report.checks || []).filter(c => checkTier(c) === "core");
+    const advisoryChecks = (report.checks || []).filter(c => checkTier(c) === "advisory");
 
     const renderCheck = (c, opacity) => {
       const isWarning = c.status === "warning" || c.status === "warn";
@@ -170,7 +170,7 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
         <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s", opacity: opacity || 1 }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
           <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{sentenceCase(c.label)}</div>
             <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
             {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
             {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
@@ -196,7 +196,7 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
           {/* Divider */}
           {advisoryChecks.length > 0 && (
             <>
-              <div style={{ height: 1, background: "#EDE4F7", margin: "16px 0" }} />
+              <div style={{ borderTop: "0.5px solid #EDE4F7", margin: "16px 0" }} />
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#9B7EC8", fontFamily: "'Inter', sans-serif", marginBottom: 12 }}>Advisory</div>
               {advisoryChecks.map(c => renderCheck(c, 0.85))}
             </>

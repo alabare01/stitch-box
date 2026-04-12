@@ -3,7 +3,7 @@ import { T, useBreakpoint } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { buildRowsFromComponents } from "./AddPatternModal.jsx";
 import { VALIDATION_PROMPT, CHECK_ICON } from "./StitchCheck.jsx";
-import BevGauge, { deriveState } from "./components/BevGauge.jsx";
+import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -440,22 +440,22 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
             </div>
           ):validationReport?(()=>{const scState=deriveState(validationReport);return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <BevGauge state={scState} />
+              <BevGauge state={scState} size="small" />
               {(validationReport.checks||[]).slice(0,3).map(c=>(
                 <div key={c.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,marginTop:4}}>
                   <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
+                  <span style={{fontSize:11,color:T.ink2}}>{sentenceCase(c.label)}</span>
                 </div>
               ))}
               <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:8,textDecoration:"underline"}}>Full Report →</button>
             </div>
           ):(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <div style={{filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none",pointerEvents:"none"}}><BevGauge state={scState} /></div>
+              <div style={{filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none",pointerEvents:"none"}}><BevGauge state={scState} size="small" /></div>
               {validationReport.checks?.slice(0,2).map((c,i)=>(
                 <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
                   <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
+                  <span style={{fontSize:11,color:T.ink2}}>{sentenceCase(c.label)}</span>
                   <div style={{flex:1,height:12,background:`linear-gradient(to right,${T.ink3}22,transparent)`,borderRadius:4}}/>
                 </div>
               ))}
@@ -483,12 +483,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
             <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:16}}>BevCheck Report</div>
             <div style={{marginBottom:14}}><BevGauge state={deriveState(validationReport)} /></div>
-            {(validationReport.checks||[]).map(c=>(
-              <div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
-                <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.ink,marginBottom:2}}>{c.label}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
-              </div>
-            ))}
+            {(()=>{const allChecks=validationReport.checks||[];const coreC=allChecks.filter(c=>checkTier(c)==="core");const advC=allChecks.filter(c=>checkTier(c)==="advisory");const renderC=(c,op)=>(<div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",opacity:op||1}}><span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{sentenceCase(c.label)}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div></div>);return <>{coreC.map(c=>renderC(c))}{advC.length>0&&<><div style={{borderTop:"0.5px solid #EDE4F7",margin:"10px 0"}}/><div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",color:"#9B7EC8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Advisory</div>{advC.map(c=>renderC(c,0.85))}</>}</>;})()}
             {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
             <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>
           </div>
