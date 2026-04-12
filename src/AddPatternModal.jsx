@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { T, useBreakpoint, Field } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
-import { VALIDATION_PROMPT, CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
+import { CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier, NEEDLE_END } from "./components/BevGauge.jsx";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
@@ -686,21 +686,17 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
     setPreview({title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:estimatedYardage||data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,smartNote:rows.length+" steps extracted and ready to track.",qualityNote:missing.length===0?null:"Not found on source page: "+missing.join(", ")+". Pattern quality depends on the source."});
     setLoading(false);onExtractionEnd?.();    // Run BevCheck in background — same as PDF import
     const pageText=rows.map(r=>r.text).join("\n");
-    if(pageText&&GEMINI_API_KEY){
+    if(pageText){
       setValidating(true);
       const valText=pageText.length>20000?pageText.slice(0,pageText.lastIndexOf("\n",20000)||20000):pageText;
       (async()=>{
         try{
           const controller=new AbortController();
           const timeout=setTimeout(()=>controller.abort(),90000);
-          const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{
-            method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
-            signal:controller.signal,
-          });
+          const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});
           clearTimeout(timeout);
-          const rawText=await vr.text();
-          if(vr.ok){const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}else{console.warn("[Wovely] URL BevCheck API error:",vr.status);setBevCheckFailed(true);}
+          const data=await vr.json();
+          if(vr.ok&&!data.error){setValidationReport(data);}else{console.warn("[Wovely] URL BevCheck API error:",vr.status,data.message);setBevCheckFailed(true);}
         }catch(e){console.warn("[Wovely] URL BevCheck failed:",e);setBevCheckFailed(true);}
         setValidating(false);
       })();
@@ -915,7 +911,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       if(complexityStats&&complexityStats.pages>=5&&allRows.length<10) flags.push("Only "+allRows.length+" rows from a "+complexityStats.pages+"-page pattern");
       setValidationFlags(flags);
       // Run BevCheck in background (non-blocking) — requires client-side Gemini key
-      if(extractedText&&GEMINI_API_KEY){
+      if(extractedText){
         setValidating(true);
         const valText=extractedText.length>20000?extractedText.slice(0,extractedText.lastIndexOf("\n",20000)||20000):extractedText;
         bevCheckTextRef.current=valText;
@@ -923,15 +919,10 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           try{
             const controller=new AbortController();
             const timeout=setTimeout(()=>controller.abort(),90000);
-            const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{
-              method:"POST",headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
-              signal:controller.signal,
-            });
+            const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});
             clearTimeout(timeout);
-            const rawText=await vr.text();
-            if(!vr.ok){console.warn("[Wovely] BevCheck API error:",vr.status,rawText.substring(0,200));setBevCheckFailed(true);setValidating(false);return;}
-            const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);
+            const data=await vr.json();
+            if(vr.ok&&!data.error){setValidationReport(data);}else{console.warn("[Wovely] BevCheck API error:",vr.status,data.message);setBevCheckFailed(true);}
           }catch(e){console.warn("[Wovely] BevCheck background validation failed:",e);setBevCheckFailed(true);}
           setValidating(false);
         })();
@@ -1094,7 +1085,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           ):bevCheckFailed?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
               <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
-              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText||!GEMINI_API_KEY){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),signal:controller.signal});clearTimeout(timeout);const rawText=await vr.text();if(!vr.ok){setBevCheckFailed(true);setValidating(false);return;}const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}catch(e){console.warn("[Wovely] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
+              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});clearTimeout(timeout);const data=await vr.json();if(vr.ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}}catch(e){console.warn("[Wovely] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
             </div>
           ):validationReport?(()=>{console.log("[Wovely] BevCheck compact card validationReport:",JSON.stringify(validationReport).substring(0,500));const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const scNeedle=NEEDLE_END[scState]||NEEDLE_END.warning;const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);console.log("[Wovely] BevCheck compact checks:",allChecks.length,"total,",scFailed.length,"failed, statuses:",allChecks.map(c=>c?.status));return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>

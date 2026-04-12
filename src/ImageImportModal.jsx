@@ -2,10 +2,9 @@ import { useState, useRef, useCallback } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { buildRowsFromComponents } from "./AddPatternModal.jsx";
-import { VALIDATION_PROMPT, CHECK_ICON } from "./StitchCheck.jsx";
+import { CHECK_ICON } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier, NEEDLE_END } from "./components/BevGauge.jsx";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 const MAX_DIM = 1200;
 const JPEG_QUALITY = 0.75;
@@ -151,7 +150,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
       setEditWeight(result.yarn_weight || "");
       setStage("review");
       // Run BevCheck in background (non-blocking)
-      if (GEMINI_API_KEY) {
+      {
         setValidating(true);
         const valText = JSON.stringify(result, null, 2);
         const trimmed = valText.length > 20000 ? valText.slice(0, valText.lastIndexOf("\n", 20000) || 20000) : valText;
@@ -160,15 +159,10 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
           try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 90000);
-            const vr = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: VALIDATION_PROMPT + "\n\nPATTERN TEXT:\n" + trimmed }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 65536 } }),
-              signal: controller.signal,
-            });
+            const vr = await fetch("/api/extract-pattern", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "bevcheck", patternText: trimmed }), signal: controller.signal });
             clearTimeout(timeout);
-            const rawText = await vr.text();
-            if (!vr.ok) { console.warn("[ImageImport] BevCheck API error:", vr.status, rawText.substring(0, 200)); setBevCheckFailed(true); setValidating(false); return; }
-            const d = JSON.parse(rawText); const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || ""; const parsed = JSON.parse(raw.replace(/```json/g, "").replace(/```/g, "").trim()); setValidationReport(parsed);
+            const data = await vr.json();
+            if (vr.ok && !data.error) { setValidationReport(data); } else { console.warn("[ImageImport] BevCheck API error:", vr.status, data.message); setBevCheckFailed(true); }
           } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setBevCheckFailed(true); }
           setValidating(false);
         })();
@@ -444,7 +438,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
           ):bevCheckFailed?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
               <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
-              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText||!GEMINI_API_KEY){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),signal:controller.signal});clearTimeout(timeout);const rawText=await vr.text();if(!vr.ok){setBevCheckFailed(true);setValidating(false);return;}const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}catch(e){console.warn("[ImageImport] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
+              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});clearTimeout(timeout);const data=await vr.json();if(vr.ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}}catch(e){console.warn("[ImageImport] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
             </div>
           ):validationReport?(()=>{console.log("[Wovely] BevCheck compact card validationReport:",JSON.stringify(validationReport).substring(0,500));const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const scNeedle=NEEDLE_END[scState]||NEEDLE_END.warning;const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);console.log("[Wovely] BevCheck compact checks:",allChecks.length,"total,",scFailed.length,"failed, statuses:",allChecks.map(c=>c?.status));return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
