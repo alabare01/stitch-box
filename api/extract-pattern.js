@@ -115,7 +115,7 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
 
   const callGemini = async (prompt, maxTokens) => {
     const controller = new AbortController();
-    const geminiTimeout = setTimeout(() => controller.abort(), 4000);
+    const geminiTimeout = setTimeout(() => controller.abort(), 45000);
     let r;
     try {
       r = await fetch(
@@ -198,7 +198,7 @@ ${truncatedText}`;
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-haiku-4-5",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 8000,
           messages: [{ role: "user", content: claudePrompt }],
         }),
