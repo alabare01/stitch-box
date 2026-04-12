@@ -288,54 +288,49 @@ ${text}`;
 
 const BEVCHECK_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object with this exact structure — no markdown, no backticks, no explanation:
 {
-  "overall": "valid" or "review" or "issues",
-  "score": number 0-100,
+  "state": "pass" or "warning" or "issues",
   "checks": [
-    { "id": "string", "label": "string", "status": "pass" or "warning" or "fail", "detail": "string" }
+    { "id": "string", "label": "string", "tier": "core" or "advisory", "status": "pass" or "warning" or "fail", "detail": "string" }
   ],
   "summary": "string"
 }
 
-Check for:
-1. Sequential rounds/rows — are all numbers present with no gaps or duplicates? (id: "sequence")
-2. Stitch count math — do totals in parentheses match the instructions mathematically? (id: "stitch_math")
-3. Duplicate round numbers — same number appearing twice with different instructions? (id: "duplicates")
-4. Cross-references — does the pattern reference rounds that don't exist? (id: "cross_refs")
-5. Translation artifacts — does phrasing suggest a translated pattern that may have errors? (id: "translation")
-6. Component structure — are section headers clear and consistent? (id: "structure")
+CATEGORY DEFINITIONS — use these exact IDs and tiers, always return all 6:
+id: "sequence", label: "Sequential rounds/rows", tier: "core"
+id: "stitch_math", label: "Stitch count math", tier: "core"
+id: "duplicates", label: "Duplicate round numbers", tier: "core"
+id: "cross_refs", label: "Cross-references", tier: "core"
+id: "translation", label: "Translation artifacts", tier: "advisory"
+id: "structure", label: "Component structure", tier: "advisory"
 
-CROCHET STITCH MATH RULES — you MUST follow these when verifying stitch counts:
-• "inc" (increase) = 2 stitches worked into 1 stitch. It CONSUMES 1 stitch from the previous round but PRODUCES 2 stitches in the current round.
-• "dec" / "sc2tog" / "inv dec" (decrease) = 1 stitch worked over 2 stitches. It CONSUMES 2 stitches but PRODUCES 1 stitch.
-• "sc", "hdc", "dc", "tr", "sl st" = each is exactly 1 stitch (consumes 1, produces 1).
-• "ch" (chain) inside a round adds 1 stitch to the count but does NOT consume a stitch from the previous round.
-• Magic ring (MR/MC) is the starting point — it has 0 stitches before the first round's instructions.
-• Bracket repeats: "(sc, inc) x 6" means the sequence "sc, inc" is worked 6 times. That's 6 × (1 + 2) = 18 stitches produced, consuming 6 × 2 = 12 stitches from the previous round.
-• When a round says "(sc, inc) x 6 (12)", verify: 6 repeats × 2 stitches produced per repeat = 12. This is CORRECT.
-• When a round says "6 sc, inc (8)" from a starting count of 7: 6 sc (6 stitches) + 1 inc (2 stitches) = 8 total. Consumes 6 + 1 = 7 from previous round. This is CORRECT.
-• Common correct progression: MR 6 → (sc, inc) x 6 = 12 → (2 sc, inc) x 4 = 16 → etc. Each inc adds 1 extra stitch to the total per repeat.
-• Do NOT flag stitch counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch.
+STATE RULES — derive "state" from core checks only:
+Any core check with status "fail" → state: "issues".
+No core fails but any warning exists → state: "warning".
+All checks pass → state: "pass".
+Advisory checks NEVER drive state to "issues". They can only contribute to "warning".
+
+CROCHET STITCH MATH RULES:
+"inc" = 2 stitches produced, consumes 1 from previous round.
+"dec"/"sc2tog"/"inv dec" = 1 stitch produced, consumes 2.
+"sc","hdc","dc","tr","sl st" = 1 produced, consumes 1.
+"ch" inside a round adds 1 to count, does not consume from previous round.
+Magic ring has 0 stitches before round 1.
+Bracket repeats: "(sc, inc) x 6" = 6 × (1+2) = 18 produced, consuming 12.
+Do NOT flag counts as wrong unless you have done the arithmetic yourself and confirmed a mismatch.
 
 UNCERTAINTY RULE:
-If you can confidently verify the math is correct → "pass"
-If you can confidently verify the math is wrong → "fail"
-If you cannot confidently verify due to ambiguous notation, unusual abbreviations, complex construction, or stitch types not listed above → return status "warning" with a brief explanation of what could not be verified.
+Confidently correct → "pass".
+Confidently wrong → "fail".
+Cannot verify due to ambiguity, unusual abbreviations, or complex construction → "warning" with brief explanation.
 Never guess. Never silently pass something you cannot calculate with confidence.
 
-SCORING RULES — do NOT penalize for any of the following:
-• PDF formatting artifacts (OCR typos in tip/intro sections, formatting inconsistencies, page headers/footers)
-• Print-Friendly page duplications — if the pattern appears duplicated at the end under a "Print-Friendly" or similar heading, ignore the duplicate section entirely. This is a common PDF feature, not a pattern error.
-• Non-US decimal conventions (comma instead of period for decimals)
-• Minor grammatical issues that do not affect the crochet instructions
-These may be noted as informational "pass" items at most, never scored as warnings or failures.
+IGNORE: PDF formatting artifacts, OCR typos in tip/intro sections, print-friendly page duplications at end of PDF.`;
 
-Be specific in detail fields. Name exact round numbers where issues occur. If everything looks clean, say so clearly. Aim for scores 80-100 for patterns with no structural issues.`;
-
-const BEVCHECK_SIMPLE_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object — no markdown, no backticks:
-{"overall":"valid or review or issues","score":0-100,"checks":[{"id":"string","label":"string","status":"pass or warning or fail","detail":"string"}],"summary":"string"}
-Check: sequential rounds, stitch count math, duplicate rounds, cross-references, translation artifacts, structure. Be specific. Aim 80-100 for clean patterns.
-CRITICAL stitch math: inc = 2 stitches produced (not 1), dec/sc2tog = 1 stitch produced from 2. "(sc, inc) x 6 (12)" is CORRECT: 6 × 2 = 12. Do NOT flag counts as wrong unless you confirm the arithmetic yourself.
-UNCERTAINTY RULE: confidently correct → "pass", confidently wrong → "fail", cannot verify → "warning" with explanation. Never guess. Never silently pass what you cannot calculate.`;
+const BEVCHECK_SIMPLE_PROMPT = `You are a crochet pattern validator. Return ONLY a JSON object — no markdown, no backticks:
+{"state":"pass or warning or issues","checks":[{"id":"string","label":"string","tier":"core or advisory","status":"pass or warning or fail","detail":"string"}],"summary":"string"}
+Always return all 6 checks with these exact IDs and tiers — core: sequence, stitch_math, duplicates, cross_refs — advisory: translation, structure.
+STATE derived from core checks only. Any core fail → "issues". Warning only → "warning". All pass → "pass". Advisory never causes "issues".
+Stitch math: inc = 2 produced, dec = 1 produced from 2. "(sc, inc) x 6 (12)" is CORRECT. Never flag math wrong unless you verify arithmetic yourself. Cannot verify → "warning" not "fail".`;
 
 async function handleBevCheck(req, res, _url, _key, _t0) {
   const { patternText } = req.body || {};
@@ -424,7 +419,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
   console.log("[bevcheck] Attempt 1: Gemini full prompt, chars:", text.length);
   try {
     const result = await callGeminiBevCheck(BEVCHECK_PROMPT);
-    console.log("[bevcheck] Gemini full success, score:", result.score);
+    console.log("[bevcheck] Gemini full success, state:", result.state);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 gemini (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "gemini" });
   } catch (e) {
@@ -435,7 +430,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
   console.log("[bevcheck] Attempt 2: Gemini simplified prompt");
   try {
     const result = await callGeminiBevCheck(BEVCHECK_SIMPLE_PROMPT);
-    console.log("[bevcheck] Gemini simplified success, score:", result.score);
+    console.log("[bevcheck] Gemini simplified success, state:", result.state);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 gemini_simplified (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "gemini_simplified" });
   } catch (e2) {
@@ -446,7 +441,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
   console.log("[bevcheck] Attempt 3: Claude Haiku fallback");
   try {
     const result = await callClaudeBevCheck();
-    console.log("[bevcheck] Claude success, score:", result.score);
+    console.log("[bevcheck] Claude success, state:", result.state);
     logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 claude (${Date.now() - _t0}ms)`, 200);
     return res.status(200).json({ ...result, provider: "claude" });
   } catch (e3) {

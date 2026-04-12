@@ -85,6 +85,13 @@ const displayScore = (report) => {
   return allPass ? 100 : report.score;
 };
 
+const STATE_CONFIG = {
+  pass: { color: "#5B9B6B", label: "Looks Good", icon: "\u2713" },
+  warning: { color: "#C9A84C", label: "Heads Up", icon: "\u26A0" },
+  issues: { color: "#C0544A", label: "Issues Found", icon: "\u2717" },
+};
+const stateFromResult = (result) => STATE_CONFIG[result?.state] || STATE_CONFIG.warning;
+
 const CARD = {background:"rgba(255,255,255,0.82)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:20,padding:24,border:"1px solid rgba(255,255,255,0.6)",boxShadow:"0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(155,126,200,0.13)"};
 const LABEL = {fontSize:11,fontWeight:600,color:T.ink2,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6};
 
@@ -156,43 +163,58 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
 
   // Report card view
   if (report) {
-    const score = displayScore(report);
-    const badge = badgeForScore(score);
+    const cfg = stateFromResult(report);
+    const coreChecks = (report.checks || []).filter(c => c.tier === "core");
+    const advisoryChecks = (report.checks || []).filter(c => c.tier === "advisory");
+
+    const renderCheck = (c, opacity) => {
+      const isWarning = c.status === "warning" || c.status === "warn";
+      const isFail = c.status === "fail";
+      const isActionable = onNavigateToRow && (isFail || isWarning);
+      const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
+      return (
+        <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s", opacity: opacity || 1 }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
+          <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
+            {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
+            {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div style={{ padding: isDesktop ? "24px 24px 80px" : "0 18px 80px", maxWidth: 960, margin: "0 auto" }}>
         <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>BevCheck Report</div>
         <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24 }}>Pattern validation results</div>
 
-        {/* Overall badge */}
-        <div style={{ ...CARD, textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>{badge.emoji}</div>
-          <div style={{ fontFamily: T.serif, fontSize: 22, fontWeight: 700, color: badge.color, marginBottom: 4 }}>{badge.label}</div>
-          <div style={{ fontFamily: T.serif, fontSize: 48, fontWeight: 700, color: badge.color, lineHeight: 1 }}>{score}%</div>
-          <div style={{ marginTop: 16, background: T.terraLt, borderRadius: 9999, height: 6, overflow: "hidden" }}>
-            <div style={{ width: score + "%", height: "100%", background: badge.color, borderRadius: 9999, transition: "width .4s ease" }} />
+        {/* State circle */}
+        <div style={{ ...CARD, textAlign: "center", marginBottom: 20, padding: 32 }}>
+          <div style={{ position: "relative", width: 96, height: 96, margin: "0 auto 16px" }}>
+            <div style={{ width: 96, height: 96, borderRadius: "50%", background: cfg.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src="/bev_neutral.png" alt="Bev" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "50%" }} />
+            </div>
+            <div style={{ position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, lineHeight: 1 }}>{cfg.icon}</span>
+            </div>
           </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: cfg.color }}>{cfg.label}</div>
         </div>
 
-        {/* Individual checks */}
+        {/* Core checks */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ ...LABEL, marginBottom: 12 }}>checks</div>
-          {(report.checks || []).map(c => {
-            const isWarning = c.status === "warning" || c.status === "warn";
-            const isFail = c.status === "fail";
-            const isActionable = onNavigateToRow && (isFail || isWarning);
-            const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
-            return (
-            <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s" }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
-              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{c.label}</div>
-                <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
-                {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
-                {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
-              </div>
-            </div>
-            );
-          })}
+          {coreChecks.map(c => renderCheck(c))}
+
+          {/* Divider */}
+          {advisoryChecks.length > 0 && (
+            <>
+              <div style={{ height: 1, background: "#EDE4F7", margin: "16px 0" }} />
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#9B7EC8", fontFamily: "'Inter', sans-serif", marginBottom: 12 }}>Advisory</div>
+              {advisoryChecks.map(c => renderCheck(c, 0.85))}
+            </>
+          )}
         </div>
 
         {/* Summary */}

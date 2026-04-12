@@ -121,12 +121,8 @@ const ProductPreview = () => {
               <div style={CARD_SUBTITLE}>Pattern reviewed</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>Clean result</span>
-              <svg width={BADGE.width} height={BADGE.height} viewBox="0 0 32 32" style={{ flexShrink: BADGE.flexShrink }}>
-                <circle cx="16" cy="16" r="15" fill="#5B9B6B" />
-                <text x="16" y="17" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: 11, fontWeight: 700, fill: "#fff" }}>97%</text>
-              </svg>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>&nbsp;</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#C0544A", borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>Issues Found</span>
             </div>
           </div>
         </div>
