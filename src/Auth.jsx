@@ -118,12 +118,11 @@ const ProductPreview = () => {
             <div>
               <div style={CARD_LABEL}>BEVCHECK</div>
               <div style={CARD_TITLE}>Mommy Fiora</div>
-              <div style={CARD_SUBTITLE}>Pattern reviewed</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>&nbsp;</span>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <svg viewBox="0 0 100 55" style={{ width: 120, height: 60, display: "block" }}>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>Pattern reviewed</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+                <svg viewBox="0 0 100 55" style={{ width: 48, height: 26, display: "block" }}>
                   <defs>
                     <linearGradient id="miniGaugeGrad" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#EDE4F7" />
@@ -137,7 +136,7 @@ const ProductPreview = () => {
                   </g>
                   <circle cx="50" cy="50" r="3" fill="#9B7EC8" />
                 </svg>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#9B7EC8", fontFamily: "'Inter', sans-serif", marginTop: -2 }}>Issues Found</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#9B7EC8", fontFamily: "'Inter', sans-serif" }}>Issues Found</div>
               </div>
             </div>
           </div>
