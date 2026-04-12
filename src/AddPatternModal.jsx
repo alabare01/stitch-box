@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { T, useBreakpoint, Field } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
-import { VALIDATION_PROMPT, BADGE, badgeForScore, CHECK_ICON, displayScore, extractFirstRowNumber } from "./StitchCheck.jsx";
+import { CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
+import BevGauge, { deriveState, sentenceCase, checkTier, NEEDLE_END } from "./components/BevGauge.jsx";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -661,13 +662,15 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
+  const [bevCheckFailed,setBevCheckFailed]=useState(false);
+  useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
   const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
-    setLoading(true);onExtractionStart?.();setError(null);setPreview(null);setValidationReport(null);setValidating(false);
+    setLoading(true);onExtractionStart?.();setError(null);setPreview(null);setValidationReport(null);setBevCheckFailed(false);setValidating(false);
     const MSGS=["Fetching pattern page...","Reading and extracting...","Structuring your pattern...","Almost there..."];
     let msgIdx=0;setStageText(MSGS[0]);
     const msgIntv=setInterval(()=>{msgIdx=(msgIdx+1)%MSGS.length;setStageText(MSGS[msgIdx]);},6000);
@@ -684,22 +687,18 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
     setPreview({title:data.title||"",source:data.source||"",source_url:url.trim(),cat:data.cat||"Uncategorized",hook:data.hook||"",weight:data.weight||"",notes:data.notes||"",materials:data.materials||[],rows,yardage:estimatedYardage||data.yardage||0,photo:data.thumbnail_url||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:data.thumbnail_url||null,smartNote:rows.length+" steps extracted and ready to track.",qualityNote:missing.length===0?null:"Not found on source page: "+missing.join(", ")+". Pattern quality depends on the source."});
     setLoading(false);onExtractionEnd?.();    // Run BevCheck in background — same as PDF import
     const pageText=rows.map(r=>r.text).join("\n");
-    if(pageText&&GEMINI_API_KEY){
+    if(pageText){
       setValidating(true);
       const valText=pageText.length>20000?pageText.slice(0,pageText.lastIndexOf("\n",20000)||20000):pageText;
       (async()=>{
         try{
           const controller=new AbortController();
           const timeout=setTimeout(()=>controller.abort(),90000);
-          const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{
-            method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
-            signal:controller.signal,
-          });
+          const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});
           clearTimeout(timeout);
-          const rawText=await vr.text();
-          if(vr.ok){const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);}
-        }catch(e){console.warn("[Wovely] URL BevCheck failed:",e);}
+          const data=await vr.json();
+          if(vr.ok&&!data.error){setValidationReport(data);}else{console.warn("[Wovely] URL BevCheck API error:",vr.status,data.message);setBevCheckFailed(true);}
+        }catch(e){console.warn("[Wovely] URL BevCheck failed:",e);setBevCheckFailed(true);}
         setValidating(false);
       })();
     }
@@ -735,7 +734,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
             {preview.smartNote&&<div style={{background:T.sageLt,borderRadius:8,padding:"8px 12px",marginBottom:10,display:"flex",gap:8}}><span>✨</span><span style={{fontSize:12,color:T.sage}}>{preview.smartNote}</span></div>}
             {preview.qualityNote&&<div style={{background:"#FFF8EC",borderRadius:8,padding:"8px 12px",marginBottom:12,border:"1px solid #F0D9A8",display:"flex",gap:8,alignItems:"flex-start"}}><span style={{fontSize:13,flexShrink:0}}>⚠️</span><span style={{fontSize:11,color:"#8B6914",lineHeight:1.6}}>{preview.qualityNote}</span></div>}
             {validating&&<div style={{background:T.card,borderRadius:10,padding:"12px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}><div className="spinner" style={{width:16,height:16,border:`2px solid ${T.border}`,borderTopColor:T.terra,borderRadius:"50%",flexShrink:0}}/><span style={{fontSize:12,color:T.ink2}}>Running BevCheck...</span></div>}
-            {validationReport&&<div style={{background:T.sageLt,borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>{(validationReport.checks||[]).every(c=>c.status==="pass")?"✅":"⚠️"}</span><span style={{fontSize:12,fontWeight:600,color:T.sage}}>BevCheck:{displayScore(validationReport)}%</span></div>}
+            {validationReport&&<div style={{background:T.sageLt,borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>{(validationReport.checks||[]).every(c=>c.status==="pass")?"✅":"⚠️"}</span><span style={{fontSize:12,fontWeight:600,color:T.sage}}>BevCheck: {deriveState(validationReport)==="pass"?"Looks good":deriveState(validationReport)==="issues"?"Issues found":"Heads up"}</span></div>}
             {preview.rows?.length>0&&<div style={{background:T.surface,borderRadius:10,padding:"10px 12px",marginBottom:12,maxHeight:160,overflowY:"auto",border:`1px solid ${T.border}`}}><div style={{fontSize:10,color:T.ink3,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,fontWeight:600}}>Preview — {preview.rows.length} steps</div>{preview.rows.slice(0,5).map((r,i)=><div key={i} style={{fontSize:12,color:T.ink2,padding:"4px 0",borderBottom:i<4?`1px solid ${T.border}`:"none",lineHeight:1.5}}>{r.text}</div>)}{preview.rows.length>5&&<div style={{fontSize:11,color:T.ink3,marginTop:6}}>+{preview.rows.length-5} more steps…</div>}</div>}
             <Btn onClick={()=>onSave({id:Date.now(),rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},...preview,validation_report:validationReport||null})}>Save to My Wovely</Btn>
             <div style={{marginTop:8}}><Btn variant="ghost" onClick={()=>{setPreview(null);setUrl("");setValidationReport(null);}}>Try different URL</Btn></div>
@@ -747,7 +746,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd}) => {
+const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive}) => {
   const [stage,setStage]=useState("pick");
   const [progress,setProgress]=useState(0);
   const [stageText,setStageText]=useState("");
@@ -771,6 +770,9 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [flagsDismissed,setFlagsDismissed]=useState(false);
   const [validationReport,setValidationReport]=useState(null); // BevCheck result
   const [validating,setValidating]=useState(false);
+  const [bevCheckFailed,setBevCheckFailed]=useState(false);
+  const bevCheckTextRef=useRef(null);
+  useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
   const [proUpgradeBanner,setProUpgradeBanner]=useState(false);
   const [showFullReport,setShowFullReport]=useState(false);
   const [matExpanded,setMatExpanded]=useState(false);
@@ -911,23 +913,19 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       if(complexityStats&&complexityStats.pages>=5&&allRows.length<10) flags.push("Only "+allRows.length+" rows from a "+complexityStats.pages+"-page pattern");
       setValidationFlags(flags);
       // Run BevCheck in background (non-blocking) — requires client-side Gemini key
-      if(extractedText&&GEMINI_API_KEY){
+      if(extractedText){
         setValidating(true);
         const valText=extractedText.length>20000?extractedText.slice(0,extractedText.lastIndexOf("\n",20000)||20000):extractedText;
+        bevCheckTextRef.current=valText;
         (async()=>{
           try{
             const controller=new AbortController();
             const timeout=setTimeout(()=>controller.abort(),90000);
-            const vr=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,{
-              method:"POST",headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({contents:[{parts:[{text:VALIDATION_PROMPT+"\n\nPATTERN TEXT:\n"+valText}]}],generationConfig:{temperature:0.1,maxOutputTokens:65536}}),
-              signal:controller.signal,
-            });
+            const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});
             clearTimeout(timeout);
-            const rawText=await vr.text();
-            if(!vr.ok){console.warn("[Wovely] BevCheck API error:",vr.status,rawText.substring(0,200));setValidating(false);return;}
-            const d=JSON.parse(rawText);const raw=d.candidates?.[0]?.content?.parts?.[0]?.text||"";const parsed=JSON.parse(raw.replace(/```json/g,"").replace(/```/g,"").trim());setValidationReport(parsed);
-          }catch(e){console.warn("[Wovely] BevCheck background validation failed:",e);}
+            const data=await vr.json();
+            if(vr.ok&&!data.error){setValidationReport(data);}else{console.warn("[Wovely] BevCheck API error:",vr.status,data.message);setBevCheckFailed(true);}
+          }catch(e){console.warn("[Wovely] BevCheck background validation failed:",e);setBevCheckFailed(true);}
           setValidating(false);
         })();
       }
@@ -1086,43 +1084,38 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
             </div>
-          ):validationReport?(()=>{const scScore=displayScore(validationReport);const scBadge=badgeForScore(scScore);return isPro?(
-            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
-                  <div style={{fontSize:10,color:T.ink3}}>BevCheck</div>
-                </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,transition:"color .6s ease"}}>{scScore}%</span>
-                </div>
-              </div>
-              {(validationReport.checks||[]).slice(0,3).map(c=>(
-                <div key={c.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"❓"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
-                </div>
-              ))}
-              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:8,textDecoration:"underline"}}>Full Report →</button>
+          ):bevCheckFailed?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
+              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});clearTimeout(timeout);const data=await vr.json();if(vr.ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}}catch(e){console.warn("[Wovely] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
+            </div>
+          ):validationReport?(()=>{console.log("[Wovely] BevCheck compact card validationReport:",JSON.stringify(validationReport).substring(0,500));const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const scNeedle=NEEDLE_END[scState]||NEEDLE_END.warning;const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);console.log("[Wovely] BevCheck compact checks:",allChecks.length,"total,",scFailed.length,"failed, statuses:",allChecks.map(c=>c?.status));return isPro?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <svg viewBox="0 0 200 120" style={{width:120,height:70,display:"block",margin:"0 auto"}}>
+                <defs><linearGradient id="miniGaugeGradA" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#EDE4F7"/><stop offset="100%" stopColor="#9B7EC8"/></linearGradient></defs>
+                <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#EDE4F7" strokeWidth="18" strokeLinecap="round"/>
+                <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="url(#miniGaugeGradA)" strokeWidth="18" strokeLinecap="round"/>
+                <path d={`M 100 100 L ${scNeedle}`} stroke="#9B7EC8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                <circle cx="100" cy="100" r="5" fill="#fff"/><circle cx="100" cy="100" r="3" fill="#9B7EC8"/>
+              </svg>
+              <div style={{display:"flex",justifyContent:"space-between",width:"100%",margin:"2px auto 0"}}><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="pass"?700:600,color:"#9B7EC8",opacity:scState==="pass"?1:0.5}}>Looks Good</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="warning"?700:600,color:"#9B7EC8",opacity:scState==="warning"?1:0.5}}>Heads Up</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="issues"?700:600,color:"#9B7EC8",opacity:scState==="issues"?1:0.5}}>Issues Found</span></div>
+              <div style={{fontSize:11,fontWeight:700,color:"#2D3A7C",fontFamily:"'Inter',sans-serif",marginTop:4}}>{scLabel}</div>
+              {scFailed.length>0&&<div style={{textAlign:"left",marginTop:8}}>{scFailed.map((c,i)=>(<div key={c.id||i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}><span style={{fontSize:11,color:c.status==="fail"?"#C0544A":"#C9A84C",flexShrink:0}}>{c.status==="fail"?"✕":"⚠"}</span><span style={{fontSize:11,color:"#6B6B8A"}}>{sentenceCase(c.label||"Check")}</span></div>))}</div>}
+              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:6,textDecoration:"underline"}}>Full Report →</button>
             </div>
           ):(
-            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
-                  <div style={{fontSize:10,color:T.ink3}}>BevCheck</div>
-                </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,filter:"blur(8px)",WebkitFilter:"blur(8px)",userSelect:"none",transition:"color .6s ease"}}>{scScore}%</span>
-                </div>
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none",pointerEvents:"none"}}>
+                <svg viewBox="0 0 200 120" style={{width:120,height:70,display:"block",margin:"0 auto"}}>
+                  <defs><linearGradient id="miniGaugeGradAb" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#EDE4F7"/><stop offset="100%" stopColor="#9B7EC8"/></linearGradient></defs>
+                  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#EDE4F7" strokeWidth="18" strokeLinecap="round"/>
+                  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="url(#miniGaugeGradAb)" strokeWidth="18" strokeLinecap="round"/>
+                  <path d={`M 100 100 L ${scNeedle}`} stroke="#9B7EC8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                  <circle cx="100" cy="100" r="5" fill="#fff"/><circle cx="100" cy="100" r="3" fill="#9B7EC8"/>
+                </svg>
+                <div style={{display:"flex",justifyContent:"space-between",width:"100%",margin:"2px auto 0"}}><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Looks Good</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Heads Up</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Issues Found</span></div>
+                <div style={{fontSize:11,fontWeight:700,color:"#2D3A7C",fontFamily:"'Inter',sans-serif",marginTop:4}}>{scLabel}</div>
               </div>
-              {validationReport.checks?.slice(0,2).map((c,i)=>(
-                <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"❓"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
-                  <div style={{flex:1,height:12,background:`linear-gradient(to right,${T.ink3}22,transparent)`,borderRadius:4}}/>
-                </div>
-              ))}
               <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8}}>
                 <div style={{fontSize:10,color:T.ink3,marginBottom:6}}>🔒 Unlock full report</div>
                 <button onClick={()=>setProUpgradeBanner(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:10,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
@@ -1146,19 +1139,13 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"auto",padding:"24px 22px 32px"}}>
             <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:16}}>BevCheck Report</div>
-            {(()=>{const frScore=displayScore(validationReport);const frBadge=badgeForScore(frScore);return(
-            <div style={{background:frBadge.bg,border:`2px solid ${frBadge.color}`,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center"}}>
-              <div style={{fontSize:28,marginBottom:4}}>{frBadge.emoji}</div>
-              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:frBadge.color}}>{frBadge.label}</div>
-              <div style={{fontFamily:T.serif,fontSize:36,fontWeight:700,color:frBadge.color,lineHeight:1}}>{frScore}%</div>
-            </div>);})()}
-            {(validationReport.checks||[]).map(c=>{const isIssue=c.status==="fail"||c.status==="warning"||c.status==="warn";const checkRowNum=isIssue?extractFirstRowNumber(c.detail):null;return(
-              <div key={c.id} onClick={isIssue?()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:checkRowNum});}:undefined} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",cursor:isIssue?"pointer":"default",transition:"transform .1s"}} onMouseEnter={isIssue?e=>{e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={isIssue?e=>{e.currentTarget.style.transform="none";}:undefined}>
+            <div style={{marginBottom:14}}><BevGauge state={deriveState(validationReport)} /></div>
+            {(()=>{const allChecks=validationReport.checks||[];const coreC=allChecks.filter(c=>checkTier(c)==="core");const advC=allChecks.filter(c=>checkTier(c)==="advisory");const renderC=(c,op)=>{const isIssue=c.status==="fail"||c.status==="warning"||c.status==="warn";const checkRowNum=isIssue?extractFirstRowNumber(c.detail):null;return(
+              <div key={c.id} onClick={isIssue?()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:checkRowNum});}:undefined} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",cursor:isIssue?"pointer":"default",transition:"transform .1s",opacity:op||1}} onMouseEnter={isIssue?e=>{e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={isIssue?e=>{e.currentTarget.style.transform="none";}:undefined}>
                 <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"❓"}</span>
-                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{c.label}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
+                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{sentenceCase(c.label)}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
                 {isIssue&&<div style={{fontSize:11,color:"#9B7EC8",fontWeight:600,fontFamily:"'Inter',sans-serif",flexShrink:0,alignSelf:"center"}}>{checkRowNum?"→ Go to row":"→ Go to rows"}</div>}
-              </div>
-            );})}
+              </div>);};return <>{coreC.map(c=>renderC(c))}{advC.length>0&&<><div style={{borderTop:"0.5px solid #EDE4F7",margin:"10px 0"}}/><div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",color:"#9B7EC8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Advisory</div>{advC.map(c=>renderC(c,0.85))}</>}</>;})()}
 
             {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
             {(()=>{const checks=validationReport.checks||[];const hasIssues=checks.some(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");if(!hasIssues) return <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>;const firstIssue=checks.find(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");const rowNum=firstIssue?extractFirstRowNumber(firstIssue.detail):null;return <div style={{marginTop:14,display:"flex",gap:10}}><button onClick={()=>setShowFullReport(false)} style={{flex:1,background:"#fff",color:T.terra,border:`1.5px solid ${T.terra}`,borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",minHeight:44}}>Import Anyway</button><button onClick={()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:rowNum});}} style={{flex:1,background:"#9B7EC8",color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)",minHeight:44}}>Review Issue →</button></div>;})()}
@@ -1212,9 +1199,10 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
 const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
   const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
   const extractingRef=useRef(false);
+  const bevCheckActiveRef=useRef(false);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const backdropClick=()=>{if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
+  const backdropClick=()=>{if(bevCheckActiveRef.current)return;if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
   const handleSave=(p)=>{onSave(p);dismiss();};
   const METHODS=[
     {key:"manual",icon:"✏️",label:"Manual Entry",sub:"Type it in yourself"},
@@ -1287,8 +1275,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>

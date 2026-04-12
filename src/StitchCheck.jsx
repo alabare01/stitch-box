@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import posthog from "posthog-js";
+import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
 
 // VALIDATION_PROMPT kept for export — used by AddPatternModal and ImageImportModal for client-side background validation
 const VALIDATION_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object with this exact structure — no markdown, no backticks, no explanation:
@@ -156,43 +157,50 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
 
   // Report card view
   if (report) {
-    const score = displayScore(report);
-    const badge = badgeForScore(score);
+    const resolvedState = deriveState(report);
+    const coreChecks = (report.checks || []).filter(c => checkTier(c) === "core");
+    const advisoryChecks = (report.checks || []).filter(c => checkTier(c) === "advisory");
+
+    const renderCheck = (c, opacity) => {
+      const isWarning = c.status === "warning" || c.status === "warn";
+      const isFail = c.status === "fail";
+      const isActionable = onNavigateToRow && (isFail || isWarning);
+      const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
+      return (
+        <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s", opacity: opacity || 1 }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
+          <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{sentenceCase(c.label)}</div>
+            <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
+            {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
+            {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div style={{ padding: isDesktop ? "24px 24px 80px" : "0 18px 80px", maxWidth: 960, margin: "0 auto" }}>
         <div style={{ fontFamily: T.serif, fontSize: 22, color: T.ink, marginBottom: 4, fontWeight: 700 }}>BevCheck Report</div>
         <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24 }}>Pattern validation results</div>
 
-        {/* Overall badge */}
-        <div style={{ ...CARD, textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>{badge.emoji}</div>
-          <div style={{ fontFamily: T.serif, fontSize: 22, fontWeight: 700, color: badge.color, marginBottom: 4 }}>{badge.label}</div>
-          <div style={{ fontFamily: T.serif, fontSize: 48, fontWeight: 700, color: badge.color, lineHeight: 1 }}>{score}%</div>
-          <div style={{ marginTop: 16, background: T.terraLt, borderRadius: 9999, height: 6, overflow: "hidden" }}>
-            <div style={{ width: score + "%", height: "100%", background: badge.color, borderRadius: 9999, transition: "width .4s ease" }} />
-          </div>
+        {/* Semicircle gauge */}
+        <div style={{ ...CARD, marginBottom: 20, padding: "32px 32px 20px" }}>
+          <BevGauge state={resolvedState} />
         </div>
 
-        {/* Individual checks */}
+        {/* Core checks */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ ...LABEL, marginBottom: 12 }}>checks</div>
-          {(report.checks || []).map(c => {
-            const isWarning = c.status === "warning" || c.status === "warn";
-            const isFail = c.status === "fail";
-            const isActionable = onNavigateToRow && (isFail || isWarning);
-            const rowNum = isActionable ? extractFirstRowNumber(c.detail) : null;
-            return (
-            <div key={c.id} onClick={isActionable ? () => onNavigateToRow(rowNum) : undefined} style={{ ...CARD, padding: "16px 20px", marginBottom: 10, display: "flex", gap: 12, alignItems: "flex-start", cursor: isActionable ? "pointer" : "default", transition: "transform .1s" }} onMouseEnter={isActionable ? e => { e.currentTarget.style.transform = "translateY(-1px)"; } : undefined} onMouseLeave={isActionable ? e => { e.currentTarget.style.transform = "none"; } : undefined}>
-              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{CHECK_ICON[c.status] || "\u2753"}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: isFail ? "#C0544A" : isWarning ? "#C9A84C" : T.ink, marginBottom: 4 }}>{c.label}</div>
-                <div style={{ fontSize: 12, color: T.ink2, lineHeight: 1.7 }}>{c.detail}</div>
-                {isWarning && <div style={{ fontSize: 11, color: "#C9A84C", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>Bev couldn't verify this — review manually</div>}
-                {isActionable && <div style={{ fontSize: 11, color: "#9B7EC8", fontWeight: 600, fontFamily: "'Inter', sans-serif", marginTop: 6 }}>→ View in rows</div>}
-              </div>
-            </div>
-            );
-          })}
+          {coreChecks.map(c => renderCheck(c))}
+
+          {/* Divider */}
+          {advisoryChecks.length > 0 && (
+            <>
+              <div style={{ borderTop: "0.5px solid #EDE4F7", margin: "16px 0" }} />
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: "#9B7EC8", fontFamily: "'Inter', sans-serif", marginBottom: 12 }}>Advisory</div>
+              {advisoryChecks.map(c => renderCheck(c, 0.85))}
+            </>
+          )}
         </div>
 
         {/* Summary */}
@@ -204,7 +212,7 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
         )}
 
         <div style={{ padding: "0 8px", textAlign: "center", marginBottom: 20 }}>
-          <p style={{ fontSize: 12, color: T.sage, lineHeight: 1.7, fontStyle: "italic", margin: 0 }}>A lower score doesn't mean your pattern won't work — think of it like adding a handwritten recipe card to your recipe box. Mom's notes, doodles, and shorthand are part of the charm. Wovely can import any pattern regardless of its BevCheck score.</p>
+          <p style={{ fontSize: 12, color: T.sage, lineHeight: 1.7, fontStyle: "italic", margin: 0 }}>A few warnings don't mean your pattern won't work — think of it like adding a handwritten recipe card to your recipe box. Mom's notes, doodles, and shorthand are part of the charm. Wovely can import any pattern regardless of its BevCheck result.</p>
         </div>
         <button onClick={reset} style={{ width: "100%", background: "#FFFFFF", color: T.ink2, border: `1.5px solid ${T.terra}`, borderRadius: 9999, padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Check another pattern</button>
       </div>

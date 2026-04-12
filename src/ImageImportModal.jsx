@@ -2,9 +2,9 @@ import { useState, useRef, useCallback } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { buildRowsFromComponents } from "./AddPatternModal.jsx";
-import { VALIDATION_PROMPT, CHECK_ICON, displayScore, badgeForScore } from "./StitchCheck.jsx";
+import { CHECK_ICON } from "./StitchCheck.jsx";
+import BevGauge, { deriveState, sentenceCase, checkTier, NEEDLE_END } from "./components/BevGauge.jsx";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
 const MAX_DIM = 1200;
 const JPEG_QUALITY = 0.75;
@@ -53,6 +53,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
   const [dragIdx, setDragIdx] = useState(null);
   const [validating, setValidating] = useState(false);
   const [validationReport, setValidationReport] = useState(null);
+  const [bevCheckFailed, setBevCheckFailed] = useState(false);
+  const bevCheckTextRef = useRef(null);
   const [showFullReport, setShowFullReport] = useState(false);
   const [proUpgradeBanner, setProUpgradeBanner] = useState(false);
   const [coverUrl, setCoverUrl] = useState(null);
@@ -63,6 +65,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
   const { isDesktop } = useBreakpoint();
 
   const dismiss = () => { setClosing(true); setTimeout(() => { setClosing(false); onClose(); }, 220); };
+  const backdropDismiss = () => { if (!validationReport && !bevCheckFailed) dismiss(); };
 
   const handleFiles = async (fileList) => {
     const arr = Array.from(fileList).filter(f => f.type.startsWith("image/"));
@@ -148,24 +151,20 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
       setEditWeight(result.yarn_weight || "");
       setStage("review");
       // Run BevCheck in background (non-blocking)
-      if (GEMINI_API_KEY) {
+      {
         setValidating(true);
         const valText = JSON.stringify(result, null, 2);
         const trimmed = valText.length > 20000 ? valText.slice(0, valText.lastIndexOf("\n", 20000) || 20000) : valText;
+        bevCheckTextRef.current = trimmed;
         (async () => {
           try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 90000);
-            const vr = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: VALIDATION_PROMPT + "\n\nPATTERN TEXT:\n" + trimmed }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 65536 } }),
-              signal: controller.signal,
-            });
+            const vr = await fetch("/api/extract-pattern", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "bevcheck", patternText: trimmed }), signal: controller.signal });
             clearTimeout(timeout);
-            const rawText = await vr.text();
-            if (!vr.ok) { console.warn("[ImageImport] BevCheck API error:", vr.status, rawText.substring(0, 200)); setValidating(false); return; }
-            const d = JSON.parse(rawText); const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || ""; const parsed = JSON.parse(raw.replace(/```json/g, "").replace(/```/g, "").trim()); setValidationReport(parsed);
-          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); }
+            const data = await vr.json();
+            if (vr.ok && !data.error) { setValidationReport(data); } else { console.warn("[ImageImport] BevCheck API error:", vr.status, data.message); setBevCheckFailed(true); }
+          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setBevCheckFailed(true); }
           setValidating(false);
         })();
       }
@@ -437,43 +436,38 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
               <div style={{fontSize:15,fontWeight:600,color:T.ink}}>Analyzing your pattern</div>
               <div style={{fontSize:12,color:T.sage,textAlign:"center",maxWidth:200,lineHeight:1.5}}>Checking stitch counts, round sequence and math errors before you start crocheting.</div>
             </div>
-          ):validationReport?(()=>{const scScore=displayScore(validationReport);const scBadge=badgeForScore(scScore);return isPro?(
-            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
-                  <div style={{fontSize:10,color:T.ink3}}>BevCheck</div>
-                </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,transition:"color .6s ease"}}>{scScore}%</span>
-                </div>
-              </div>
-              {(validationReport.checks||[]).slice(0,3).map(c=>(
-                <div key={c.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
-                </div>
-              ))}
-              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:8,textDecoration:"underline"}}>Full Report →</button>
+          ):bevCheckFailed?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
+              <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});clearTimeout(timeout);const data=await vr.json();if(vr.ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}}catch(e){console.warn("[ImageImport] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
+            </div>
+          ):validationReport?(()=>{console.log("[Wovely] BevCheck compact card validationReport:",JSON.stringify(validationReport).substring(0,500));const scState=deriveState(validationReport);const scLabel=scState==="pass"?"Looks good":scState==="issues"?"Issues found":"Heads up";const scNeedle=NEEDLE_END[scState]||NEEDLE_END.warning;const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);console.log("[Wovely] BevCheck compact checks:",allChecks.length,"total,",scFailed.length,"failed, statuses:",allChecks.map(c=>c?.status));return isPro?(
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <svg viewBox="0 0 200 120" style={{width:120,height:70,display:"block",margin:"0 auto"}}>
+                <defs><linearGradient id="miniGaugeGradI" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#EDE4F7"/><stop offset="100%" stopColor="#9B7EC8"/></linearGradient></defs>
+                <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#EDE4F7" strokeWidth="18" strokeLinecap="round"/>
+                <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="url(#miniGaugeGradI)" strokeWidth="18" strokeLinecap="round"/>
+                <path d={`M 100 100 L ${scNeedle}`} stroke="#9B7EC8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                <circle cx="100" cy="100" r="5" fill="#fff"/><circle cx="100" cy="100" r="3" fill="#9B7EC8"/>
+              </svg>
+              <div style={{display:"flex",justifyContent:"space-between",width:"100%",margin:"2px auto 0"}}><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="pass"?700:600,color:"#9B7EC8",opacity:scState==="pass"?1:0.5}}>Looks Good</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="warning"?700:600,color:"#9B7EC8",opacity:scState==="warning"?1:0.5}}>Heads Up</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:scState==="issues"?700:600,color:"#9B7EC8",opacity:scState==="issues"?1:0.5}}>Issues Found</span></div>
+              <div style={{fontSize:11,fontWeight:700,color:"#2D3A7C",fontFamily:"'Inter',sans-serif",marginTop:4}}>{scLabel}</div>
+              {scFailed.length>0&&<div style={{textAlign:"left",marginTop:8}}>{scFailed.map((c,i)=>(<div key={c.id||i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}><span style={{fontSize:11,color:c.status==="fail"?"#C0544A":"#C9A84C",flexShrink:0}}>{c.status==="fail"?"✕":"⚠"}</span><span style={{fontSize:11,color:"#6B6B8A"}}>{sentenceCase(c.label||"Check")}</span></div>))}</div>}
+              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:6,textDecoration:"underline"}}>Full Report →</button>
             </div>
           ):(
-            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`}}>
-              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:scBadge.color,marginBottom:2}}>{scBadge.label}</div>
-                  <div style={{fontSize:10,color:T.ink3}}>BevCheck</div>
-                </div>
-                <div style={{width:56,height:56,borderRadius:"50%",border:`3px solid ${scBadge.color}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"border-color .6s ease"}}>
-                  <span style={{fontSize:18,fontWeight:700,fontFamily:T.serif,color:scBadge.color,filter:"blur(8px)",WebkitFilter:"blur(8px)",userSelect:"none",transition:"color .6s ease"}}>{scScore}%</span>
-                </div>
+            <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
+              <div style={{filter:"blur(6px)",WebkitFilter:"blur(6px)",userSelect:"none",pointerEvents:"none"}}>
+                <svg viewBox="0 0 200 120" style={{width:120,height:70,display:"block",margin:"0 auto"}}>
+                  <defs><linearGradient id="miniGaugeGradIb" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#EDE4F7"/><stop offset="100%" stopColor="#9B7EC8"/></linearGradient></defs>
+                  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#EDE4F7" strokeWidth="18" strokeLinecap="round"/>
+                  <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="url(#miniGaugeGradIb)" strokeWidth="18" strokeLinecap="round"/>
+                  <path d={`M 100 100 L ${scNeedle}`} stroke="#9B7EC8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                  <circle cx="100" cy="100" r="5" fill="#fff"/><circle cx="100" cy="100" r="3" fill="#9B7EC8"/>
+                </svg>
+                <div style={{display:"flex",justifyContent:"space-between",width:"100%",margin:"2px auto 0"}}><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Looks Good</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Heads Up</span><span style={{fontFamily:"'Inter',sans-serif",fontSize:9,fontWeight:600,color:"#9B7EC8",opacity:0.5}}>Issues Found</span></div>
+                <div style={{fontSize:11,fontWeight:700,color:"#2D3A7C",fontFamily:"'Inter',sans-serif",marginTop:4}}>{scLabel}</div>
               </div>
-              {validationReport.checks?.slice(0,2).map((c,i)=>(
-                <div key={c.id||i} style={{display:"flex",gap:6,alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:11}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                  <span style={{fontSize:11,color:T.ink2}}>{c.label}</span>
-                  <div style={{flex:1,height:12,background:`linear-gradient(to right,${T.ink3}22,transparent)`,borderRadius:4}}/>
-                </div>
-              ))}
               <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8}}>
                 <div style={{fontSize:10,color:T.ink3,marginBottom:6}}>🔒 Unlock full report</div>
                 <button onClick={()=>setProUpgradeBanner(true)} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:10,fontWeight:600,cursor:"pointer"}}>Upgrade to Pro</button>
@@ -497,18 +491,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
           <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:20,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"auto",padding:"24px 22px 32px"}}>
             <button onClick={()=>setShowFullReport(false)} style={{position:"absolute",top:14,right:16,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             <div style={{fontFamily:T.serif,fontSize:18,color:T.ink,marginBottom:16}}>BevCheck Report</div>
-            {(()=>{const frScore=displayScore(validationReport);const frBadge=badgeForScore(frScore);return(
-            <div style={{background:frBadge.bg,border:`2px solid ${frBadge.color}`,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center"}}>
-              <div style={{fontSize:28,marginBottom:4}}>{frBadge.emoji}</div>
-              <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:frBadge.color}}>{frBadge.label}</div>
-              <div style={{fontFamily:T.serif,fontSize:36,fontWeight:700,color:frBadge.color,lineHeight:1}}>{frScore}%</div>
-            </div>);})()}
-            {(validationReport.checks||[]).map(c=>(
-              <div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start"}}>
-                <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span>
-                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:T.ink,marginBottom:2}}>{c.label}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
-              </div>
-            ))}
+            <div style={{marginBottom:14}}><BevGauge state={deriveState(validationReport)} /></div>
+            {(()=>{const allChecks=validationReport.checks||[];const coreC=allChecks.filter(c=>checkTier(c)==="core");const advC=allChecks.filter(c=>checkTier(c)==="advisory");const renderC=(c,op)=>(<div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",opacity:op||1}}><span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{sentenceCase(c.label)}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div></div>);return <>{coreC.map(c=>renderC(c))}{advC.length>0&&<><div style={{borderTop:"0.5px solid #EDE4F7",margin:"10px 0"}}/><div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",color:"#9B7EC8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Advisory</div>{advC.map(c=>renderC(c,0.85))}</>}</>;})()}
             {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
             <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>
           </div>
@@ -543,7 +527,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
   // ── MODAL SHELL ──
   if (isDesktop) return (
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div className={closing ? "dim-out" : "dim-in"} onClick={dismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
+      <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "fu"} style={{
         position: "relative", background: "#FFFFFF", borderRadius: 20, width: "100%", maxWidth: 520,
         maxHeight: "85vh", display: "flex", flexDirection: "column", zIndex: 1,
@@ -564,7 +548,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, minimized, o
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "flex-end" }}>
-      <div className={closing ? "dim-out" : "dim-in"} onClick={dismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
+      <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "su"} style={{
         position: "relative", background: "#FFFFFF", borderRadius: "24px 24px 0 0", width: "100%",
         maxHeight: "92vh", display: "flex", flexDirection: "column", zIndex: 1,

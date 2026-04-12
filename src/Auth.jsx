@@ -118,15 +118,26 @@ const ProductPreview = () => {
             <div>
               <div style={CARD_LABEL}>BEVCHECK</div>
               <div style={CARD_TITLE}>Mommy Fiora</div>
-              <div style={CARD_SUBTITLE}>Pattern reviewed</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>Clean result</span>
-              <svg width={BADGE.width} height={BADGE.height} viewBox="0 0 32 32" style={{ flexShrink: BADGE.flexShrink }}>
-                <circle cx="16" cy="16" r="15" fill="#5B9B6B" />
-                <text x="16" y="17" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: 11, fontWeight: 700, fill: "#fff" }}>97%</text>
-              </svg>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>Pattern reviewed</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+                <svg viewBox="0 0 100 55" style={{ width: 48, height: 26, display: "block" }}>
+                  <defs>
+                    <linearGradient id="miniGaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#EDE4F7" />
+                      <stop offset="100%" stopColor="#9B7EC8" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 8 50 A 42 42 0 0 1 92 50" fill="none" stroke="#EDE4F7" strokeWidth="6" strokeLinecap="round" />
+                  <path d="M 8 50 A 42 42 0 0 1 92 50" fill="none" stroke="url(#miniGaugeGrad)" strokeWidth="6" strokeLinecap="round" />
+                  <g style={{ transform: "rotate(-38deg)", transformOrigin: "50px 50px" }}>
+                    <line x1="50" y1="50" x2="50" y2="18" stroke="#9B7EC8" strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                  <circle cx="50" cy="50" r="3" fill="#9B7EC8" />
+                </svg>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#9B7EC8", fontFamily: "'Inter', sans-serif" }}>Issues Found</div>
+              </div>
             </div>
           </div>
         </div>
