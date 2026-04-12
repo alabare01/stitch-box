@@ -325,7 +325,7 @@ Score based on these 3 checks only. 100 = all pass. Be specific. Aim 80-100 for 
 function parseSections(text) {
   // Split pattern text into named sections/components
   const sections = [];
-  const sectionRegex = /^(?:#{1,3}\s+|[A-Z][A-Za-z\s&'-]*(?:\(.*?\))?[\s]*[:—–-]\s*$)/gm;
+  const sectionRegex = /^(?:#{1,3}\s+|[A-Z][A-Za-z\s&'-]{2,}(?:\([^)]*\))?\s*[:\u2014\u2013-]\s*$)/gm;
   const headers = [...text.matchAll(sectionRegex)];
   if (headers.length === 0) {
     sections.push({ name: "Main", body: text });
@@ -333,7 +333,7 @@ function parseSections(text) {
     for (let i = 0; i < headers.length; i++) {
       const start = headers[i].index + headers[i][0].length;
       const end = i + 1 < headers.length ? headers[i + 1].index : text.length;
-      sections.push({ name: headers[i][0].trim().replace(/[:—–-]\s*$/, '').trim(), body: text.slice(start, end) });
+      sections.push({ name: headers[i][0].trim().replace(/[:\u2014\u2013-]\s*$/, '').trim(), body: text.slice(start, end) });
     }
   }
   return sections;
@@ -341,7 +341,7 @@ function parseSections(text) {
 
 function extractRows(sectionBody) {
   // Match rows like "RND 1:", "Rnd 1.", "Row 1:", "R1:", "1.", "1:" etc.
-  const rowRegex = /^[\s]*(?:(?:rnd|round|row|r)[\s.]*)?(\d+)[\s]*[.:)—–-]/gim;
+  const rowRegex = /^[\s]*(?:(?:rnd|round|row|r)[\s.]*)?(\d+)[\s]*[.:)\u2014\u2013-]/gim;
   const rows = [];
   let m;
   while ((m = rowRegex.exec(sectionBody)) !== null) {
@@ -476,11 +476,21 @@ function checkStitchMath(text) {
 }
 
 function runDeterministicChecks(text) {
-  return [
-    checkSequentialRows(text),
-    checkDuplicateRounds(text),
-    checkStitchMath(text),
+  const results = [];
+  const checks = [
+    { fn: checkSequentialRows, id: "sequence", label: "Sequential rounds/rows" },
+    { fn: checkDuplicateRounds, id: "duplicates", label: "Duplicate round numbers" },
+    { fn: checkStitchMath, id: "stitch_math", label: "Stitch count math" },
   ];
+  for (const { fn, id, label } of checks) {
+    try {
+      results.push(fn(text));
+    } catch (err) {
+      console.error(`[bevcheck] deterministic check "${id}" threw:`, err.message);
+      results.push({ id, label, status: "warning", detail: "Could not run this check automatically." });
+    }
+  }
+  return results;
 }
 
 function mergeChecks(llmResult, codeChecks) {
