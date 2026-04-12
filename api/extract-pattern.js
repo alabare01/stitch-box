@@ -162,6 +162,14 @@ Extract every row/round as its own entry. Keep instruction text exactly as writt
 
   const callClaude = async (text) => {
     if (!ANTHROPIC_KEY) throw new Error("Anthropic API key not configured");
+    // Truncate oversized text to prevent exhausting time budget
+    const CLAUDE_TEXT_LIMIT = 30000;
+    let truncatedText = text;
+    if (text.length > CLAUDE_TEXT_LIMIT) {
+      const lastNl = text.lastIndexOf("\n", CLAUDE_TEXT_LIMIT);
+      truncatedText = text.slice(0, lastNl > 0 ? lastNl : CLAUDE_TEXT_LIMIT);
+      console.log("[extract-pattern] Claude: truncated text from", text.length, "to", truncatedText.length, "chars");
+    }
     const claudePrompt = `You are a crochet pattern extraction specialist. Extract the pattern below into structured JSON.
 
 Return ONLY valid JSON with no markdown, no backticks, no explanation. Use this exact structure:
@@ -176,21 +184,35 @@ Rules:
 - Extract all materials, hook size, yarn weight
 
 PATTERN TEXT:
-${text}`;
+${truncatedText}`;
 
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 8000,
-        messages: [{ role: "user", content: claudePrompt }],
-      }),
-    });
+    const controller = new AbortController();
+    const claudeTimeout = setTimeout(() => controller.abort(), 50000);
+    let r;
+    try {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5",
+          max_tokens: 8000,
+          messages: [{ role: "user", content: claudePrompt }],
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(claudeTimeout);
+      if (fetchErr.name === "AbortError") {
+        console.error("[extract-pattern] Claude aborted after 50s timeout");
+        throw new Error("Claude timeout after 50s");
+      }
+      throw fetchErr;
+    }
+    clearTimeout(claudeTimeout);
 
     if (!r.ok) {
       const errBody = await r.text();
