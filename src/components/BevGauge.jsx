@@ -1,6 +1,10 @@
 import { T } from "../theme.jsx";
 
-const NEEDLE_DEG = { pass: -142, warning: -90, issues: -38 };
+// Pre-calculated needle endpoints from pivot (100,100), length 58px
+// pass: 218deg → (100 + 58*cos(218°*π/180), 100 + 58*sin(218°*π/180)) ≈ (54, 64)
+// warning: 270deg → (100, 42)
+// issues: 322deg → (100 + 58*cos(322°*π/180), 100 + 58*sin(322°*π/180)) ≈ (146, 64)
+const NEEDLE_END = { pass: "54 64", warning: "100 42", issues: "146 64" };
 const STATE_LABEL = { pass: "Looks Good", warning: "Heads Up", issues: "Issues Found" };
 const LAVENDER = "#9B7EC8";
 const ADVISORY_IDS = new Set(["translation", "structure"]);
@@ -31,7 +35,7 @@ export const sentenceCase = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1).to
 export const checkTier = (c) => c.tier || (ADVISORY_IDS.has(c.id) ? "advisory" : "core");
 
 const BevGauge = ({ state = "warning" }) => {
-  const deg = NEEDLE_DEG[state] ?? -90;
+  const needleEnd = NEEDLE_END[state] || NEEDLE_END.warning;
   const label = STATE_LABEL[state] ?? "Heads Up";
 
   return (
@@ -54,9 +58,7 @@ const BevGauge = ({ state = "warning" }) => {
         {/* Bev image */}
         <image href="/bev_neutral.png" x="82" y="60" width="36" height="36" clipPath="url(#bevGaugeClip)" />
         {/* Needle */}
-        <g transform={`rotate(${deg} 100 100)`}>
-          <line x1="100" y1="100" x2="100" y2="42" stroke={LAVENDER} strokeWidth="3" strokeLinecap="round" />
-        </g>
+        <path d={`M 100 100 L ${needleEnd}`} stroke={LAVENDER} strokeWidth="3" strokeLinecap="round" fill="none" />
         {/* Pivot white backing */}
         <circle cx="100" cy="100" r="8" fill="#fff" />
         {/* Pivot dot */}
