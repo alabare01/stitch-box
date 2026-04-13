@@ -457,7 +457,7 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
       });
     } catch (fetchErr) {
       clearTimeout(claudeTimeout);
-      if (fetchErr.name === "AbortError") throw new Error("Claude timeout after 45s");
+      if (fetchErr.name === "AbortError") throw new Error("Claude timeout after 55s");
       throw fetchErr;
     }
     clearTimeout(claudeTimeout);
@@ -469,7 +469,21 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
     const raw = data.content?.[0]?.text || "";
     if (!raw) throw new Error("Claude returned empty response");
     const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-    return JSON.parse(cleaned);
+    // Attempt direct parse first
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // Haiku sometimes adds preamble — extract the JSON object via regex
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          return JSON.parse(match[0]);
+        } catch (parseErr) {
+          throw new Error("Claude returned unparseable JSON: " + cleaned.substring(0, 200));
+        }
+      }
+      throw new Error("Claude returned no JSON object: " + cleaned.substring(0, 200));
+    }
   };
 
   const logToSupabase = (level, message, status) => {
