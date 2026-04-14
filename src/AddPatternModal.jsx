@@ -662,7 +662,7 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onPdfHandoff}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
@@ -739,72 +739,28 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
       }
 
       clearInterval(msgIntv);
-
-      const pdfRows = [];
-      let rowId = 0;
-      (pdfData.components || []).forEach(comp => {
-        const makeCount = comp.make_count || 1;
-        const label = comp.name + (makeCount > 1 ? ` (MAKE ${makeCount})` : '');
-        pdfRows.push({ id: 'hdr-' + rowId++, text: '── ' + label.toUpperCase() + ' ──', isHeader: true, done: false, note: '', componentName: comp.name });
-        (comp.rows || []).forEach(r => {
-          pdfRows.push({ id: 'rnd-' + rowId++, text: r.text || '', done: false, note: r.note || '', componentName: comp.name });
-        });
-      });
-
-      const estimatedYardage = (pdfData.materials || []).reduce((sum, m) => {
-        if (m.yardage > 0) return sum + m.yardage;
-        return sum;
-      }, 0);
-
-      const missing = [];
-      if (!pdfData.hook_size) missing.push('hook size');
-      if (!pdfData.yarn_weight) missing.push('yarn weight');
-      if (!estimatedYardage) missing.push('yardage');
-      if (!(pdfData.materials || []).length) missing.push('materials list');
-
-      let sourceHost = '';
-      try { sourceHost = new URL(trimmedUrl).hostname.replace('www.', ''); } catch(e) {}
-
-      setPreview({
-        title: pdfData.title || '',
-        source: sourceHost,
-        source_url: trimmedUrl,
-        cat: 'Uncategorized',
-        hook: pdfData.hook_size || '',
-        weight: pdfData.yarn_weight || '',
-        notes: pdfData.pattern_notes || '',
-        materials: pdfData.materials || [],
-        rows: pdfRows,
-        yardage: estimatedYardage,
-        photo: PILL[Math.floor(Math.random() * PILL.length)],
-        cover_image_url: null,
-        smartNote: pdfRows.filter(r => !r.isHeader).length + ' steps extracted and ready to track.',
-        qualityNote: missing.length === 0 ? null : 'Not found in PDF: ' + missing.join(', ') + '. You can fill these in manually.'
-      });
-
       setLoading(false);
       onExtractionEnd?.();
 
-      const pageText = pdfRows.filter(r => !r.isHeader).map(r => r.text).join('\n');
-      if (pageText) {
-        setValidating(true);
-        const valText = pageText.length > 20000 ? pageText.slice(0, pageText.lastIndexOf('\n', 20000) || 20000) : pageText;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 90000);
-        fetch('/api/extract-pattern', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'bevcheck', patternText: valText }),
-          signal: controller.signal
-        })
-          .then(vr => vr.json().then(d => ({ ok: vr.ok, data: d })))
-          .then(({ ok, data }) => {
-            if (ok && !data.error) { setValidationReport(data); } else { setBevCheckFailed(true); }
-          })
-          .catch(() => setBevCheckFailed(true))
-          .finally(() => { clearTimeout(timeout); setValidating(false); });
+      // Hand off to PDFUploadForm review stage — same experience as direct PDF upload
+      if (onPdfHandoff) {
+        let sourceHost = '';
+        try { sourceHost = new URL(trimmedUrl).hostname.replace('www.', ''); } catch(e) {}
+        // Inject source URL into extracted data so it saves correctly
+        pdfData.source_url = trimmedUrl;
+        pdfData.source = sourceHost;
+        onPdfHandoff({
+          extracted: pdfData,
+          pdfText: extractedText,
+          fileInfo: {
+            url: trimmedUrl,
+            name: 'pattern.pdf',
+            type: 'application/pdf',
+            coverUrl: null
+          },
+          coverUrl: null
+        });
       }
-
       return;
     }
     // ── end PDF URL detection ──────────────────────────────────────
@@ -879,22 +835,22 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive}) => {
-  const [stage,setStage]=useState("pick");
-  const [progress,setProgress]=useState(0);
+const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,initialExtracted}) => {
+  const [stage,setStage]=useState(initialExtracted?"review":"pick");
+  const [progress,setProgress]=useState(initialExtracted?100:0);
   const [stageText,setStageText]=useState("");
-  const [extracted,setExtracted]=useState(null);
-  const [fileInfo,setFileInfo]=useState(null);
+  const [extracted,setExtracted]=useState(initialExtracted?.extracted||null);
+  const [fileInfo,setFileInfo]=useState(initialExtracted?.fileInfo||null);
   const [errorMsg,setErrorMsg]=useState("");
   const [errorType,setErrorType]=useState(""); // 'server_hiccup' | 'extraction_failed' | ''
   const lastFileRef=useRef(null);
   const [autoRetried,setAutoRetried]=useState(false);
-  const [editTitle,setEditTitle]=useState("");
-  const [editDesigner,setEditDesigner]=useState("");
-  const [editHook,setEditHook]=useState("");
-  const [editWeight,setEditWeight]=useState("");
+  const [editTitle,setEditTitle]=useState(initialExtracted?.extracted?.title||"");
+  const [editDesigner,setEditDesigner]=useState(initialExtracted?.extracted?.designer||"");
+  const [editHook,setEditHook]=useState(initialExtracted?.extracted?.hook_size||"");
+  const [editWeight,setEditWeight]=useState(initialExtracted?.extracted?.yarn_weight||"");
   const [coverTab,setCoverTab]=useState("photo");
-  const [coverUrl,setCoverUrl]=useState(null);
+  const [coverUrl,setCoverUrl]=useState(initialExtracted?.coverUrl||null);
   const [coverFailed,setCoverFailed]=useState(false);
   const [coverUploading,setCoverUploading]=useState(false);
   const [complexity,setComplexity]=useState(null); // null | "simple" | "detailed" | "complex"
@@ -920,6 +876,21 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       setTimeout(()=>{handleFile(lastFileRef.current);},1500);
     }
   },[stage,errorType,autoRetried]);
+  useEffect(()=>{
+    if(!initialExtracted||!initialExtracted.pdfText) return;
+    setValidating(true);
+    const valText=initialExtracted.pdfText.length>20000
+      ?initialExtracted.pdfText.slice(0,initialExtracted.pdfText.lastIndexOf("\n",20000)||20000)
+      :initialExtracted.pdfText;
+    bevCheckTextRef.current=valText;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),90000);
+    fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal})
+      .then(vr=>vr.json().then(data=>({ok:vr.ok,data})))
+      .then(({ok,data})=>{if(ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}})
+      .catch(()=>setBevCheckFailed(true))
+      .finally(()=>{clearTimeout(timeout);setValidating(false);});
+  },[]);
   const handleFile=async(e)=>{
     const f=e.target?.files?.[0]||e;if(!f)return;
     lastFileRef.current=f;
@@ -1077,7 +1048,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
     const rows=buildRowsFromComponents(extracted.components);
     const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));
     const finalCover=coverUrl||fileInfo?.coverUrl||null;
-    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
+    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_url:extracted?.source_url||fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
   };
   const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
   const handleRetry=()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);setAutoRetried(false);if(lastFileRef.current){const f=lastFileRef.current;setTimeout(()=>handleFile(f),100);}};
@@ -1340,6 +1311,7 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
 
 const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
   const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
+  const [pdfHandoff,setPdfHandoff]=useState(null);
   const extractingRef=useRef(false);
   const bevCheckActiveRef=useRef(false);
   const{isDesktop}=useBreakpoint();
@@ -1396,7 +1368,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
   const deskHeader = (
     <div style={{flexShrink:0,padding:"24px 28px 0"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        {method?<button onClick={()=>setMethod(null)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:14,fontWeight:600,padding:0}}>← Back</button>:<div style={{fontFamily:T.serif,fontSize:22,color:T.ink}}>What are you adding to your Wovely?</div>}
+        {method?<button onClick={()=>{setPdfHandoff(null);setMethod(null);}} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:14,fontWeight:600,padding:0}}>← Back</button>:<div style={{fontFamily:T.serif,fontSize:22,color:T.ink}}>What are you adding to your Wovely?</div>}
       </div>
       {method&&<div style={{fontSize:12,color:T.ink3,marginBottom:14,fontWeight:500}}>{METHODS.find(m=>m.key===method)?.icon} {METHODS.find(m=>m.key===method)?.label}</div>}
     </div>
@@ -1405,7 +1377,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     <div style={{flexShrink:0,padding:"16px 22px 0"}}>
       <div style={{width:36,height:3,background:T.border,borderRadius:99,margin:"0 auto 18px"}}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        {method?<button onClick={()=>setMethod(null)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:14,fontWeight:600,padding:0}}>← Back</button>:<div style={{fontFamily:T.serif,fontSize:22,color:T.ink}}>Add Pattern</div>}
+        {method?<button onClick={()=>{setPdfHandoff(null);setMethod(null);}} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:14,fontWeight:600,padding:0}}>← Back</button>:<div style={{fontFamily:T.serif,fontSize:22,color:T.ink}}>Add Pattern</div>}
       </div>
       {method&&<div style={{fontSize:12,color:T.ink3,marginBottom:12,fontWeight:500}}>{METHODS.find(m=>m.key===method)?.icon} {METHODS.find(m=>m.key===method)?.label}</div>}
     </div>
@@ -1417,8 +1389,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>
