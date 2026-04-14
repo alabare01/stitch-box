@@ -13,8 +13,28 @@ export default async function handler(req, res) {
   const _key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const _t0 = Date.now();
 
-  const { url } = req.body || {};
+  const { url, mode: fetchMode } = req.body || {};
   if (!url) return res.status(400).json({ error: "URL required" });
+
+  // proxy_pdf mode: download raw PDF bytes server-side and return them (avoids CORS on CDN URLs)
+  if (fetchMode === 'proxy_pdf') {
+    try {
+      const pdfRes = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/pdf,*/*',
+        },
+        redirect: 'follow',
+      });
+      if (!pdfRes.ok) throw new Error(`Could not fetch PDF (${pdfRes.status})`);
+      const arrayBuffer = await pdfRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.status(200).send(buffer);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_KEY) return res.status(500).json({ error: "API key not configured on server" });
@@ -105,7 +125,7 @@ Page content:
 ${text}`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

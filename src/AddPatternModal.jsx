@@ -674,6 +674,134 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
     const MSGS=["Fetching pattern page...","Reading and extracting...","Structuring your pattern...","Almost there..."];
     let msgIdx=0;setStageText(MSGS[0]);
     const msgIntv=setInterval(()=>{msgIdx=(msgIdx+1)%MSGS.length;setStageText(MSGS[msgIdx]);},6000);
+    // ── PDF URL detection ──────────────────────────────────────────
+    const trimmedUrl = url.trim();
+    const looksLikePdf = trimmedUrl.toLowerCase().endsWith('.pdf') || trimmedUrl.toLowerCase().includes('.pdf?');
+
+    if (looksLikePdf) {
+      setStageText("Downloading PDF...");
+      let pdfBlob;
+      try {
+        const proxyRes = await fetch('/api/fetch-pattern', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: trimmedUrl, mode: 'proxy_pdf' })
+        });
+        if (!proxyRes.ok) throw new Error('Could not download PDF');
+        pdfBlob = await proxyRes.blob();
+      } catch (err) {
+        clearInterval(msgIntv);
+        onExtractionEnd?.();
+        setError("Couldn't download that PDF. Try saving it and uploading directly.");
+        setLoading(false);
+        return;
+      }
+
+      const pdfFile = new File([pdfBlob], 'pattern.pdf', { type: 'application/pdf' });
+      setStageText("Extracting pattern from PDF...");
+
+      let extractedText;
+      try {
+        extractedText = await extractTextFromPDF(pdfFile);
+      } catch (err) {
+        clearInterval(msgIntv);
+        onExtractionEnd?.();
+        setError("Couldn't read that PDF. Try uploading the file directly.");
+        setLoading(false);
+        return;
+      }
+
+      if (!extractedText || extractedText.trim().length < 50) {
+        clearInterval(msgIntv);
+        onExtractionEnd?.();
+        setError("This PDF doesn't appear to contain readable text. Try uploading it directly.");
+        setLoading(false);
+        return;
+      }
+
+      setStageText("Structuring your pattern...");
+      let pdfData;
+      try {
+        pdfData = await extractPatternFromPDF(extractedText, 'pattern.pdf', 'application/pdf', true);
+      } catch (err) {
+        clearInterval(msgIntv);
+        onExtractionEnd?.();
+        setError("Couldn't extract pattern from that PDF. Try uploading the file directly.");
+        setLoading(false);
+        return;
+      }
+
+      clearInterval(msgIntv);
+
+      const pdfRows = [];
+      let rowId = 0;
+      (pdfData.components || []).forEach(comp => {
+        const makeCount = comp.make_count || 1;
+        const label = comp.name + (makeCount > 1 ? ` (MAKE ${makeCount})` : '');
+        pdfRows.push({ id: Date.now() + rowId++, text: '── ' + label.toUpperCase() + ' ──', isHeader: true, done: false, note: '', componentName: comp.name });
+        (comp.rows || []).forEach(r => {
+          pdfRows.push({ id: Date.now() + rowId++, text: r.text || '', done: false, note: r.note || '', componentName: comp.name });
+        });
+      });
+
+      const estimatedYardage = (pdfData.materials || []).reduce((sum, m) => {
+        if (m.yardage > 0) return sum + m.yardage;
+        return sum;
+      }, 0);
+
+      const missing = [];
+      if (!pdfData.hook_size) missing.push('hook size');
+      if (!pdfData.yarn_weight) missing.push('yarn weight');
+      if (!estimatedYardage) missing.push('yardage');
+      if (!(pdfData.materials || []).length) missing.push('materials list');
+
+      let sourceHost = '';
+      try { sourceHost = new URL(trimmedUrl).hostname.replace('www.', ''); } catch(e) {}
+
+      setPreview({
+        title: pdfData.title || '',
+        source: sourceHost,
+        source_url: trimmedUrl,
+        cat: 'Uncategorized',
+        hook: pdfData.hook_size || '',
+        weight: pdfData.yarn_weight || '',
+        notes: pdfData.pattern_notes || '',
+        materials: pdfData.materials || [],
+        rows: pdfRows,
+        yardage: estimatedYardage,
+        photo: PILL[Math.floor(Math.random() * PILL.length)],
+        cover_image_url: null,
+        smartNote: pdfRows.filter(r => !r.isHeader).length + ' steps extracted and ready to track.',
+        qualityNote: missing.length === 0 ? null : 'Not found in PDF: ' + missing.join(', ') + '. You can fill these in manually.'
+      });
+
+      setLoading(false);
+      onExtractionEnd?.();
+
+      const pageText = pdfRows.filter(r => !r.isHeader).map(r => r.text).join('\n');
+      if (pageText) {
+        setValidating(true);
+        const valText = pageText.length > 20000 ? pageText.slice(0, pageText.lastIndexOf('\n', 20000) || 20000) : pageText;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90000);
+        fetch('/api/extract-pattern', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'bevcheck', patternText: valText }),
+          signal: controller.signal
+        })
+          .then(vr => vr.json().then(d => ({ ok: vr.ok, data: d })))
+          .then(({ ok, data }) => {
+            if (ok && !data.error) { setValidationReport(data); } else { setBevCheckFailed(true); }
+          })
+          .catch(() => setBevCheckFailed(true))
+          .finally(() => { clearTimeout(timeout); setValidating(false); });
+      }
+
+      return;
+    }
+    // ── end PDF URL detection ──────────────────────────────────────
+
     let data;
     try{
       const res=await fetch("/api/fetch-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url.trim()})});
