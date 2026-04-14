@@ -745,9 +745,9 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
       (pdfData.components || []).forEach(comp => {
         const makeCount = comp.make_count || 1;
         const label = comp.name + (makeCount > 1 ? ` (MAKE ${makeCount})` : '');
-        pdfRows.push({ id: Date.now() + rowId++, text: '── ' + label.toUpperCase() + ' ──', isHeader: true, done: false, note: '', componentName: comp.name });
+        pdfRows.push({ id: 'hdr-' + rowId++, text: '── ' + label.toUpperCase() + ' ──', isHeader: true, done: false, note: '', componentName: comp.name });
         (comp.rows || []).forEach(r => {
-          pdfRows.push({ id: Date.now() + rowId++, text: r.text || '', done: false, note: r.note || '', componentName: comp.name });
+          pdfRows.push({ id: 'rnd-' + rowId++, text: r.text || '', done: false, note: r.note || '', componentName: comp.name });
         });
       });
 
