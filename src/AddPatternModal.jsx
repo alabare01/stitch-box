@@ -890,7 +890,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       .then(({ok,data})=>{if(ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}})
       .catch(()=>setBevCheckFailed(true))
       .finally(()=>{clearTimeout(timeout);setValidating(false);});
-  },[]);
+  },[initialExtracted]);
   const handleFile=async(e)=>{
     const f=e.target?.files?.[0]||e;if(!f)return;
     lastFileRef.current=f;
