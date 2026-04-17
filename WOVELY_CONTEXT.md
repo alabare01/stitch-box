@@ -6,7 +6,7 @@ Last migrated from master doc API: 2026-04-16
 
 ---
 
-# WOVELY MASTER DOC v93
+# WOVELY MASTER DOC v94
 
 ## CURRENT PRODUCTION STATE
 Live on wovely.app — Session 52 shipped. DKIM authentication live and verified. Gmail inbox delivery confirmed with DKIM PASS in headers. Supabase upgraded to Pro tier with spend cap enabled. WEBHOOK_SECRET still pending.
@@ -56,6 +56,9 @@ Wovely findings mapped:
 - DKIM authentication configured end-to-end for wovely.app
 - Google Workspace DKIM record generated (2048-bit, selector: google)
 - TXT record published via GoDaddy DNS
+- Gmail inbox delivery confirmed with DKIM PASS in headers
+- Supabase upgraded from Free to Pro tier with spend cap enabled
+- Trial retention email sent to turttlesong@yahoo.com ahead of May 3 expiry
 
 ## KEY LEARNINGS SESSION 49
 - Gemini 2.5 Flash 503s were free tier problem, not model problem — paid tier held up clean
@@ -161,17 +164,17 @@ Danielle gmail: 038442a2-b13d-4abb-9960-24a360078f6c
 Live: wovely.app
 GitHub: github.com/alabare01/wovely
 Local: C:/Users/adam/wovely
-Supabase: vbtsdyxvqqwxjzpuseaf — FREE TIER (upgrade to Pro pending)
+Supabase: vbtsdyxvqqwxjzpuseaf — PRO (upgraded Session 52, spend cap enabled)
 Vercel: prj_SZYwLGH5V7kCZYryr4MSy3US3bfz / team_mRQaDsQzhF6HFGU5Ka7hi5OM — PRO
 Stripe: acct_1TDQ1WGbX5hxxc0T (LIVE) $8.99/mo Pro
 Cloudinary: dmaupzhcx
 PostHog: Project 363175 — 157 unique visitors since Jan 1 2026
-Current session: 52
+Current session: 53
 
 ## EMAIL STACK
 Google Workspace: adam@wovely.app, support@wovely.app
 Resend: RESEND_API_KEY in Vercel
-DNS: GoDaddy. MX records fine. SPF chained. DKIM MISSING — fix next session.
+DNS: GoDaddy. MX records fine. SPF chained. DKIM LIVE — verified at google._domainkey.wovely.app (Session 52). Gmail delivery confirmed with DKIM PASS.
 
 ## LEGAL
 Wovely LLC — filed March 30 2026, doc L26000181882, Florida
@@ -205,19 +208,17 @@ App.jsx: NO background-color on any layout wrapper
 FeedbackWidget: 60, Add Pattern tab: 40, Mobile header: 20, Tooltips: 100, Modals: 50+
 
 ## PENDING ADAM ACTIONS
-1. Fix Google Workspace DKIM (NEXT SESSION FIRST)
-2. Upgrade Supabase Free -> Pro at supabase.com/dashboard (GoGno.me org)
-3. Add WEBHOOK_SECRET env var to Vercel — CRITICAL, financial integrity gap
-4. Supabase webhook: auth.users INSERT -> https://wovely.app/api/notify-signup
-5. Replace cover image on First Sunrise Blanket Pattern
-6. Claim @wovely on Instagram + TikTok
-7. Enable Apple sign-in in Supabase
-8. POST IN FACEBOOK GROUPS — only after import rock solid
-9. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
-10. Try Recraft.ai for Bev vector logo
-11. Create bev_happy.png, bev_warning.png, bev_concerned.png
-12. Get Danielle written feedback on BevCheck full report UI
-13. Delete feature/turttlesong-shoutout: git push origin --delete feature/turttlesong-shoutout
+1. Add WEBHOOK_SECRET env var to Vercel — CRITICAL, financial integrity gap
+2. Supabase webhook: auth.users INSERT -> https://wovely.app/api/notify-signup
+3. Replace cover image on First Sunrise Blanket Pattern
+4. Claim @wovely on Instagram + TikTok
+5. Enable Apple sign-in in Supabase
+6. POST IN FACEBOOK GROUPS — only after import rock solid
+7. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
+8. Try Recraft.ai for Bev vector logo
+9. Create bev_happy.png, bev_warning.png, bev_concerned.png
+10. Get Danielle written feedback on BevCheck full report UI
+11. Delete feature/turttlesong-shoutout: git push origin --delete feature/turttlesong-shoutout
 
 ## TECHNICAL GOTCHAS
 supabaseAuth.getUser() is SYNCHRONOUS — never await
