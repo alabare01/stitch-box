@@ -39,15 +39,8 @@ export default function WhatsNewModal() {
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
-    const user = supabaseAuth.getUser();
-    if (!user) return;
-
-    const last = localStorage.getItem(LS_KEY);
-    if (last && Date.now() - new Date(last).getTime() < COOLDOWN_MS) return;
-
-    setVisible(true);
-    const t = setTimeout(() => setEntered(true), 50);
-    return () => clearTimeout(t);
+    // Auto-open disabled — dev-only reveal via Shift+W or 5-tap logo.
+    // Re-enable by restoring the authed + cooldown logic.
   }, []);
 
   // External trigger for 5-tap easter egg
