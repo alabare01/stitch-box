@@ -160,6 +160,8 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
     const resolvedState = deriveState(report);
     const coreChecks = (report.checks || []).filter(c => checkTier(c) === "core");
     const advisoryChecks = (report.checks || []).filter(c => checkTier(c) === "advisory");
+    const issueCount = (report.checks || []).filter(c => c.status === "fail" || c.status === "warning" || c.status === "warn").length;
+    const numericScore = typeof report.score === "number" ? report.score : undefined;
 
     const renderCheck = (c, opacity) => {
       const isWarning = c.status === "warning" || c.status === "warn";
@@ -185,8 +187,12 @@ const StitchCheck = ({ onNavigateToRow } = {}) => {
         <div style={{ fontSize: 13, color: T.ink3, marginBottom: 24 }}>Pattern validation results</div>
 
         {/* Semicircle gauge */}
-        <div style={{ ...CARD, marginBottom: 20, padding: "32px 32px 20px" }}>
-          <BevGauge state={resolvedState} />
+        <div style={{ marginBottom: 20 }}>
+          <BevGauge
+            score={numericScore}
+            state={numericScore == null ? resolvedState : undefined}
+            issueCount={issueCount}
+          />
         </div>
 
         {/* Core checks */}
