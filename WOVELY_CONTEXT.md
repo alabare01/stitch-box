@@ -345,7 +345,7 @@ Master doc status:
 
 ## CLAUDE RULES
 Fetch master doc first, no exceptions
-Next session = 53
+Next session = 54
 Danielle feedback overrides everything
 ONE complete Claude Code prompt per task
 Never push direct to main
