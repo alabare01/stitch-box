@@ -39,7 +39,10 @@ const AuthWallModal = ({
       if (mode === "signup") {
         const { data, error: err } = await supabaseAuth.signUp(email.trim(), pass);
         if (err) { setError(err.msg || err.error_description || err.message || "Sign-up failed."); setLoading(false); return; }
-        try { posthog.capture("user_signed_up", { intent: intent || "unknown", source: "auth_wall_modal" }); } catch {}
+        try {
+          posthog.capture("user_signed_up", { intent: intent || "unknown", source: "auth_wall_modal" });
+          posthog.capture("signed_up_from_wall", { intent: intent || "unknown" });
+        } catch {}
         const user = supabaseAuth.getUser();
         if (onSuccess) onSuccess(user);
         onClose();
