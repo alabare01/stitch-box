@@ -163,48 +163,7 @@ const CSS = () => (
 
 const pct = p => { const checkable=(p.rows||[]).filter(r=>!r.isHeader&&!r.isNoteOnly); return checkable.length ? Math.round(checkable.filter(r=>r.done).length/checkable.length*100) : 0; };
 
-const DEFAULT_STARTERS = [
-  {id:"starter_granny",title:"Granny Square",cat:"Blankets",hook:"5.0mm",weight:"Worsted",yardage:120,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:12,height:12},isStarter:true,rows:[
-    {id:1,text:"Magic ring, ch 3 (counts as first dc), 2 dc in ring, ch 2, [3 dc in ring, ch 2] 3 times, sl st to top of ch-3 to join.",done:false,note:""},
-    {id:2,text:"Sl st to ch-2 sp, ch 3, 2 dc in same sp, ch 1, [3 dc, ch 2, 3 dc in next ch-2 sp, ch 1] 3 times, 3 dc in first sp, ch 2, sl st to join.",done:false,note:""},
-    {id:3,text:"Sl st to ch-2 corner sp, ch 3, 2 dc in same sp, ch 2, 3 dc in same sp, ch 1, 3 dc in ch-1 sp, ch 1, [corner, ch 1, 3 dc in ch-1 sp, ch 1] repeat, sl st to join.",done:false,note:""},
-    {id:4,text:"Continue pattern, adding one 3-dc group in each ch-1 sp along sides and working [3 dc, ch 2, 3 dc] in each corner ch-2 sp.",done:false,note:""},
-    {id:5,text:"Repeat Row 4 to expand square one more round.",done:false,note:""},
-    {id:6,text:"Final round: sc evenly around entire square, working 3 sc in each corner. Fasten off and weave in ends.",done:false,note:""},
-  ]},
-  {id:"starter_amigurumi",title:"Amigurumi Ball",cat:"Amigurumi",hook:"3.5mm",weight:"DK",yardage:40,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774405272/duiwkpuwzctq42zjox9x.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:4,height:4},isStarter:true,rows:[
-    {id:11,text:"Magic ring, 6 sc in ring. (6)",done:false,note:""},
-    {id:12,text:"2 sc in each st around. (12)",done:false,note:""},
-    {id:13,text:"[ Sc in next st, 2 sc in next st ] repeat around. (18)",done:false,note:""},
-    {id:14,text:"Sc in each st around. (18) — repeat this row 3 times total.",done:false,note:""},
-    {id:15,text:"[ Sc in next st, sc2tog ] repeat around. (12) — stuff with fiberfill now.",done:false,note:""},
-    {id:16,text:"Sc2tog around. (6) — fasten off, close opening, weave in ends.",done:false,note:""},
-  ]},
-  {id:"starter_beanie",title:"Basic Beanie",cat:"Wearables",hook:"5.0mm",weight:"Worsted",yardage:150,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406087/zrxoyipglr1degpyufc3.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:10,height:8},isStarter:true,rows:[
-    {id:21,text:"Magic ring, 6 sc. (6)",done:false,note:""},
-    {id:22,text:"2 sc in each st. (12)",done:false,note:""},
-    {id:23,text:"[ Sc, 2 sc in next ] repeat. (18)",done:false,note:""},
-    {id:24,text:"[ Sc in 2, 2 sc in next ] repeat. (24)",done:false,note:""},
-    {id:25,text:"[ Sc in 3, 2 sc in next ] repeat. (30)",done:false,note:""},
-    {id:26,text:"Sc in each st around until piece measures 5 inches from top.",done:false,note:""},
-    {id:27,text:"Continue even rounds until beanie measures 7.5 inches total.",done:false,note:""},
-    {id:28,text:"Last round: sl st in each st around. Fasten off, weave in ends.",done:false,note:""},
-  ]},
-  {id:"starter_dishcloth",title:"Simple Dishcloth",cat:"Home",hook:"5.0mm",weight:"Cotton",yardage:80,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406091/fvnjwgm613icxzzsg40p.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:8,height:8},isStarter:true,rows:[
-    {id:31,text:"Ch 25. Sc in 2nd ch from hook and in each ch across. (24 sc)",done:false,note:""},
-    {id:32,text:"Ch 1, turn. Sc in each st across. (24)",done:false,note:""},
-    {id:33,text:"Repeat Row 2. Continue until piece is roughly square.",done:false,note:""},
-    {id:34,text:"Final row: ch 1, turn, sc across. Fasten off, weave in ends.",done:false,note:""},
-  ]},
-  {id:"starter_magicring",title:"Magic Ring Practice Swatch",cat:"Amigurumi",hook:"4.0mm",weight:"Worsted",yardage:30,notes:"",source:"Wovely Starter",photo:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",cover_image_url:"https://res.cloudinary.com/dmaupzhcx/image/upload/v1774406093/jutheu06ck9xiyfklwd4.png",materials:[],rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:5,height:5},isStarter:true,rows:[
-    {id:41,text:"Make a magic ring. Ch 1, work 6 sc into ring, pull tight to close. (6)",done:false,note:""},
-    {id:42,text:"2 sc in each st around. (12)",done:false,note:""},
-    {id:43,text:"[ Sc in next st, 2 sc in next ] repeat around. (18)",done:false,note:""},
-    {id:44,text:"[ Sc in next 2 sts, 2 sc in next ] repeat around. (24)",done:false,note:""},
-    {id:45,text:"Sc in each st around. (24) — practice round, no increases.",done:false,note:""},
-    {id:46,text:"Sl st in next st. Fasten off. This is your gauge swatch — keep it!",done:false,note:""},
-  ]},
-];
+const DEFAULT_STARTERS = [];
 const makeStarterPatterns = () => DEFAULT_STARTERS.map(p=>({...p,rows:p.rows.map(r=>({...r}))}));
 
 const estYards = p => {
