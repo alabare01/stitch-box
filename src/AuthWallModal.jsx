@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 import posthog from "posthog-js";
-import { supabaseAuth } from "./supabase.js";
+import { supabaseAuth, getSession } from "./supabase.js";
+
+// Wait for the session and user to be readable from localStorage after signUp/signIn.
+// Supabase writes synchronously, but we keep a short retry in case a slow JWT parse or
+// serialization delay leaves one of them briefly null. Resolves to the user object, or null
+// if hydration never completes (rare — signup succeeded but something wrote a bad session).
+const waitForSession = async () => {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const user = supabaseAuth.getUser();
+    const session = getSession();
+    if (user && session?.access_token) return user;
+    if (attempt === 0) await new Promise(r => setTimeout(r, 100));
+  }
+  return null;
+};
 
 const INPUT_STYLE = {
   width: "100%", height: 41, padding: "0 14px", background: "#F8F6FF",
@@ -44,19 +58,21 @@ const AuthWallModal = ({
       if (mode === "signup") {
         const { data, error: err } = await supabaseAuth.signUp(email.trim(), pass);
         if (err) { setError(err.msg || err.error_description || err.message || "Sign-up failed."); setLoading(false); return; }
+        const user = await waitForSession();
+        if (!user) { setError("Signup succeeded but session setup failed. Please sign in manually."); setLoading(false); return; }
         try {
           posthog.capture("user_signed_up", { intent: intent || "unknown", source: "auth_wall_modal" });
           posthog.capture("signed_up_from_wall", { intent: intent || "unknown" });
         } catch {}
-        const user = supabaseAuth.getUser();
-        if (onSuccess) onSuccess(user);
+        if (onSuccess) await onSuccess(user);
         onClose();
       } else {
         const { error: err } = await supabaseAuth.signIn(email.trim(), pass);
         if (err) { setError(err.error_description || err.msg || err.message || "Invalid email or password."); setLoading(false); return; }
+        const user = await waitForSession();
+        if (!user) { setError("Sign-in succeeded but session setup failed. Please try again."); setLoading(false); return; }
         try { posthog.capture("user_logged_in", { intent: intent || "unknown", source: "auth_wall_modal" }); } catch {}
-        const user = supabaseAuth.getUser();
-        if (onSuccess) onSuccess(user);
+        if (onSuccess) await onSuccess(user);
         onClose();
       }
     } catch {

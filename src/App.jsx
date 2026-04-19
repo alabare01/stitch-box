@@ -1607,8 +1607,9 @@ export default function Wovely() {
         requiresPro,
         // Best-effort resume: after signup, re-evaluate the gate. New users are authed but not Pro,
         // so Pro-gated actions correctly fall through to the Pro paywall; free-gated actions proceed.
-        // Delay one tick so the new session (written by supabaseAuth.signUp) is visible.
-        onSuccess: () => { setTimeout(() => { if (requiresPro) { setShowProModal(true); return; } cb(); }, 100); },
+        // 300ms delay lets the session write to localStorage, React state settle, and the profile
+        // prefetch (in AuthWallModal onSuccess) complete before the gated action reads getUser/getSession.
+        onSuccess: () => { setTimeout(() => { if (requiresPro) { setShowProModal(true); return; } cb(); }, 300); },
       });
       setAuthWallOpen(true);
       return;
@@ -1619,6 +1620,38 @@ export default function Wovely() {
       return;
     }
     cb();
+  };
+
+  // Shared handler for AuthWallModal success. Flips auth state, clears anon mode, identifies the
+  // user in PostHog, prefetches is_pro so Pro-gated resumes don't flash, THEN invokes the context's
+  // onSuccess (which runs the gate's setTimeout → proceedCallback). Must be async so the Pro prefetch
+  // completes before the resumed action reads isPro from state.
+  const handleAuthWallSuccess = async (user) => {
+    setAuthed(true);
+    document.cookie = "wovely_authed=1;path=/;max-age=31536000";
+    try { sessionStorage.removeItem("wovely_anonymous_mode"); } catch {}
+    setAnonymousMode(false);
+    if (user) posthog.identify(user.id, { email: user.email });
+    setErrorReporterUser(user?.id || null);
+    // Prefetch is_pro so Pro-gated resumes see the right value (new users default to false, which is
+    // correct — but returning Pro users signing in via the wall should not flash as free).
+    const s = getSession();
+    if (s?.access_token && user?.id) {
+      try {
+        const pr = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${user.id}&select=is_pro`, {
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${s.access_token}` },
+        });
+        if (pr.ok) {
+          const rows = await pr.json();
+          if (rows[0]) {
+            const proStatus = rows[0].is_pro === true;
+            setIsPro(proStatus);
+            localStorage.setItem("yh_is_pro", proStatus ? "true" : "false");
+          }
+        }
+      } catch (e) { console.warn("[Wovely] AuthWall profile prefetch failed:", e.message); }
+    }
+    if (authWallContext?.onSuccess) authWallContext.onSuccess(user);
   };
 
   // Initialize client-side error reporting once on mount
@@ -2125,7 +2158,7 @@ export default function Wovely() {
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:"transparent",fontFamily:T.sans,position:"relative"}}>
       <CSS/>
       <WhatsNewModal/>
-      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={(user)=>{setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}setAnonymousMode(false);if(user)posthog.identify(user.id,{email:user.email});setErrorReporterUser(user?.id||null);authWallContext?.onSuccess&&authWallContext.onSuccess(user);}} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
@@ -2172,7 +2205,7 @@ export default function Wovely() {
     <div style={{fontFamily:T.sans,background:"transparent",minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
       <WhatsNewModal/>
-      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={(user)=>{setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}setAnonymousMode(false);if(user)posthog.identify(user.id,{email:user.email});setErrorReporterUser(user?.id||null);authWallContext?.onSuccess&&authWallContext.onSuccess(user);}} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       {upgradeToast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:upgradeToast==="success"?"#5B9B6B":"#6B6B8A",color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(0,0,0,.2)",animation:"modalPop .3s ease both",textAlign:"center"}}>{upgradeToast==="success"?"Welcome to Wovely Pro!":"No worries — you can upgrade anytime"}</div>}
