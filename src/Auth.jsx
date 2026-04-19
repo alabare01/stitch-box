@@ -200,7 +200,6 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [magicSent, setMagicSent] = useState(false);
-  const [pendingConfirmation, setPendingConfirmation] = useState(false);
 
   const handleSignup = async () => {
     setAuthError(null);
@@ -210,12 +209,6 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
     try {
       const { data, error } = await supabaseAuth.signUp(email.trim(), pass);
       if (error) { setAuthError(error.msg || error.error_description || error.message || "Sign-up failed."); setLoading(false); return; }
-      if (data && !data.session) {
-        // Confirmation email sent — user must confirm before signing in
-        setPendingConfirmation(true);
-        setLoading(false);
-        return;
-      }
       onEnterAsNew();
     } catch { setAuthError("Network error \u2014 please try again."); }
     setLoading(false);
@@ -249,26 +242,6 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
 
   const inputFocus = e => { e.target.style.borderColor = "#9B7EC8"; };
   const inputBlur = e => { e.target.style.borderColor = "#EDE4F7"; };
-
-  if (pendingConfirmation) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#F8F6FF" }}>
-        <div style={{ maxWidth: 420, width: "100%", background: "#FFFFFF", borderRadius: 16, padding: 40, border: "1px solid #EDE4F7", textAlign: "center" }}>
-          <img src="/bev_neutral.png" alt="Bev" style={{ width: 96, height: 96, margin: "0 auto 16px", display: "block", borderRadius: "50%" }} />
-          <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 26, color: "#2D3A7C", margin: "0 0 12px 0" }}>Check your email</h1>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, color: "#2D2D4E", lineHeight: 1.6, margin: "0 0 8px 0" }}>
-            We sent a confirmation link to <strong style={{ color: "#2D3A7C" }}>{email.trim()}</strong>
-          </p>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#6B6B8A", lineHeight: 1.6, margin: "0 0 24px 0" }}>
-            Click the link in that email to finish setting up your hive.
-          </p>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#6B6B8A", lineHeight: 1.5, margin: 0 }}>
-            Didn&apos;t see it? Check your spam folder, or <button onClick={() => { setPendingConfirmation(false); setEmail(""); setPass(""); setConfirmPass(""); setAuthError(null); }} style={{ background: "none", border: "none", color: "#9B7EC8", cursor: "pointer", fontSize: 13, fontWeight: 600, padding: 0, textDecoration: "underline" }}>try again with a different email</button>.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 40px", maxWidth: 400, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
