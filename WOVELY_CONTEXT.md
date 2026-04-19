@@ -6,26 +6,29 @@ Last migrated from master doc API: 2026-04-16
 
 ---
 
-# WOVELY MASTER DOC v95
+# WOVELY MASTER DOC v96
 
 ## CURRENT PRODUCTION STATE
-Live on wovely.app — Session 53 shipped AND merged to main. BevCheck gauge redesigned end-to-end with Danielle in the design loop via Claude Design. Architecture cleanup: 4 hand-rolled inline SVG gauges consolidated into single BevGauge component with hero + compact variants. Bundle shrank 6kb. WEBHOOK_SECRET still pending.
+Live on wovely.app — Session 54 shipped AND merged to main. Security hardening session, four major wins. Email confirmation flow live with custom Bev-branded template (merge 806dddc). Signup notification webhook wired end-to-end: WEBHOOK_SECRET set in Vercel, Supabase Database Webhook on auth.users INSERT points at /api/notify-signup, "🎉 New Wovely signup" emails now land in adam@wovely.app (merge 0a2d59b). Gemini API key rotated after confirmed client-bundle leak since Mar 20 — new key live in GEMINI_API_KEY + VITE_GEMINI_API_KEY, old key deleted in AI Studio. Client-side exposure still exists with new key pending Session 55 server-side move. Stripe customer emails all 5 armed. Broken notify_new_signup trigger (RLS enabled with zero policies on signup_notifications) that was silently blocking every new signup with "Database error saving new user" — dropped. handle_new_user trigger for user_profiles auto-create remains intact.
 
 ## FIRST THING NEXT SESSION
-1. Set WEBHOOK_SECRET in Vercel + verify Stripe signatures in webhook handler — FINANCIAL INTEGRITY GAP (carried over)
-2. CORS audit on all serverless functions (carried over)
-3. RLS full table audit (carried over)
-4. Background functions + queue system build — UI can now leverage the Claude Design system for mockups
+1. Move client-side Gemini calls server-side — extractPatternFromPDF (AddPatternModal.jsx) + callGeminiVision (HiveVisionForm) → new /api/snap-vision endpoint. VITE_GEMINI_API_KEY still bundled with the rotated key. Not urgent ($50/mo Gemini cap limits blast radius) but this is the fix for the root leak vector.
+2. Delete VITE_GEMINI_API_KEY from Vercel after server-side move lands
+3. Update Stripe support email from alabare@gmail.com to support@wovely.app via Public details settings
+4. CORS audit on all serverless functions (carried over)
+5. RLS full table audit (carried over)
+6. Background functions + queue system build
 
-## SESSION 54 PRIORITY ORDER
-1. WEBHOOK_SECRET + Stripe signature verification (security — financial integrity)
-2. CORS audit — all serverless functions
-3. RLS full table audit
-4. Background functions + import queue system (with RLS on import_jobs from day one)
-5. Collections build — naturally extends queue system
-6. notify-signup.js wiring
-7. Yearly pricing ($9.99)
-8. Pattern Share / Trophy Case
+## SESSION 55 PRIORITY ORDER
+1. Move client-side Gemini to /api/snap-vision server endpoint (security — close confirmed key-leak vector)
+2. Delete VITE_GEMINI_API_KEY env var from Vercel after server-side move
+3. Update Stripe support email to support@wovely.app
+4. CORS audit — all serverless functions
+5. RLS full table audit
+6. Background functions + import queue system (with RLS on import_jobs from day one)
+7. Collections build — naturally extends queue system
+8. Yearly pricing ($9.99)
+9. Pattern Share / Trophy Case
 
 ## SECURITY AUDIT (from Reddit AI codebase review — Session 50)
 Source: Solo founder built SaaS in 6 months with AI. Code review revealed systemic invisible-layer gaps.
@@ -35,10 +38,11 @@ Wovely findings mapped:
 
 [SOLID] Vendor lock-in — Provider router with Gemini + Haiku fallback. We own both keys. Not locked in.
 [SOLID] Auth — Supabase handles all auth + crypto. No Math.random() password generation.
-[ACTION REQUIRED] WEBHOOK_SECRET — Env var exists in pending actions but not yet set. Without it, Stripe signatures are unverified. Anyone who knows the webhook URL can fake subscription events. Fix FIRST.
+[DONE S54] WEBHOOK_SECRET — Set in Vercel, Supabase Database Webhook on auth.users INSERT wired with x-webhook-secret header verification. notify-signup returns 200 end-to-end.
+[CONFIRMED S54] Stripe webhook verification — STRIPE_WEBHOOK_SECRET has been set in Vercel since Mar 30. Signature verification has been working all along. Master doc "four-session carry" claim was a Stripe/Supabase conflation error.
+[ACTION REQUIRED S55] Client-side Gemini key exposure — VITE_GEMINI_API_KEY bundled in client JS. Old key was in the leak since Mar 20 (confirmed), new key rotated S54 but is still bundled. Move extractPatternFromPDF + callGeminiVision server-side next session to close the vector.
 [ACTION REQUIRED] CORS — Wildcard Access-Control-Allow-Origin: * likely present on all serverless functions. Audit and restrict to wovely.app origin.
 [ACTION REQUIRED] RLS audit — Verify all existing tables have correct policies. New tables (import_jobs, collections) must have RLS from day one — never retroactively.
-[ACTION REQUIRED] Stripe webhook verification — Confirm checkout.session.completed handler verifies stripe-signature header before processing.
 [ACKNOWLEDGED] Zero automated tests — Defensible at 9 users. Becomes liability at scale. Payment flows and auth paths need coverage before public launch.
 
 ## WHAT SHIPPED SESSION 49
@@ -84,6 +88,36 @@ Wovely findings mapped:
 - Danielle approved every design decision via live mockup review in Claude Design (no guessing, no translation layer)
 - Production code fully shipped, not mockup-only
 
+## WHAT SHIPPED SESSION 54
+- Email confirmation flow live in production (merge commit 806dddc on main)
+  - Supabase "Confirm email" toggle ON
+  - Custom Bev-branded confirmation template replaced YarnHive-era template
+  - handleSignup in src/Auth.jsx now flips pendingConfirmation state and renders "Check your email" screen with Bev instead of attempting password signin
+  - Full flow verified end to end: signup → Resend email with DKIM pass → confirmation link click → lands in app signed in
+- Signup notification webhook wired end to end (merge commit 0a2d59b on main)
+  - WEBHOOK_SECRET env var set in Vercel
+  - Supabase Database Webhook created on auth.users INSERT pointing to /api/notify-signup with x-webhook-secret header (created through dashboard UI — vault-layer header storage, not raw SQL)
+  - notify-signup.js cleaned: user count query fixed (users → user_profiles), dead signup_notifications upsert block removed
+  - Verified: new signup fires webhook → 200 → "🎉 New Wovely signup: {email}" lands in adam@wovely.app inbox, Gmail Primary tab
+  - adam@wovely.app mailbox was only set up today mid-session
+- Gemini API key rotated after confirmed client-bundle leak since Mar 20
+  - New key generated in AI Studio under Stitch Box project, old key deleted
+  - Both GEMINI_API_KEY and VITE_GEMINI_API_KEY on Vercel updated to new key
+  - App tested working after rotation
+  - CLIENT-SIDE EXPOSURE STILL EXISTS with new key — Session 55 server-side move of extractPatternFromPDF + callGeminiVision needed to actually close the vector
+- Stripe customer emails armed — all 5 subscription emails turned on
+  - Trial ending reminder, upcoming renewals, expiring cards, failed card payments, failed bank debit payments
+  - Smart Retry policy confirmed: 8 retries over 2 weeks with cancel-on-exhaust
+  - Support email still points to alabare@gmail.com — Session 55 action to update to support@wovely.app via Public details settings
+- Broken notify_new_signup trigger dropped
+  - Trigger on auth.users was inserting into signup_notifications, which had RLS enabled with zero policies
+  - RLS silent-kill: every new signup INSERT blocked at the DB layer, surfaced as generic "Database error saving new user" with no path to the real cause
+  - Trigger, function, and signup_notifications table all dropped
+  - Had been broken for unknown length of time — discovered during confirmation email testing
+  - handle_new_user trigger (user_profiles auto-create) remains intact
+- Security audit revision
+  - STRIPE_WEBHOOK_SECRET confirmed set in Vercel since Mar 30. Signature verification has been working. Prior master doc's "four-session carry" claim was a Stripe/Supabase conflation error.
+
 ## KEY LEARNINGS SESSION 49
 - Gemini 2.5 Flash 503s were free tier problem, not model problem — paid tier held up clean
 - Vision path (avgText/page <1200) uses Gemini. Text path (>1200) uses Haiku chunking. These are separate pipelines.
@@ -101,6 +135,14 @@ Wovely findings mapped:
 - "The same component in different contexts is often not the same component" — compact summary vs hero hero-treatment need different visual weights even when they share an underlying component
 - Variant prop pattern is cleaner than two separate components when shared palette/math/state logic outweighs divergence
 - Claude Design preview canvas colors are not production colors — system-level surface decisions must be made against live site, not preview renders
+
+## KEY LEARNINGS SESSION 54
+- Code review before action matters. Four sessions of "WEBHOOK_SECRET pending" referred to two different secrets (Stripe vs Supabase). The Stripe one was already set since Mar 30. One grep against env vars before the first entry would have caught the conflation and saved three session carries.
+- RLS silent-kill rule proven again: signup_notifications had RLS enabled with zero policies, which blocks every INSERT at the database layer and surfaces only as generic "Database error saving new user" with no path to the real cause. The master doc's existing rule ("RLS must be applied to ALL new tables at creation time — never retroactively") predicted this exact failure mode.
+- Supabase Database Webhook creation must go through the dashboard UI, not SQL — the x-webhook-secret header storage runs through a vault layer the dashboard handles cleanly. Do not try to create webhooks via pg_cron or raw SQL.
+- Supabase signup response behavior: even when "Confirm Email" is OFF, anon-key POST to /auth/v1/signup returns no session for new signups. The prior client code assumed session always returned and failed silently. Never assume session presence on signup response — always branch on !data.session.
+- Resend emails are hitting Gmail Primary tab on first attempt. Session 52 DKIM work is paying dividends on deliverability.
+- Rotating an exposed API key does not close the exposure — it only resets the blast radius. If the key is still bundled client-side, the new key is leaking too. Rotation + code move are two separate actions and must both ship to actually close the vector.
 
 ## BACKGROUND FUNCTIONS + QUEUE SYSTEM SPEC (build Session 50+)
 Problem: Large PDFs (87+ pages, text path) take 150s+ of Haiku chunking. Client times out. User sees failure even when server succeeds.
@@ -138,6 +180,7 @@ This is the foundation Collections needs anyway. Build queue first, Collections 
 Gemini 2.5 Flash: ACTIVE. Restored Session 49. Model string: gemini-2.5-flash. API path: /v1beta/
 Gemini 1.5 Flash: RETIRED. Was stable fallback, now replaced.
 Rollback: git checkout pre-gemini-25 if 2.5 Flash shows instability on production.
+KEY ROTATION S54: API key rotated after confirmed client-bundle leak since Mar 20. New key live in GEMINI_API_KEY and VITE_GEMINI_API_KEY on Vercel. Old key deleted in AI Studio (Stitch Box project). Client-side exposure still exists until Session 55 server-side move of extractPatternFromPDF + callGeminiVision into /api/snap-vision.
 
 ## ANTHROPIC API STATUS
 Tier 1 — 90K OTPM, 1K RPM. $40 credit added Apr 14 2026.
@@ -253,18 +296,19 @@ App.jsx: NO background-color on any layout wrapper
 FeedbackWidget: 60, Add Pattern tab: 40, Mobile header: 20, Tooltips: 100, Modals: 50+
 
 ## PENDING ADAM ACTIONS
-1. Add WEBHOOK_SECRET env var to Vercel — CRITICAL, financial integrity gap
-2. Supabase webhook: auth.users INSERT -> https://wovely.app/api/notify-signup
-3. Replace cover image on First Sunrise Blanket Pattern
-4. Claim @wovely on Instagram + TikTok
-5. Enable Apple sign-in in Supabase
-6. POST IN FACEBOOK GROUPS — only after import rock solid
-7. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
-8. Try Recraft.ai for Bev vector logo
-9. Create bev_happy.png, bev_warning.png, bev_concerned.png
-10. Delete feature/turttlesong-shoutout: git push origin --delete feature/turttlesong-shoutout
-11. Migrate Claude account from adam@terrainnovations.com to adam@wovely.app at a natural breakpoint (requires cancel + rebuild, estimated 2-4 hours, not urgent)
-12. Upload licensed Playfair Display + Inter WOFF2 files to Claude Design to resolve "substitute web fonts" warning
+1. Move client-side Gemini calls to server — extractPatternFromPDF (AddPatternModal.jsx) + callGeminiVision (HiveVisionForm) → new /api/snap-vision endpoint. New rotated key is still bundled. Not urgent because $50/mo spend cap caps blast radius, but next focused security session.
+2. Update Stripe support email from alabare@gmail.com to support@wovely.app via Stripe Public details settings
+3. Delete VITE_GEMINI_API_KEY env var from Vercel once client-side Gemini calls are moved server-side
+4. Replace cover image on First Sunrise Blanket Pattern
+5. Claim @wovely on Instagram + TikTok
+6. Enable Apple sign-in in Supabase
+7. POST IN FACEBOOK GROUPS — only after import rock solid
+8. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
+9. Try Recraft.ai for Bev vector logo
+10. Create bev_happy.png, bev_warning.png, bev_concerned.png
+11. Delete feature/turttlesong-shoutout: git push origin --delete feature/turttlesong-shoutout
+12. Migrate Claude account from adam@terrainnovations.com to adam@wovely.app at a natural breakpoint (requires cancel + rebuild, estimated 2-4 hours, not urgent)
+13. Upload licensed Playfair Display + Inter WOFF2 files to Claude Design to resolve "substitute web fonts" warning
 
 ## TECHNICAL GOTCHAS
 supabaseAuth.getUser() is SYNCHRONOUS — never await
@@ -345,7 +389,7 @@ Master doc status:
 
 ## CLAUDE RULES
 Fetch master doc first, no exceptions
-Next session = 54
+Next session = 55
 Danielle feedback overrides everything
 ONE complete Claude Code prompt per task
 Never push direct to main
