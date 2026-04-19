@@ -29,6 +29,50 @@ if (typeof document !== "undefined" && !document.getElementById("sb-font")) {
   document.head.appendChild(l);
 }
 
+// Parse Supabase auth tokens from the email-confirmation URL hash and write
+// the session to localStorage BEFORE React mounts. Users arriving from a
+// Resend confirmation link land at wovely.app/#access_token=...&type=signup —
+// without this, the hash is ignored and they hit the landing page logged out.
+// Running at module eval means getSession() already returns the session when
+// Wovely() evaluates _hasLocalSession on its first render.
+(() => {
+  if (typeof window === "undefined") return;
+  const hash = window.location.hash;
+  if (!hash || !hash.includes("access_token=")) return;
+  try {
+    const params = new URLSearchParams(hash.slice(1));
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+    if (!access_token || !refresh_token) return;
+    const type = params.get("type");
+    if (type === "recovery") {
+      // TODO(password reset): route recovery tokens to /reset-password flow.
+      // Out of scope for this fix — leave hash intact so a future handler can claim it.
+      return;
+    }
+    const token_type = params.get("token_type") || "bearer";
+    const expires_at_raw = params.get("expires_at");
+    const expires_in_raw = params.get("expires_in");
+    const payload = JSON.parse(atob(access_token.split(".")[1]));
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expires_at = expires_at_raw ? Number(expires_at_raw) : (payload.exp ?? nowSec + 3600);
+    const expires_in = expires_in_raw ? Number(expires_in_raw) : Math.max(0, expires_at - nowSec);
+    saveSession({
+      access_token,
+      refresh_token,
+      token_type,
+      expires_at,
+      expires_in,
+      user: { id: payload.sub, email: payload.email },
+    });
+    window.history.replaceState({}, "", window.location.pathname + window.location.search);
+    if (type === "signup") {
+      // posthog.init() runs in main.jsx AFTER App.jsx imports, so defer one tick.
+      setTimeout(() => { try { posthog.capture("email_confirmed"); } catch {} }, 0);
+    }
+  } catch { /* fail silently — never break the landing page for users without hash params */ }
+})();
+
 // ─── ROUTE ↔ VIEW MAPPING ───────────────────────────────────────────────────
 const VIEW_TO_PATH = {collection:"/",detail:"/",wip:"/builds",browse:"/browse",stash:"/stash",calculator:"/tools","stitch-check":"/stitch-check","stitch-vision":"/stitch-vision",shopping:"/shopping",profile:"/profile"};
 const PATH_TO_VIEW = {"/":"collection","/hive":"collection","/builds":"wip","/browse":"browse","/stash":"stash","/tools":"calculator","/stitch-check":"stitch-check","/stitch-vision":"stitch-vision","/shopping":"shopping","/profile":"profile","/hive-vision":"hive-vision","/privacy":"privacy","/terms":"terms"};
