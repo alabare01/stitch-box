@@ -1,0 +1,193 @@
+import { useState, useEffect } from "react";
+import posthog from "posthog-js";
+import { supabaseAuth } from "./supabase.js";
+
+const INPUT_STYLE = {
+  width: "100%", height: 41, padding: "0 14px", background: "#F8F6FF",
+  border: "1px solid #EDE4F7", borderRadius: 10, fontSize: 13,
+  color: "#2D2D4E", outline: "none", boxSizing: "border-box",
+  fontFamily: "Inter,sans-serif",
+};
+
+const AuthWallModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  title = "Create a free account",
+  subtitle = "Takes 10 seconds. No credit card.",
+  intent,
+}) => {
+  const [mode, setMode] = useState("signup");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMode("signup"); setEmail(""); setPass(""); setError(null); setLoading(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!email.trim() || !pass) { setError("Please fill in all fields."); return; }
+    setLoading(true);
+    try {
+      if (mode === "signup") {
+        const { data, error: err } = await supabaseAuth.signUp(email.trim(), pass);
+        if (err) { setError(err.msg || err.error_description || err.message || "Sign-up failed."); setLoading(false); return; }
+        try { posthog.capture("user_signed_up", { intent: intent || "unknown", source: "auth_wall_modal" }); } catch {}
+        const user = supabaseAuth.getUser();
+        if (onSuccess) onSuccess(user);
+        onClose();
+      } else {
+        const { error: err } = await supabaseAuth.signIn(email.trim(), pass);
+        if (err) { setError(err.error_description || err.msg || err.message || "Invalid email or password."); setLoading(false); return; }
+        try { posthog.capture("user_logged_in", { intent: intent || "unknown", source: "auth_wall_modal" }); } catch {}
+        const user = supabaseAuth.getUser();
+        if (onSuccess) onSuccess(user);
+        onClose();
+      }
+    } catch {
+      setError("Network error — please try again.");
+      setLoading(false);
+    }
+  };
+
+  const onKey = e => { if (e.key === "Enter" && !loading) handleSubmit(); };
+
+  const focusBorder = e => { e.target.style.borderColor = "#9B7EC8"; };
+  const blurBorder  = e => { e.target.style.borderColor = "#EDE4F7"; };
+
+  const submitLabel = loading
+    ? (mode === "signup" ? "Creating…" : "Signing in…")
+    : (mode === "signup" ? "Create account" : "Sign in");
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 800,
+        background: "rgba(45,58,124,0.4)",
+        backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20, fontFamily: "Inter,sans-serif",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "relative", width: "100%", maxWidth: 420,
+          background: "#FFFFFF", borderRadius: 16, padding: 32,
+          boxShadow: "0 20px 60px rgba(45,58,124,0.18)",
+          boxSizing: "border-box",
+        }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute", top: 12, right: 12,
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 24, color: "#6B6B8A", lineHeight: 1,
+            width: 32, height: 32, display: "flex",
+            alignItems: "center", justifyContent: "center",
+            padding: 0,
+          }}
+        >×</button>
+
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <img
+            src="/bev_neutral.png"
+            alt="Bev"
+            style={{ width: 80, height: 80, objectFit: "contain", margin: "0 auto", display: "block" }}
+          />
+        </div>
+
+        <div style={{
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontSize: 24, fontWeight: 700, color: "#2D3A7C",
+          textAlign: "center", marginBottom: 6, lineHeight: 1.25,
+        }}>
+          {mode === "signup" ? title : "Welcome back"}
+        </div>
+        <div style={{
+          fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B6B8A",
+          textAlign: "center", marginBottom: 20, lineHeight: 1.5,
+        }}>
+          {mode === "signup" ? subtitle : "Sign in to continue."}
+        </div>
+
+        <div onKeyDown={onKey} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="your@email.com"
+            type="email"
+            autoComplete="email"
+            style={INPUT_STYLE}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          />
+          <input
+            value={pass}
+            onChange={e => setPass(e.target.value)}
+            placeholder={mode === "signup" ? "Create a password" : "Password"}
+            type="password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            style={INPUT_STYLE}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          />
+        </div>
+
+        {error && (
+          <div style={{
+            color: "#C0544A", fontSize: 13, marginTop: 10, lineHeight: 1.5,
+            fontFamily: "Inter,sans-serif",
+          }}>{error}</div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{
+            width: "100%", height: 43, marginTop: 14,
+            background: "#9B7EC8", color: "#fff",
+            border: "none", borderRadius: 10,
+            fontSize: 14, fontWeight: 600, fontFamily: "Inter,sans-serif",
+            cursor: loading ? "default" : "pointer",
+            opacity: loading ? 0.6 : 1,
+          }}
+        >{submitLabel}</button>
+
+        <div style={{ textAlign: "center", marginTop: 14, fontSize: 12.5 }}>
+          {mode === "signup" ? (
+            <>
+              <span style={{ color: "#6B6B8A" }}>Already have an account? </span>
+              <span
+                onClick={() => { setMode("signin"); setError(null); }}
+                style={{ color: "#9B7EC8", cursor: "pointer", fontWeight: 600 }}
+              >Sign in</span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: "#6B6B8A" }}>New to Wovely? </span>
+              <span
+                onClick={() => { setMode("signup"); setError(null); }}
+                style={{ color: "#9B7EC8", cursor: "pointer", fontWeight: 600 }}
+              >Create account</span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthWallModal;

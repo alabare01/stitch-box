@@ -10,6 +10,7 @@ import StitchCheck from "./StitchCheck.jsx";
 import StitchVision from "./StitchVision.jsx";
 import StitchResultPage from "./StitchResultPage.jsx";
 import Auth from "./Auth.jsx";
+import AuthWallModal from "./AuthWallModal.jsx";
 import PatternHeader from "./PatternHeader.jsx";
 import RowManager, { ensureRepeatBrackets } from "./RowManager.jsx";
 import AddPatternModal, { uploadPatternFile, buildRowsFromComponents } from "./AddPatternModal.jsx";
@@ -1641,6 +1642,19 @@ export default function Wovely() {
   const [upgradeToast,setUpgradeToast]=useState(null);
   const [coverPickerTarget,setCoverPickerTarget]=useState(null);
   const [pendingImportUrl,setPendingImportUrl]=useState(null);
+  // Anonymous mode: set when user clicks "Try it free" on landing. Persists in sessionStorage so
+  // refresh/nav within the tab keeps them in the app shell instead of bouncing to the landing.
+  const [anonymousMode,setAnonymousMode]=useState(()=>{try{return sessionStorage.getItem("wovely_anonymous_mode")==="1";}catch{return false;}});
+  const enterAnonymousMode=useCallback(()=>{try{sessionStorage.setItem("wovely_anonymous_mode","1");}catch{}setAnonymousMode(true);try{posthog.capture("anonymous_mode_entered");}catch{}},[]);
+  // AuthWallModal global state — wired here so any action can call requireAuth(). Gating individual
+  // actions is out of scope for this prompt; this wiring is the foundation for that work.
+  const [authWallOpen,setAuthWallOpen]=useState(false);
+  const [authWallContext,setAuthWallContext]=useState(null);
+  const requireAuth=useCallback((context,successCallback)=>{
+    if(supabaseAuth.getUser()){successCallback&&successCallback();return;}
+    setAuthWallContext({...(context||{}),onSuccess:successCallback});
+    setAuthWallOpen(true);
+  },[]);
   const{isTablet,isDesktop}=useBreakpoint();
   const allPatterns = [...userPatterns,...starterPatterns];
   const userStarterCount=userPatterns.filter(p=>p.isStarter).length;
@@ -1692,7 +1706,7 @@ export default function Wovely() {
                   const rows = await pr.json();
                   console.log("[Wovely] Profile fetch result:", JSON.stringify(rows), "uid:", uid);
                   if (rows[0]) {
-                    if (!rows[0].has_completed_onboarding) setShowOnboarding(true);
+                    // Profile onboarding redirect removed — new signups land directly in the app.
                     const proStatus = rows[0].is_pro === true;
                     console.log("[Wovely] is_pro from DB:", rows[0].is_pro, "→ proStatus:", proStatus);
                     setIsPro(proStatus);
@@ -1752,7 +1766,7 @@ export default function Wovely() {
     }
   },[]);
 
-  const handleSignOut = async () => { posthog.reset(); await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); localStorage.removeItem("yh_is_pro"); try { sessionStorage.removeItem("wovely_redirect_intent"); } catch {} document.cookie="wovely_authed=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"; navigate("/"); };
+  const handleSignOut = async () => { posthog.reset(); await supabaseAuth.signOut(); setAuthed(false); setIsPro(false); setUserPatterns([]); localStorage.removeItem("yh_is_pro"); try { sessionStorage.removeItem("wovely_redirect_intent"); sessionStorage.removeItem("wovely_anonymous_mode"); } catch {} setAnonymousMode(false); document.cookie="wovely_authed=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"; navigate("/"); };
 
   // Navigation helper — translates view keys to URL paths
   const navigateToView = useCallback((v, patternId) => {
@@ -1920,8 +1934,10 @@ export default function Wovely() {
   const handleNewSignup = () => {
     posthog.capture("user_signed_up");
     setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
+    try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}
+    setAnonymousMode(false);
     navigate("/");
-    setShowOnboarding(true);
+    // Profile onboarding redirect removed — new signups land directly on My Wovely.
     setShowWelcomeBanner(true);
     checkUpgradeIntent();
     setTimeout(()=>{
@@ -1955,6 +1971,8 @@ export default function Wovely() {
     if(user) posthog.identify(user.id,{email:user.email});
     posthog.capture("user_logged_in");
     setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";
+    try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}
+    setAnonymousMode(false);
     // Post-login redirect: only restore pattern detail URLs saved within 15 minutes
     let postLoginPath = "/";
     try {
@@ -2012,9 +2030,12 @@ export default function Wovely() {
   // Stitch result page — show standalone for public, app shell for logged-in users
   if(location.pathname.startsWith("/stitch/")&&!supabaseAuth.getUser()) return <><CSS/><StitchResultPage/></>;
   if(!authed) {
-    // Auth guard: redirect any non-root path to / when not logged in
-    if(location.pathname!=="/") return <Navigate to="/" replace/>;
-    return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup}/><LegalFooter/></>;
+    // Anonymous mode: show the landing page on "/" until the user clicks "Try it free" (or signs in).
+    // Once in anon mode, they can browse the entire shell. Non-root paths always fall through
+    // so deep links like /pattern/:id work for signed-out users too.
+    if(location.pathname==="/"&&!anonymousMode){
+      return <><CSS/><Auth onEnter={handleSignIn} onEnterAsNew={handleNewSignup} onTryAnonymous={enterAnonymousMode}/><LegalFooter/></>;
+    }
   }
   // Unknown routes redirect to /
   const knownPaths=["/","/hive","/builds","/browse","/stash","/tools","/stitch-check","/stitch-vision","/shopping","/profile","/hive-vision","/master-doc","/privacy","/terms"];
@@ -2178,6 +2199,7 @@ export default function Wovely() {
     <div style={{display:"flex",minHeight:"100vh",width:"100%",background:"transparent",fontFamily:T.sans,position:"relative"}}>
       <CSS/>
       <WhatsNewModal/>
+      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={(user)=>{setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}setAnonymousMode(false);if(user)posthog.identify(user.id,{email:user.email});setErrorReporterUser(user?.id||null);authWallContext?.onSuccess&&authWallContext.onSuccess(user);}} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
@@ -2225,6 +2247,7 @@ export default function Wovely() {
     <div style={{fontFamily:T.sans,background:"transparent",minHeight:"100vh",maxWidth:isTablet?680:430,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"}}>
       <CSS/>
       <WhatsNewModal/>
+      <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={(user)=>{setAuthed(true);document.cookie="wovely_authed=1;path=/;max-age=31536000";try{sessionStorage.removeItem("wovely_anonymous_mode");}catch{}setAnonymousMode(false);if(user)posthog.identify(user.id,{email:user.email});setErrorReporterUser(user?.id||null);authWallContext?.onSuccess&&authWallContext.onSuccess(user);}} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       {upgradeToast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:upgradeToast==="success"?"#5B9B6B":"#6B6B8A",color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(0,0,0,.2)",animation:"modalPop .3s ease both",textAlign:"center"}}>{upgradeToast==="success"?"Welcome to Wovely Pro!":"No worries — you can upgrade anytime"}</div>}

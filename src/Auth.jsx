@@ -192,7 +192,7 @@ const ProductPreview = () => {
 };
 
 /* ── Right Column: Signup Form ── */
-const SignupForm = ({ onEnter, onEnterAsNew }) => {
+const SignupForm = ({ onEnter, onEnterAsNew, onTryAnonymous }) => {
   const [mode, setMode] = useState("form"); // "form" | "signin" | "magic"
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -254,6 +254,25 @@ const SignupForm = ({ onEnter, onEnterAsNew }) => {
           {mode === "signin" ? "Your Wovely is waiting." : "Free to start. No credit card needed."}
         </div>
       </div>
+
+      {/* Try it free — no-signup entry to the app shell */}
+      {onTryAnonymous && (
+        <>
+          <button
+            onClick={onTryAnonymous}
+            style={{
+              width: "100%", height: 43, background: "#9B7EC8", color: "#fff",
+              border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600,
+              fontFamily: "Inter,sans-serif", cursor: "pointer",
+            }}
+          >Try it free — no signup required</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "14px 0 18px" }}>
+            <div style={{ flex: 1, height: 1, background: "#EDE4F7" }} />
+            <div style={{ fontSize: 11, color: "#6B6B8A", whiteSpace: "nowrap" }}>or sign up to save your work</div>
+            <div style={{ flex: 1, height: 1, background: "#EDE4F7" }} />
+          </div>
+        </>
+      )}
 
       {/* Magic link sent */}
       {mode === "magic" && magicSent ? (
@@ -369,7 +388,7 @@ const MobileCTA = ({ signupRef }) => {
 };
 
 /* ── Main Auth Component ── */
-const Auth = ({ onEnter, onEnterAsNew }) => {
+const Auth = ({ onEnter, onEnterAsNew, onTryAnonymous }) => {
   const { isDesktop, isMobile } = useBreakpoint();
   const signupRef = useRef(null);
 
@@ -412,7 +431,7 @@ const Auth = ({ onEnter, onEnterAsNew }) => {
           maxWidth: 480,
           width: "100%",
         }}>
-          <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} />
+          <SignupForm onEnter={onEnter} onEnterAsNew={onEnterAsNew} onTryAnonymous={onTryAnonymous} />
         </div>
       </div>
     </div>
