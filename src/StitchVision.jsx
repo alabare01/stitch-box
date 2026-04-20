@@ -64,7 +64,7 @@ const ANON_SCAN_FLAG = "wovely_sov_anon_scan_used";
 const anonScanUsed = () => { try { return sessionStorage.getItem(ANON_SCAN_FLAG) === "true"; } catch { return false; } };
 const markAnonScanUsed = () => { try { sessionStorage.setItem(ANON_SCAN_FLAG, "true"); } catch {} };
 
-const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount }) => {
+const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPattern }) => {
   const [stage, setStage] = useState("pick"); // pick | loading | result | limit
   const [result, setResult] = useState(null);
   const [thumb, setThumb] = useState(null);
@@ -200,6 +200,30 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount }) => {
         <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Something went wrong</div>
         <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>{error}</div>
         <button onClick={reset} style={{ background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
+      </div>
+    );
+
+    if (result?.not_stitch) return (
+      <div style={{ padding: "40px 20px 60px", textAlign: "center", maxWidth: 440, margin: "0 auto" }}>
+        {thumb && <img src={thumb} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
+        <img src="/bev_neutral.png" alt="Bev" style={{ width: 110, height: "auto", margin: "0 auto 16px", display: "block", filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.3))" }} />
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>That looks like a pattern, not a stitch</div>
+        <div style={{ fontSize: 13, color: "#6B6B8A", lineHeight: 1.7, marginBottom: 20 }}>
+          Stitch-O-Vision identifies stitches from photos of actual fabric. Looks like you uploaded a pattern page — Bev can import that for you instead.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {onImportAsPattern && (
+            <button
+              onClick={() => onImportAsPattern()}
+              style={{ width: "100%", background: "#9B7EC8", color: "#fff", border: "none", borderRadius: 99, padding: "13px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
+              Import as a pattern instead
+            </button>
+          )}
+          <button onClick={reset} style={{ width: "100%", background: "transparent", color: T.ink2, border: `1.5px solid ${T.border}`, borderRadius: 99, padding: "12px 28px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Try a different photo
+          </button>
+        </div>
       </div>
     );
 
