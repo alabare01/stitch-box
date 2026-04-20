@@ -6,29 +6,32 @@ Last migrated from master doc API: 2026-04-16
 
 ---
 
-# WOVELY MASTER DOC v96
+# WOVELY MASTER DOC v97
 
 ## CURRENT PRODUCTION STATE
-Live on wovely.app — Session 54 shipped AND merged to main. Security hardening session, four major wins. Email confirmation flow live with custom Bev-branded template (merge 806dddc). Signup notification webhook wired end-to-end: WEBHOOK_SECRET set in Vercel, Supabase Database Webhook on auth.users INSERT points at /api/notify-signup, "🎉 New Wovely signup" emails now land in adam@wovely.app (merge 0a2d59b). Gemini API key rotated after confirmed client-bundle leak since Mar 20 — new key live in GEMINI_API_KEY + VITE_GEMINI_API_KEY, old key deleted in AI Studio. Client-side exposure still exists with new key pending Session 55 server-side move. Stripe customer emails all 5 armed. Broken notify_new_signup trigger (RLS enabled with zero policies on signup_notifications) that was silently blocking every new signup with "Database error saving new user" — dropped. handle_new_user trigger for user_profiles auto-create remains intact.
+Live on wovely.app — Session 56 shipped AND merged to main at 9ea3da3. Launch day + anonymous-mode pivot, largest single-session behavior change to date. Try-before-signup now live: unauthed visitors browse the full app shell and only hit the AuthWallModal when they try a gated action. Gating hierarchy locked in (anon → AuthWall → Pro paywall → proceed) via central gateAction helper; direct setShowProModal calls retired. Apple OAuth button removed (provider not enabled in Supabase, was throwing validation_failed from Facebook in-app browser). Email confirmation disabled entirely in Supabase dashboard — no more confirmation email, no more "Check your email" screen, no more dead EmailConfirmBanner rendered against email_confirmed_at=null (all plumbing ripped out). Starter patterns removed from default app state (DEFAULT_STARTERS is now an empty array client-side; 1 starter row cascaded out of DB). AuthWallModal session hydration hardened with retry loop + Supabase signup response shape normalization (flat vs nested depending on email-confirm config). Welcome banner copy refreshed ("Bev's got a space ready for your first pattern"). BevCheck preview "Upgrade to Pro" button rewired from dead tooltip to openProGate. Facebook launch posts drove 78 unique users / 974 events on April 19 (~7x baseline). 19 test accounts purged from auth.users; 16 real users remain.
 
 ## FIRST THING NEXT SESSION
-1. Move client-side Gemini calls server-side — extractPatternFromPDF (AddPatternModal.jsx) + callGeminiVision (HiveVisionForm) → new /api/snap-vision endpoint. VITE_GEMINI_API_KEY still bundled with the rotated key. Not urgent ($50/mo Gemini cap limits blast radius) but this is the fix for the root leak vector.
-2. Delete VITE_GEMINI_API_KEY from Vercel after server-side move lands
-3. Update Stripe support email from alabare@gmail.com to support@wovely.app via Public details settings
-4. CORS audit on all serverless functions (carried over)
-5. RLS full table audit (carried over)
-6. Background functions + queue system build
+1. Welcome re-engagement email — add SUPABASE_SERVICE_ROLE_KEY + RESEND_API_KEY to .env.local, run `node scripts/send-welcome-emails.mjs --test=alabare@gmail.com`, verify iPhone rendering, then `--send`. Script self-deletes after successful --send. 3 segments, 13 recipients, Supabase magic links per user. (15 min)
+2. Activation check: did any of today's 8 new signups add patterns overnight? Query patterns WHERE created_at >= 2026-04-19 AND user_id NOT IN (Dani, Adam, Dani2).
+3. Welcome banner still uses 🐍 emoji instead of Bev image — violates design system rule, flagged during Session 56. Swap to bev_neutral.png inline.
+4. Facebook post follow-up comment announcing anonymous mode shipped (so early bouncers who hit the old auth wall know to come back).
+5. Carry-forward from S55 (never ran as focused session, launch day superseded it): move client-side Gemini server-side, delete VITE_GEMINI_API_KEY from Vercel, Stripe support email, CORS audit, RLS audit, Collections build, yearly pricing.
 
-## SESSION 55 PRIORITY ORDER
-1. Move client-side Gemini to /api/snap-vision server endpoint (security — close confirmed key-leak vector)
-2. Delete VITE_GEMINI_API_KEY env var from Vercel after server-side move
-3. Update Stripe support email to support@wovely.app
-4. CORS audit — all serverless functions
-5. RLS full table audit
-6. Background functions + import queue system (with RLS on import_jobs from day one)
-7. Collections build — naturally extends queue system
-8. Yearly pricing ($9.99)
-9. Pattern Share / Trophy Case
+## SESSION 57 PRIORITY ORDER
+1. Welcome email blast — `.env.local` keys + --test + --send (15 min, script pre-built scripts/send-welcome-emails.mjs)
+2. Activation cohort check — did S56 signups come back and add a pattern? Set benchmark for anon-mode conversion quality.
+3. Fix welcome banner 🐍 → bev_neutral.png (design system violation flagged S56)
+4. Facebook follow-up comment on anonymous-mode shipment so early-launch bouncers know to retry
+5. Move client-side Gemini to /api/snap-vision server endpoint (carry from S55 — close confirmed key-leak vector)
+6. Delete VITE_GEMINI_API_KEY env var from Vercel after server-side move
+7. Update Stripe support email to support@wovely.app
+8. CORS audit — all serverless functions
+9. RLS full table audit
+10. Background functions + import queue system (with RLS on import_jobs from day one)
+11. Collections build — naturally extends queue system
+12. Yearly pricing ($9.99)
+13. Pattern Share / Trophy Case
 
 ## SECURITY AUDIT (from Reddit AI codebase review — Session 50)
 Source: Solo founder built SaaS in 6 months with AI. Code review revealed systemic invisible-layer gaps.
@@ -40,7 +43,7 @@ Wovely findings mapped:
 [SOLID] Auth — Supabase handles all auth + crypto. No Math.random() password generation.
 [DONE S54] WEBHOOK_SECRET — Set in Vercel, Supabase Database Webhook on auth.users INSERT wired with x-webhook-secret header verification. notify-signup returns 200 end-to-end.
 [CONFIRMED S54] Stripe webhook verification — STRIPE_WEBHOOK_SECRET has been set in Vercel since Mar 30. Signature verification has been working all along. Master doc "four-session carry" claim was a Stripe/Supabase conflation error.
-[ACTION REQUIRED S55] Client-side Gemini key exposure — VITE_GEMINI_API_KEY bundled in client JS. Old key was in the leak since Mar 20 (confirmed), new key rotated S54 but is still bundled. Move extractPatternFromPDF + callGeminiVision server-side next session to close the vector.
+[ACTION REQUIRED S57] Client-side Gemini key exposure — VITE_GEMINI_API_KEY bundled in client JS. Old key was in the leak since Mar 20 (confirmed), new key rotated S54 but is still bundled. S55 never ran as a security-focused session (launch day superseded). Move extractPatternFromPDF + callGeminiVision server-side in S57 to close the vector.
 [ACTION REQUIRED] CORS — Wildcard Access-Control-Allow-Origin: * likely present on all serverless functions. Audit and restrict to wovely.app origin.
 [ACTION REQUIRED] RLS audit — Verify all existing tables have correct policies. New tables (import_jobs, collections) must have RLS from day one — never retroactively.
 [ACKNOWLEDGED] Zero automated tests — Defensible at 9 users. Becomes liability at scale. Payment flows and auth paths need coverage before public launch.
@@ -117,6 +120,49 @@ Wovely findings mapped:
   - handle_new_user trigger (user_profiles auto-create) remains intact
 - Security audit revision
   - STRIPE_WEBHOOK_SECRET confirmed set in Vercel since Mar 30. Signature verification has been working. Prior master doc's "four-session carry" claim was a Stripe/Supabase conflation error.
+
+## WHAT SHIPPED SESSION 56 (April 19-20, 2026 — Launch day + anonymous mode)
+- Apple OAuth sign-in button removed (provider not enabled in Supabase, Facebook in-app browser triggered Unsupported provider validation_failed errors)
+- Email confirmation disabled entirely in Supabase dashboard
+  - "Check your email" screen removed from Auth.jsx signup flow
+  - EmailConfirmBanner component + all plumbing (state, polling effect, resend handlers, sessionStorage dismissal key) ripped from App.jsx and ProfileSettingsView
+  - Hash-token parser at App.jsx:33 kept intact for future re-enablement
+- Starter patterns removed from default app state (DEFAULT_STARTERS now empty array client-side; read as AI filler on first impression, wrong vibe for a crochet community hostile to AI slop)
+- Anonymous mode — full try-before-signup pivot shipped in 7 commits (3 prompts + 4 cleanup)
+  - New component src/AuthWallModal.jsx with contextual signup gating, confirm-password field, session-hydration retry loop (0/200/400ms), posthog signed_up_from_wall capture
+  - Central gateAction helper in App.jsx — hierarchy: !authed → AuthWall, authed && requiresPro && !isPro → Pro paywall, else proceed
+  - openProGate wrapper for Pro CTAs (locked nav, StitchVision upgrade, BevCheck preview, profile upgrade pill) — every direct setShowProModal call retired except DeleteConfirmModal (unreachable for anon)
+  - 15+ action points gated with intent strings: import_pattern, import_pattern_url, import_pattern_image, add_stash, add_shopping, profile_edit, change_password, bevcheck, stitch_vision, stitch_vision_limit, locked_nav, nav_sign_in, bevcheck_preview
+  - "Try it free — no signup required" CTA on landing; sessionStorage wovely_anonymous_mode flag persists across refresh within tab
+  - SidebarNav + NavPanel accept isAnonymous + onOpenAuthWall — Sign out becomes "Sign in / Create account", profile sub becomes "Sign in to save", Pro upgrade card shows "Get started free", Pro padlocks hidden for anon
+  - Welcome banner copy refreshed: "Welcome to Wovely. 🐍 Bev's got a space ready for your first pattern." (emoji flagged as design-system violation for S57 fix)
+  - Empty states polished for /stash, /shopping, /builds
+  - PostHog events wired: anonymous_mode_entered, auth_wall_shown (with intent + requires_pro), signed_up_from_wall, pro_paywall_shown
+  - Stitch-O-Vision rate-limit scaffolding added (sessionStorage wovely_sov_anon_scan_used flag + onRequireAccount(limitReached) hook) — anon users currently hit AuthWall on first scan attempt because the scan pipeline requires a Supabase session for storage upload; the "allow 1 anon scan then wall" UX requires a backend endpoint change deferred to later session
+- BevCheck preview "Upgrade to Pro" button rewired — was `setProUpgradeBanner(true)` dead-end tooltip in both AddPatternModal.jsx and ImageImportModal.jsx, now routes through openProGate. Dead proUpgradeBanner state + inline banner render deleted from both files.
+- AuthWallModal onSuccess made async, now prefetches is_pro via user_profiles before invoking proceedCallback — returning Pro users signing in via the wall no longer flash as free
+- Supabase signup response shape normalization — supabase.js signUp now handles both nested (`data.session`) and flat (`data.access_token`) shapes. Fixes false-positive "Signup succeeded but session setup failed" error introduced by the session-hydration check when Supabase returns the flat shape.
+- gateAction resume delay bumped from 100ms → 300ms to let session + React state + profile prefetch all settle before the resumed action fires
+- Database cleanup — 19 test accounts deleted from auth.users (all alabare+* plus 1 typo albare+testanon@gmail.com). Cascaded cleanup: 1 test pattern row, 1 orphan stitch_result. Real-user count: 16 (Dani x2, Adam, 13 legitimate signups spanning pre-launch + Facebook launch day).
+- Welcome re-engagement email script built at scripts/send-welcome-emails.mjs (gitignored). Three modes (--dry-run, --test=<email>, --send). Three segments (pre_launch_engaged 4, pre_launch_dormant 2, facebook_today 7) with tailored subject lines. Per-user Supabase magic link via auth.admin.generateLink, Resend delivery, 500ms rate-limit between sends, self-deletes after successful --send. Script not run this session — deferred to S57 morning after Adam adds SUPABASE_SERVICE_ROLE_KEY + RESEND_API_KEY to .env.local.
+
+Launch day metrics (PostHog, April 19):
+- 974 events from 78 unique users — ~7x baseline
+- 8 entered anonymous mode, 14 auth_wall_shown, 3 signed_up_from_wall
+- 5 pattern uploads from 3 users, 6 pro_paywall_shown, 1 upgrade click
+- 7 new Facebook signups in the single day window
+- Anonymous mode shipped ~2 hours into launch day, so early bouncers pre-dated the fix
+
+## KEY LEARNINGS SESSION 56
+- Supabase signup endpoint returns session in TWO shapes — nested `{ session: { access_token, ... } }` when email confirmation is ON, flat `{ access_token, refresh_token, ... }` when OFF. The client must normalize both or session never lands in localStorage on signup. This bit us immediately after disabling email confirmation because the signUp handler checked only `data.session`.
+- Anonymous-mode gate hierarchy MUST put AuthWall before Pro paywall. The reverse order (Pro paywall shown to anon users clicking BevCheck) reads as "sign up and you still can't have this" and kills conversion motivation. Central gateAction helper enforces invariant: `if (!authed) AuthWall; else if (requiresPro && !isPro) Pro paywall; else proceed`.
+- Session hydration after signup is NOT instantaneous — supabaseAuth.getUser() can return null briefly while localStorage write and JWT parse race each other. Retry loop at 0ms / 200ms / 400ms (3 attempts, ~600ms total) covers the long tail without flashing false-positive errors on fast machines.
+- When extracting inline handlers in render sites, async is load-bearing. AuthWallModal's onSuccess prop in App.jsx had to become async specifically so the is_pro prefetch could await before the gated action fired — otherwise returning Pro users flash as free for the duration of the profile fetch.
+- Dead plumbing dies in layers. Disabling Supabase email confirmation meant EmailConfirmBanner, its state, its polling effect, its resend handlers, its dismiss session key, the "Email confirmed" pill in ProfileSettingsView, and the `onEmailConfirmed` prop chain all became dead code. Grep for every symbol before one commit — removing just the banner render still leaves three zombie useEffects polling /auth/v1/user every 10s.
+- "Upgrade to Pro" buttons that do nothing are worse than Pro buttons that lock. The AddPatternModal + ImageImportModal BevCheck preview had `setProUpgradeBanner(true)` that toggled an inline reassuring tooltip instead of opening the paywall. Users read the non-response as "button broken" and bounce. Every lavender Upgrade button must route through openProGate.
+- Canonical Bev image URL for external surfaces: https://wovely.app/bev_neutral.png (500x500 PNG, transparent background, public path). Use this URL in emails, Open Graph, partner embeds — never the Cloudinary variant.
+- Facebook posts drove real traffic (78 unique, ~7x baseline) but anonymous mode wasn't live when the posts went up — the first ~2 hours of bouncers hit the old signup wall. Launch-day sequencing matters: ship the pivot, THEN post.
+- Landing page signup banner emoji 🐍 is a design-system violation (CLAUDE.md explicitly forbids snake emoji where Bev image can be used). Got shipped because user-provided copy contained the emoji and the rule wasn't re-checked at edit time. Fix in S57.
 
 ## KEY LEARNINGS SESSION 49
 - Gemini 2.5 Flash 503s were free tier problem, not model problem — paid tier held up clean
@@ -232,16 +278,30 @@ Surfaced during Claude Design setup. Previous BevCheck gauge rendered lavender r
 Zone-anchored labels (PASS left, HEADS UP top, ISSUES right) outside the arc on hero. Score in large navy below arc. Glass instrument treatment. Bev integrated into arc interior, needle on foreground layer. Dynamic "Bev spotted {count} {thing|things}" copy template.
 Status: SHIPPED to production Session 53 (merge commit 6053b87 on main).
 
-## ACTIVE USERS (9)
-danielle2673@me.com — Pro — 17 patterns — Active (north star)
-alabare@gmail.com — Pro — 4 patterns — Active
-steffaniembrown@gmail.com — Pro — 5 patterns — Active
-turttlesong@yahoo.com — Pro — 2 patterns — Trial
-ronsrit@hotmail.com — Pro — 3 patterns — At risk
-danielle2673@gmail.com — Pro — 2 patterns — Drifting
-stinkyswife@gmail.com — Pro — 0 patterns — Ghosted
-tbrightjax@gmail.com — Pro — 0 patterns — Ghosted
-alabare+test1@gmail.com — Free — 0 patterns — Test
+## ACTIVE USERS (16 — all 19 test accounts purged S56)
+Core:
+- danielle2673@me.com — Pro — 17 patterns — Active (north star)
+- alabare@gmail.com — Pro — 4 patterns — Active
+- danielle2673@gmail.com — Pro — 2 patterns — Drifting
+
+Pre-launch engaged (segment A in S56 welcome blast):
+- steffaniembrown@gmail.com — Pro — 5 patterns — Active
+- turttlesong@yahoo.com — Pro — 2 patterns — Trial
+- ronsrit@hotmail.com — Pro — 3 patterns — At risk
+- andersonkerrie70@gmail.com — Free — 0 patterns — New (pre-launch)
+
+Pre-launch dormant (segment B):
+- tbrightjax@gmail.com — Pro — 0 patterns — Ghosted
+- stinkyswife@gmail.com — Pro — 0 patterns — Ghosted
+
+Facebook launch-day signups April 19 2026 (segment C — 7):
+- fionaprevett@icloud.com
+- nancycasso@gmail.com
+- andersonchrisp@gmail.com
+- shelby.feinberg@gmail.com
+- mallory@transitionsbehaviorservices.com
+- mackay.amanda@gmail.com
+- tjwinger75@gmail.com
 
 ## USER IDS
 Adam: 6e1a02d9-c210-4bc4-968e-dde3435565d1
@@ -296,13 +356,13 @@ App.jsx: NO background-color on any layout wrapper
 FeedbackWidget: 60, Add Pattern tab: 40, Mobile header: 20, Tooltips: 100, Modals: 50+
 
 ## PENDING ADAM ACTIONS
-1. Move client-side Gemini calls to server — extractPatternFromPDF (AddPatternModal.jsx) + callGeminiVision (HiveVisionForm) → new /api/snap-vision endpoint. New rotated key is still bundled. Not urgent because $50/mo spend cap caps blast radius, but next focused security session.
-2. Update Stripe support email from alabare@gmail.com to support@wovely.app via Stripe Public details settings
-3. Delete VITE_GEMINI_API_KEY env var from Vercel once client-side Gemini calls are moved server-side
-4. Replace cover image on First Sunrise Blanket Pattern
-5. Claim @wovely on Instagram + TikTok
-6. Enable Apple sign-in in Supabase
-7. POST IN FACEBOOK GROUPS — only after import rock solid
+1. Add SUPABASE_SERVICE_ROLE_KEY + RESEND_API_KEY to .env.local, then run the S56 welcome email script (scripts/send-welcome-emails.mjs) → --test=alabare@gmail.com → verify on iPhone → --send. Script self-deletes on clean finish. 15 min.
+2. Move client-side Gemini calls to server — extractPatternFromPDF (AddPatternModal.jsx) + callGeminiVision (HiveVisionForm) → new /api/snap-vision endpoint. New rotated key is still bundled. Not urgent because $50/mo spend cap caps blast radius, but next focused security session.
+3. Update Stripe support email from alabare@gmail.com to support@wovely.app via Stripe Public details settings
+4. Delete VITE_GEMINI_API_KEY env var from Vercel once client-side Gemini calls are moved server-side
+5. Replace cover image on First Sunrise Blanket Pattern
+6. Claim @wovely on Instagram + TikTok
+7. Post Facebook follow-up comment announcing anonymous mode shipped (give early-launch bouncers a reason to come back)
 8. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
 9. Try Recraft.ai for Bev vector logo
 10. Create bev_happy.png, bev_warning.png, bev_concerned.png
@@ -389,7 +449,7 @@ Master doc status:
 
 ## CLAUDE RULES
 Fetch master doc first, no exceptions
-Next session = 55
+Next session = 57
 Danielle feedback overrides everything
 ONE complete Claude Code prompt per task
 Never push direct to main
