@@ -21,7 +21,7 @@ Analyze this image and identify the specific crochet stitch or stitch pattern sh
 
 IMPORTANT: The image may contain crochet hooks, knitting needles, hands, or other tools in the foreground. IGNORE these objects entirely. Your job is to identify the stitch pattern visible in the yarn or fabric — look past any tools or hands to the textile itself. If a hook or needle is present, it is simply being used to work the stitch — focus on the fabric structure, texture, and stitch pattern in the yarn surrounding or behind the tool. There will always be enough fabric visible to make a confident identification.
 
-IMPORTANT — Two Scenarios:
+IMPORTANT — Three Scenarios:
 
 Scenario A — Single stitch texture visible (close-up or clear repeating pattern):
 Return the specific stitch name as stitch_name (e.g. "Moss Stitch", "Shell Stitch", "Bobble Stitch").
@@ -31,6 +31,16 @@ Scenario B — Full project or blanket visible (multiple stitches, overall const
 Return the PRIMARY construction technique as stitch_name (e.g. "Corner-to-Corner (C2C)", "Granny Square", "Amigurumi").
 ALSO identify the base stitch used within that construction in a new field called "base_stitch" (e.g. "Half Double Crochet", "Single Crochet").
 In description, acknowledge this is a full project view and describe what you observe.
+
+Scenario C — Printed pattern or instructional document (NOT actual crochet fabric):
+If the image shows written pattern instructions, a stitch chart or diagram, row-by-row text, a PDF or printed page, a screenshot of pattern text, a magazine page, or any image whose primary content is text and instructions rather than yarn or fabric, DO NOT attempt to identify a stitch. Even if the printed pattern mentions a specific stitch name (for example "Granny Square" or "Shell Stitch"), the image itself is not fabric — treat it as a printed pattern.
+In this case return:
+  "stitch_name": null
+  "not_stitch": true
+  "content_type": "printed_pattern"
+  "description": a short explanation of what you see (for example "Printed crochet pattern page with written instructions for a top")
+  and leave all other fields empty or null.
+Watermarks, page numbers, website URLs, designer handles visible over fabric can still be IGNORED for Scenario A or B — this scenario only triggers when the majority of the visible image is text or diagrammatic rather than textile.
 
 Rules:
 - Be specific. "Single crochet" is better than "basic stitch." "Moss stitch" is better than "textured stitch."
@@ -51,7 +61,9 @@ Return ONLY a valid JSON object with no markdown, no backticks, no explanation b
   "common_uses": "what this stitch is typically used for. NEVER leave this empty.",
   "tutorial_search": "best YouTube search term to find a tutorial for this exact stitch",
   "confidence": "high" or "medium" or "low",
-  "not_crochet": false
+  "not_crochet": false,
+  "not_stitch": false,
+  "content_type": "fabric" or "printed_pattern"
 }`;
 
 const NEEDS_CONVERSION = new Set([

@@ -2190,7 +2190,7 @@ export default function Wovely() {
           {view==="stash"&&<div style={{paddingTop:24}}><YarnStash gateAction={gateAction}/></div>}
           {view==="calculator"&&<div style={{paddingTop:24}}><Calculators/></div>}
           {view==="stitch-check"&&<div style={{paddingTop:24}}><StitchCheck gateAction={gateAction}/></div>}
-          {view==="stitch-vision"&&<div style={{paddingTop:24}}><StitchVision isPro={isPro} isAnon={!authed} onUpgrade={()=>openProGate("stitch_vision")} onRequireAccount={(limitReached)=>gateAction({ intent: limitReached?"stitch_vision_limit":"stitch_vision", title: limitReached?"You've used your free scan":"Create a free account", subtitle: limitReached?"Sign up for unlimited Stitch-O-Vision — free forever with a Wovely account.":"Takes 10 seconds. No credit card." }, ()=>{})}/></div>}
+          {view==="stitch-vision"&&<div style={{paddingTop:24}}><StitchVision isPro={isPro} isAnon={!authed} onUpgrade={()=>openProGate("stitch_vision")} onRequireAccount={(limitReached)=>gateAction({ intent: limitReached?"stitch_vision_limit":"stitch_vision", title: limitReached?"You've used your free scan":"Create a free account", subtitle: limitReached?"Sign up for unlimited Stitch-O-Vision — free forever with a Wovely account.":"Takes 10 seconds. No credit card." }, ()=>{})} onImportAsPattern={()=>openImageImport()}/></div>}
           {view==="shopping"&&<div style={{paddingTop:24}}><ShoppingList gateAction={gateAction}/></div>}
           {view==="profile"&&<ProfileSettingsView isPro={isPro} authed={authed} gateAction={gateAction} onOpenProModal={()=>openProGate("profile_upgrade_pill")} onGoHome={()=>navigate("/")}/>}
           {view==="privacy"&&<PrivacyPolicy/>}
@@ -2235,7 +2235,7 @@ export default function Wovely() {
         {view==="stash"&&<div style={{paddingTop:18}}><YarnStash gateAction={gateAction}/></div>}
         {view==="calculator"&&<div style={{paddingTop:18}}><Calculators/></div>}
         {view==="stitch-check"&&<div style={{paddingTop:18}}><StitchCheck gateAction={gateAction}/></div>}
-        {view==="stitch-vision"&&<div style={{paddingTop:18}}><StitchVision isPro={isPro} isAnon={!authed} onUpgrade={()=>openProGate("stitch_vision")} onRequireAccount={(limitReached)=>gateAction({ intent: limitReached?"stitch_vision_limit":"stitch_vision", title: limitReached?"You've used your free scan":"Create a free account", subtitle: limitReached?"Sign up for unlimited Stitch-O-Vision — free forever with a Wovely account.":"Takes 10 seconds. No credit card." }, ()=>{})}/></div>}
+        {view==="stitch-vision"&&<div style={{paddingTop:18}}><StitchVision isPro={isPro} isAnon={!authed} onUpgrade={()=>openProGate("stitch_vision")} onRequireAccount={(limitReached)=>gateAction({ intent: limitReached?"stitch_vision_limit":"stitch_vision", title: limitReached?"You've used your free scan":"Create a free account", subtitle: limitReached?"Sign up for unlimited Stitch-O-Vision — free forever with a Wovely account.":"Takes 10 seconds. No credit card." }, ()=>{})} onImportAsPattern={()=>openImageImport()}/></div>}
         {view==="shopping"&&<div style={{paddingTop:18}}><ShoppingList gateAction={gateAction}/></div>}
         {view==="profile"&&<ProfileSettingsView isPro={isPro} authed={authed} gateAction={gateAction} onOpenProModal={()=>openProGate("profile_upgrade_pill")} onGoHome={()=>navigate("/")}/>}
         {view==="privacy"&&<PrivacyPolicy/>}
