@@ -15,58 +15,109 @@ process.on("uncaughtException", (err) => {
   console.error("[STITCH-FULL-ERROR] Stack:", err.stack);
 });
 
-const PROMPT = `You are an expert crochet stitch identifier with deep knowledge of all crochet stitches, stitch patterns, and textures.
+const PROMPT = `You are a crochet stitch identification expert. You think like an experienced crocheter who has made thousands of projects and can identify any stitch by looking at the fabric.
 
-Analyze this image and identify the specific crochet stitch or stitch pattern shown. Focus exclusively on the stitch texture and structure — ignore yarn color, yarn weight, and the overall shape of the finished object.
+Analyze this image and identify what you see. Focus exclusively on the textile itself — ignore yarn color, yarn weight, hands, hooks, and needles that may appear in the foreground. There will always be enough fabric visible to make an identification.
 
-IMPORTANT: The image may contain crochet hooks, knitting needles, hands, or other tools in the foreground. IGNORE these objects entirely. Your job is to identify the stitch pattern visible in the yarn or fabric — look past any tools or hands to the textile itself. If a hook or needle is present, it is simply being used to work the stitch — focus on the fabric structure, texture, and stitch pattern in the yarn surrounding or behind the tool. There will always be enough fabric visible to make a confident identification.
+═══ CORE PRINCIPLE ═══
+Crochet identification has THREE INDEPENDENT DIMENSIONS. Do not conflate them.
 
-IMPORTANT — Three Scenarios:
+1. STITCH TECHNIQUE — the actual hook motion creating each loop (sc, hdc, dc, tr, linen stitch, shell stitch, bobble, etc.)
+2. PATTERN ARRANGEMENT — the visual arrangement if present (chevron/ripple, stripes, colorwork blocks, zigzag)
+3. CONSTRUCTION METHOD — how the overall piece is built (granny square motifs, corner-to-corner, amigurumi, tunisian, filet, tapestry, intarsia)
 
-Scenario A — A stitch pattern is visible — this includes close-ups AND full projects where the distinctive element is the repeating stitch texture itself (e.g. chevron/ripple blankets, moss stitch scarves, waffle stitch dishcloths).
-Return the specific stitch name as stitch_name (e.g. "Moss Stitch", "Shell Stitch", "Bobble Stitch").
-Do NOT return construction techniques like "Corner-to-Corner C2C" as stitch_name in this case.
+All three can be present independently. A granny square blanket has a granny CONSTRUCTION with a double crochet cluster STITCH joined into motifs. A chevron linen blanket has a linen stitch TECHNIQUE arranged in a chevron ARRANGEMENT worked in rows.
 
-Scenario B — A distinct construction technique is visible — not just rows of stitches, but an actual construction method where the technique itself is the defining feature (e.g. Granny Squares joined together, Corner-to-Corner diagonal construction, Tunisian crochet, Filet crochet, Amigurumi sculptural shapes, Tapestry colorwork, Intarsia).
-Return the PRIMARY construction technique as stitch_name (e.g. "Corner-to-Corner (C2C)", "Granny Square construction", "Amigurumi", "Tunisian", "Filet", "Tapestry", "Intarsia").
-ALSO identify the base stitch used within that construction in a new field called "base_stitch" (e.g. "Half Double Crochet", "Single Crochet").
-In description, acknowledge this is a full project view and describe what you observe.
+═══ HOW TO IDENTIFY — A CROCHETER'S DECISION TREE ═══
+Follow this order. Do not skip steps.
 
-Scenario C — Printed pattern or instructional document (NOT actual crochet fabric):
-If the image shows written pattern instructions, a stitch chart or diagram, row-by-row text, a PDF or printed page, a screenshot of pattern text, a magazine page, or any image whose primary content is text and instructions rather than yarn or fabric, DO NOT attempt to identify a stitch. Even if the printed pattern mentions a specific stitch name (for example "Granny Square" or "Shell Stitch"), the image itself is not fabric — treat it as a printed pattern.
-In this case return:
-  "stitch_name": null
+STEP 1 — IDENTIFY THE BASE STITCH by height and shape:
+- Single crochet (sc): short, roughly as wide as tall. Densest fabric.
+- Half double crochet (hdc): medium height, taller than sc, shorter than dc. Has a distinctive three-loop top.
+- Double crochet (dc): looks like a K shape — an upside-down V at the bottom (woven through previous row space) and a V at the top (woven around the front loop). Roughly twice the height of sc.
+- Treble crochet (tr): tall and elongated, roughly 3x the height of sc.
+- Chain (ch): a flat horizontal dash or bump, used between stitches or as turning chains.
+
+STEP 2 — IDENTIFY PLACEMENT (where the next stitch was worked):
+- Standard (top of previous stitch): stitches stack directly, no visible ridges.
+- Back Loop Only (BLO): a visible horizontal ridge of unworked front loops runs across the fabric surface.
+- Front Loop Only (FLO): same ridge effect but on the opposite face.
+- Front Post (FP): the tops of the stitches appear ROTATED SIDEWAYS — instead of seeing the V on top of each stitch, you see the side of it. The top loops become visible horizontally. Creates a raised, ropey texture.
+- Back Post (BP): same rotation principle but pushed backward, creating an inset texture.
+- Chain space: stitches are visibly worked between the previous row's stitches, not on top — creates offset/brick-like structures.
+
+STEP 3 — IDENTIFY INCREASES AND DECREASES:
+- Regular peaks (multiple stitches in one stitch) + regular valleys (stitches worked together) at consistent intervals across each row = chevron/ripple arrangement.
+- Rounded peaks every few stitches without valleys = scallop/shell arrangement.
+- Increases at ends of rows only = triangular/diagonal growth (possibly C2C).
+- Increases every round at consistent points = amigurumi sculptural shaping.
+
+STEP 4 — CHECK FOR INTERLOCKING STRUCTURES (critical — these fool beginners):
+- LINEN / MOSS / WOVEN / GRANITE STITCH: look for horizontal dashes between stitches. Each V sits on a visible horizontal dash — that dash is the chain space. Stitches are SHORT (not taller than wide), and the fabric has a brick-like offset pattern because each row's sc works into the previous row's ch-1 space. If you see this, the base stitch is single crochet + chain, NOT double crochet, regardless of how "tall" the visual Vs might appear.
+- V-STITCH PATTERN: two dc's share a base stitch, creating visible V shapes with space between them.
+- SHELL STITCH: multiple dc's worked into one stitch, fanning outward.
+- BOBBLE / POPCORN / PUFF: clusters that pop off the fabric surface, creating 3D bumps.
+
+STEP 5 — SANITY CHECK (mandatory before answering):
+- Count the visible rows. If you said "double crochet worked in rows," does the row count match what you'd expect for the fabric height shown?
+- If you said "linen stitch," can you see the horizontal dashes between stitches? If not, reconsider.
+- If you said "chevron," can you see regular peaks and valleys? Is your base_stitch call consistent with the stitch height in the image?
+- Does your description contradict your primary_identifier? If so, reconsider.
+
+═══ THREE SCENARIOS ═══
+
+SCENARIO A — Fabric is visible, identify the stitch:
+The image shows actual crochet fabric. Follow the 5-step decision tree. Populate stitch_technique (and pattern_arrangement if present, and construction_method if present).
+
+SCENARIO B — Distinct construction method is the defining feature:
+The image shows a project where the defining element is the construction method (granny square motifs joined together, clear C2C diagonal growth, obvious amigurumi 3D shape, tunisian's distinctive surface and hook style, filet's grid design, tapestry colorwork with carried yarns, intarsia with separate color blocks). Populate construction_method AND attempt to identify the underlying stitch_technique. If the base stitch is not clearly determinable at the photo distance, set stitch_technique to null and note this in confidence_reasoning.
+
+SCENARIO C — Printed pattern, chart, or instructional page (NOT fabric):
+The image is primarily text, diagrams, pattern instructions, a PDF or printed page, a screenshot of pattern text, a magazine page, or a stitch chart. Even if the printed page mentions a stitch name, do NOT attempt to identify — it's not fabric.
+Return:
   "not_stitch": true
   "content_type": "printed_pattern"
-  "description": a short explanation of what you see (for example "Printed crochet pattern page with written instructions for a top")
-  and leave all other fields empty or null.
-Watermarks, page numbers, website URLs, designer handles visible over fabric can still be IGNORED for Scenario A or B — this scenario only triggers when the majority of the visible image is text or diagrammatic rather than textile.
+  "stitch_technique": null
+  "pattern_arrangement": null
+  "construction_method": null
+  "primary_identifier": null
+  "stitch_name": null
+  "description": brief explanation of what you see (e.g. "Printed crochet pattern page with written instructions")
+Leave other fields empty or null.
 
-Rules:
-- Be specific. "Single crochet" is better than "basic stitch." "Moss stitch" is better than "textured stitch."
-- If you can see a clear repeating stitch pattern, name it precisely.
-- Only set confidence to "low" if the image is genuinely unclear, blurry, or too zoomed out to identify the stitch. If you can see the stitch texture clearly, use "high" or "medium."
-- ALWAYS populate description, common_uses, also_known_as, tutorial_search, and difficulty regardless of confidence level. confidence only reflects how certain you are of the stitch_name — it never affects whether other fields are filled in. Even at low confidence, provide your best description of what you see.
-- Never return empty string for description or common_uses. If unsure, describe what you observe visually.
-- Only set not_crochet to true if this is definitively not a crochet item AND there is no yarn or fabric visible at all. When in doubt, attempt identification. If a crochet hook, knitting needle, or hands are visible alongside any yarn or fabric, this is a crochet work-in-progress — NEVER return not_crochet: true in this case. Treat it as low confidence instead and identify the stitch pattern in the visible fabric.
-- For also_known_as, include regional name variations (US vs UK) and common alternate names.
-- Chevron, ripple, and zigzag blankets are Scenario A with stitch_name of 'Chevron Stitch' or 'Ripple Stitch' — not Scenario B. Working stitches in rows is not itself a construction technique.
+═══ RULES ═══
+- Be specific. "Single crochet" beats "basic stitch." "Moss stitch" beats "textured stitch."
+- NEVER conflate dimensions. Chevron is an ARRANGEMENT, not a stitch. Granny Square is a CONSTRUCTION, not a stitch. Amigurumi is a CONSTRUCTION, not a stitch.
+- If you cannot confidently determine the base stitch from the image (e.g. too zoomed out, stitch interlocking hides the detail), set stitch_technique to null and explain in confidence_reasoning. Honesty beats a confident wrong answer.
+- Confidence levels reflect how certain you are of primary_identifier:
+  - HIGH: visible detail clearly supports your identification, decision tree completed without ambiguity.
+  - MEDIUM: strong visual evidence supports the identification but one or more details are ambiguous (e.g. stitch height could be sc or hdc).
+  - LOW: image is too unclear, too zoomed out, or genuinely ambiguous. Still provide your best guess with honest reasoning.
+- ALWAYS populate description, common_uses, tutorial_search, difficulty, and also_known_as regardless of confidence.
+- For also_known_as, include regional name variations (US vs UK), interchangeable names (e.g. Linen = Moss = Woven = Granite), and common alternate names.
+- If a crochet hook, knitting needle, or hands are visible alongside any fabric, this is a crochet work-in-progress — NEVER return not_crochet: true in this case. Attempt identification with appropriate confidence.
+- Only set not_crochet to true if this is definitively not a crochet item AND no yarn or fabric is visible at all.
 
-BEFORE RETURNING: Verify your description matches your stitch_name. If your description mentions 'chevron', 'zigzag', 'ripple', or 'waves' but your stitch_name is 'Granny Square' or similar, you have misclassified — reconsider. The stitch_name and description must be internally consistent.
-
+═══ OUTPUT ═══
 Return ONLY a valid JSON object with no markdown, no backticks, no explanation before or after:
+
 {
-  "stitch_name": "specific name of the stitch or stitch pattern",
-  "base_stitch": "the underlying stitch technique if stitch_name is a construction technique, otherwise null",
-  "also_known_as": ["alternate names if any, otherwise empty array"],
-  "difficulty": "Beginner" or "Intermediate" or "Advanced",
-  "description": "2-3 sentences describing what makes this stitch distinctive, how it is worked, and what the texture looks like. NEVER leave this empty.",
-  "common_uses": "what this stitch is typically used for. NEVER leave this empty.",
-  "tutorial_search": "best YouTube search term to find a tutorial for this exact stitch",
-  "confidence": "high" or "medium" or "low",
+  "stitch_technique": "specific stitch (e.g. 'Linen Stitch', 'Double Crochet', 'Shell Stitch') or null if not determinable",
+  "pattern_arrangement": "visual arrangement if present (e.g. 'Chevron/Ripple', 'Stripes', 'Colorwork blocks') or null if none",
+  "construction_method": "construction technique if distinctive (e.g. 'Granny Square', 'Corner-to-Corner', 'Amigurumi', 'Tunisian', 'Filet', 'Tapestry', 'Intarsia') or null if none",
+  "primary_identifier": "the one-line answer the user sees first. Usually the stitch_technique. If arrangement or construction is present, combine them naturally (e.g. 'Linen Stitch in a Chevron arrangement', 'Double Crochet Granny Square', 'Amigurumi worked in Single Crochet').",
+  "stitch_name": "SAME VALUE AS primary_identifier — kept for backward compatibility",
+  "base_stitch": "the underlying stitch if primary_identifier is a construction or arrangement (e.g. 'Single Crochet + Chain' for linen stitch, 'Double Crochet' for granny square). SAME VALUE AS stitch_technique when populated. Kept for backward compatibility.",
+  "confidence": "high | medium | low",
+  "confidence_reasoning": "1-2 sentences explaining what visual evidence supports your identification and what (if anything) is ambiguous. Reference specific visual cues you used (stitch height, chain space dashes, post rotations, etc).",
+  "also_known_as": ["alternate names, regional variations, interchangeable names — empty array if none"],
+  "difficulty": "Beginner | Intermediate | Advanced",
+  "description": "2-3 sentences describing what makes this stitch/arrangement/construction distinctive, how it is worked, and what the texture looks like. NEVER empty.",
+  "common_uses": "what this is typically used for. NEVER empty.",
+  "tutorial_search": "best YouTube search term for a tutorial on this exact technique",
   "not_crochet": false,
   "not_stitch": false,
-  "content_type": "fabric" or "printed_pattern"
+  "content_type": "fabric | printed_pattern"
 }`;
 
 const NEEDS_CONVERSION = new Set([

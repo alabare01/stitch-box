@@ -227,7 +227,7 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
       </div>
     );
 
-    if (!result || !result.stitch_name) return (
+    if (!result || (!result.primary_identifier && !result.stitch_name)) return (
       <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
         <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Couldn't identify the stitch</div>
@@ -275,12 +275,15 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px" }}>
         {thumb && <img src={thumb} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 16 }} />}
 
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: "#2D3A7C", marginBottom: 6 }}>{result.stitch_name}</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: "#2D3A7C", marginBottom: 6 }}>{result.primary_identifier || result.stitch_name}</div>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
           <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{result.difficulty}</span>
           {result.confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
-          {result.base_stitch && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Base stitch: {result.base_stitch}</span>}
+          {result.confidence === "medium" && <span style={{ background: "#FDF3D7", color: "#A88730", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Medium confidence</span>}
+          {(result.stitch_technique || result.base_stitch) && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Stitch: {result.stitch_technique || result.base_stitch}</span>}
+          {result.pattern_arrangement && <span style={{ background: "#E8DFF5", color: "#5E4680", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Arrangement: {result.pattern_arrangement}</span>}
+          {result.construction_method && <span style={{ background: "#D5E0F0", color: "#3D5A8C", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Construction: {result.construction_method}</span>}
           {(result.also_known_as || []).map(name => (
             <span key={name} style={{ background: T.terraLt, color: T.terra, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{name}</span>
           ))}
@@ -288,6 +291,13 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
 
         {result.description && result.description.trim() && (
           <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 16 }}>{result.description}</div>
+        )}
+
+        {result.confidence_reasoning && result.confidence_reasoning.trim() && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>Why Bev thinks this</div>
+            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, fontStyle: "italic" }}>{result.confidence_reasoning}</div>
+          </div>
         )}
 
         {result.common_uses && result.common_uses.trim() && (

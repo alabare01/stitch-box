@@ -126,18 +126,28 @@ const StitchResultPage = () => {
               </div>
             )}
 
-            {r.confidence !== "low" && <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>{r.stitch_name}</div>}
+            {r.confidence !== "low" && <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>{r.primary_identifier || r.stitch_name}</div>}
 
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
               {r.confidence !== "low" && <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{r.difficulty}</span>}
               {r.confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
-              {r.base_stitch && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Base stitch: {r.base_stitch}</span>}
+              {r.confidence === "medium" && <span style={{ background: "#FDF3D7", color: "#A88730", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Medium confidence</span>}
+              {(r.stitch_technique || r.base_stitch) && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Stitch: {r.stitch_technique || r.base_stitch}</span>}
+              {r.pattern_arrangement && <span style={{ background: "#E8DFF5", color: "#5E4680", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Arrangement: {r.pattern_arrangement}</span>}
+              {r.construction_method && <span style={{ background: "#D5E0F0", color: "#3D5A8C", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Construction: {r.construction_method}</span>}
               {(r.also_known_as || []).map(name => (
                 <span key={name} style={{ background: "#EDE4F7", color: "#9B7EC8", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{name}</span>
               ))}
             </div>
 
             {r.description && r.description.trim() && <div style={{ fontSize: 14, color: "#6B6B8A", lineHeight: 1.8, marginBottom: 16 }}>{r.description}</div>}
+
+            {r.confidence_reasoning && r.confidence_reasoning.trim() && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, color: "#9B7EC8", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4, fontWeight: 600 }}>Why Bev thought this</div>
+                <div style={{ fontSize: 13, color: "#6B6B8A", lineHeight: 1.6, fontStyle: "italic" }}>{r.confidence_reasoning}</div>
+              </div>
+            )}
 
             {r.common_uses && r.common_uses.trim() && (
               <div style={{ marginBottom: 20, padding: "12px 14px", background: "#F8F6FF", borderRadius: 10 }}>
