@@ -23,12 +23,12 @@ IMPORTANT: The image may contain crochet hooks, knitting needles, hands, or othe
 
 IMPORTANT — Three Scenarios:
 
-Scenario A — Single stitch texture visible (close-up or clear repeating pattern):
+Scenario A — A stitch pattern is visible — this includes close-ups AND full projects where the distinctive element is the repeating stitch texture itself (e.g. chevron/ripple blankets, moss stitch scarves, waffle stitch dishcloths).
 Return the specific stitch name as stitch_name (e.g. "Moss Stitch", "Shell Stitch", "Bobble Stitch").
 Do NOT return construction techniques like "Corner-to-Corner C2C" as stitch_name in this case.
 
-Scenario B — Full project or blanket visible (multiple stitches, overall construction visible):
-Return the PRIMARY construction technique as stitch_name (e.g. "Corner-to-Corner (C2C)", "Granny Square", "Amigurumi").
+Scenario B — A distinct construction technique is visible — not just rows of stitches, but an actual construction method where the technique itself is the defining feature (e.g. Granny Squares joined together, Corner-to-Corner diagonal construction, Tunisian crochet, Filet crochet, Amigurumi sculptural shapes, Tapestry colorwork, Intarsia).
+Return the PRIMARY construction technique as stitch_name (e.g. "Corner-to-Corner (C2C)", "Granny Square construction", "Amigurumi", "Tunisian", "Filet", "Tapestry", "Intarsia").
 ALSO identify the base stitch used within that construction in a new field called "base_stitch" (e.g. "Half Double Crochet", "Single Crochet").
 In description, acknowledge this is a full project view and describe what you observe.
 
@@ -50,6 +50,9 @@ Rules:
 - Never return empty string for description or common_uses. If unsure, describe what you observe visually.
 - Only set not_crochet to true if this is definitively not a crochet item AND there is no yarn or fabric visible at all. When in doubt, attempt identification. If a crochet hook, knitting needle, or hands are visible alongside any yarn or fabric, this is a crochet work-in-progress — NEVER return not_crochet: true in this case. Treat it as low confidence instead and identify the stitch pattern in the visible fabric.
 - For also_known_as, include regional name variations (US vs UK) and common alternate names.
+- Chevron, ripple, and zigzag blankets are Scenario A with stitch_name of 'Chevron Stitch' or 'Ripple Stitch' — not Scenario B. Working stitches in rows is not itself a construction technique.
+
+BEFORE RETURNING: Verify your description matches your stitch_name. If your description mentions 'chevron', 'zigzag', 'ripple', or 'waves' but your stitch_name is 'Granny Square' or similar, you have misclassified — reconsider. The stitch_name and description must be internally consistent.
 
 Return ONLY a valid JSON object with no markdown, no backticks, no explanation before or after:
 {
@@ -158,44 +161,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ error: true, message: "Could not process this image. Try taking a screenshot and uploading that instead." });
   }
 
-  // ── STEP 4: Call Gemini API ──
-  const imgBase64 = imgBuffer.toString("base64");
-  console.log("[STITCH-STEP-4] Calling Gemini — base64 length:", imgBase64.length, "mime:", mimeType);
-  let geminiRes;
-  try {
-    geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [
-            { inline_data: { mime_type: mimeType, data: imgBase64 } },
-            { text: PROMPT },
-          ] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
-        }),
-      }
-    );
-    console.log("[STITCH-STEP-4] Gemini response — status:", geminiRes.status);
-  } catch (err) {
-    console.error("[STITCH-STEP-4] FAILED — Gemini network error:", err);
-    console.error("[STITCH-STEP-4] Network error:", err.message);
-    console.error("[STITCH-STEP-4] Stack:", err.stack);
-    geminiRes = null;
-  }
-
-  let geminiFailed = !geminiRes || !geminiRes.ok;
-  if (geminiRes && !geminiRes.ok) {
-    let errBody = "";
-    try { errBody = await geminiRes.text(); } catch {}
-    console.error("[STITCH-STEP-4] Gemini non-ok — status:", geminiRes.status, "body:", errBody.substring(0, 500));
-    console.log("[STITCH-STEP-4] Gemini failed with status", geminiRes.status, "— trying Haiku fallback");
-  }
-  if (!geminiRes) {
-    console.log("[STITCH-STEP-4] Gemini failed with network error — trying Haiku fallback");
-  }
-
   // Helper: parse raw text into stitch result
   const parseStitchText = (text, tag) => {
     if (!text) return null;
@@ -234,10 +199,90 @@ export default async function handler(req, res) {
     }
   };
 
-  // ── STEP 5: Parse response (Gemini or Haiku fallback) ──
+  // ── STEP 4: Call Claude Haiku (primary) ──
+  const imgBase64 = imgBuffer.toString("base64");
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   let result;
 
-  if (!geminiFailed) {
+  if (ANTHROPIC_KEY) {
+    console.log("[STITCH-STEP-4] Calling Haiku (primary) — base64 length:", imgBase64.length, "mime:", mimeType);
+    try {
+      const haikuRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          messages: [{ role: "user", content: [
+            { type: "image", source: { type: "base64", media_type: mimeType, data: imgBase64 } },
+            { type: "text", text: PROMPT },
+          ] }],
+        }),
+      });
+      console.log("[STITCH-STEP-4] Haiku response status:", haikuRes.status);
+      if (haikuRes.ok) {
+        const haikuData = await haikuRes.json();
+        const haikuText = haikuData.content?.[0]?.text || "";
+        console.log("[STITCH-STEP-4] Haiku text:", haikuText.substring(0, 500));
+        if (haikuText) {
+          result = parseStitchText(haikuText, "STITCH-STEP-4");
+        } else {
+          console.error("[STITCH-STEP-4] Empty response from Haiku — will try Gemini fallback");
+        }
+      } else {
+        let haikuErr = "";
+        try { haikuErr = await haikuRes.text(); } catch {}
+        console.error("[STITCH-STEP-4] Haiku non-ok — status:", haikuRes.status, "body:", haikuErr.substring(0, 500));
+        console.log("[STITCH-STEP-4] Haiku failed — trying Gemini fallback");
+      }
+    } catch (haikuErr) {
+      console.error("[STITCH-STEP-4] FAILED — Haiku network error:", haikuErr.message);
+      console.error("[STITCH-STEP-4] Stack:", haikuErr.stack);
+    }
+  } else {
+    console.error("[STITCH-STEP-4] ANTHROPIC_API_KEY not configured — skipping Haiku primary, going straight to Gemini");
+  }
+
+  // ── STEP 4b: Gemini fallback if Haiku failed or returned no result ──
+  if (!result) {
+    console.log("[STITCH-STEP-4-GEMINI] Calling Gemini fallback — base64 length:", imgBase64.length, "mime:", mimeType);
+    let geminiRes;
+    try {
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inline_data: { mime_type: mimeType, data: imgBase64 } },
+              { text: PROMPT },
+            ] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+          }),
+        }
+      );
+      console.log("[STITCH-STEP-4-GEMINI] Gemini response — status:", geminiRes.status);
+    } catch (err) {
+      console.error("[STITCH-STEP-4-GEMINI] FAILED — Gemini network error:", err);
+      console.error("[STITCH-STEP-4-GEMINI] Network error:", err.message);
+      console.error("[STITCH-STEP-4-GEMINI] Stack:", err.stack);
+      geminiRes = null;
+    }
+
+    if (!geminiRes || !geminiRes.ok) {
+      if (geminiRes) {
+        let errBody = "";
+        try { errBody = await geminiRes.text(); } catch {}
+        console.error("[STITCH-STEP-4-GEMINI] Gemini non-ok — status:", geminiRes.status, "body:", errBody.substring(0, 500));
+      }
+      return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
+    }
+
     console.log("[STITCH-STEP-5] Parsing Gemini response");
     try {
       const data = await geminiRes.json();
@@ -261,55 +306,6 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error("[STITCH-STEP-5] FAILED — parse error:", err);
       console.error("[STITCH-STEP-5] Stack:", err.stack);
-    }
-  }
-
-  // ── STEP 5b: Haiku fallback if Gemini failed or returned no result ──
-  if (!result) {
-    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!ANTHROPIC_KEY) {
-      console.error("[STITCH-STEP-4-HAIKU] ANTHROPIC_API_KEY not configured — cannot fall back");
-      return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
-    }
-    console.log("[STITCH-STEP-4-HAIKU] Calling Haiku fallback — base64 length:", imgBase64.length, "mime:", mimeType);
-    try {
-      const haikuRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
-          messages: [{ role: "user", content: [
-            { type: "image", source: { type: "base64", media_type: mimeType, data: imgBase64 } },
-            { type: "text", text: PROMPT },
-          ] }],
-        }),
-      });
-      console.log("[STITCH-STEP-4-HAIKU] Haiku response status:", haikuRes.status);
-      if (!haikuRes.ok) {
-        let haikuErr = "";
-        try { haikuErr = await haikuRes.text(); } catch {}
-        console.error("[STITCH-STEP-4-HAIKU] Haiku non-ok — status:", haikuRes.status, "body:", haikuErr.substring(0, 500));
-        return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
-      }
-      const haikuData = await haikuRes.json();
-      const haikuText = haikuData.content?.[0]?.text || "";
-      console.log("[STITCH-STEP-4-HAIKU] Haiku text:", haikuText.substring(0, 500));
-      if (!haikuText) {
-        console.error("[STITCH-STEP-4-HAIKU] Empty response from Haiku");
-        return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
-      }
-      result = parseStitchText(haikuText, "STITCH-STEP-4-HAIKU");
-      if (!result) {
-        return res.status(200).json({ error: true, message: "Could not interpret the stitch analysis. Please try a clearer photo." });
-      }
-    } catch (haikuErr) {
-      console.error("[STITCH-STEP-4-HAIKU] FAILED — network error:", haikuErr.message);
-      return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
     }
   }
 

@@ -218,27 +218,28 @@ export default async function handler(req, res) {
     console.log("[extract-pattern-vision] Vision API [URL path]: PDF fetched, size:", pdfBuffer.byteLength, "bytes");
 
     let result;
-    let providerUsed = "gemini";
+    let providerUsed = "claude";
     try {
-      result = await runWithRetry((prompt) => [
-        { inline_data: { mime_type: "application/pdf", data: pdfBase64 } },
-        { text: prompt },
-      ]);
-    } catch (geminiErr) {
-      console.error("[extract-pattern-vision] Gemini failed for PDF URL path, trying Claude:", geminiErr.message);
+      result = await callClaudeVision(
+        [{
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }
+        }],
+        fullPrompt
+      );
+      console.log("[extract-pattern-vision] Claude primary succeeded for PDF URL path");
+    } catch (claudeErr) {
+      console.error("[extract-pattern-vision] Claude failed for PDF URL path, trying Gemini:", claudeErr.message);
       try {
-        result = await callClaudeVision(
-          [{
-            type: "document",
-            source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }
-          }],
-          fullPrompt
-        );
-        providerUsed = "claude";
-        console.log("[extract-pattern-vision] Claude fallback succeeded for PDF URL path");
-      } catch (claudeErr) {
-        console.error("[extract-pattern-vision] Claude fallback also failed:", claudeErr.message);
-        throw new Error("All 3 attempts failed. Gemini: " + geminiErr.message.substring(0, 100) + " | Claude: " + claudeErr.message.substring(0, 100));
+        result = await runWithRetry((prompt) => [
+          { inline_data: { mime_type: "application/pdf", data: pdfBase64 } },
+          { text: prompt },
+        ]);
+        providerUsed = "gemini";
+        console.log("[extract-pattern-vision] Gemini fallback succeeded for PDF URL path");
+      } catch (geminiErr) {
+        console.error("[extract-pattern-vision] Gemini fallback also failed:", geminiErr.message);
+        throw new Error("All 3 attempts failed. Claude: " + claudeErr.message.substring(0, 100) + " | Gemini: " + geminiErr.message.substring(0, 100));
       }
     }
     if (_url && _key) {
@@ -329,21 +330,22 @@ export default async function handler(req, res) {
   });
 
   let result;
-  let providerUsed = "gemini";
+  let providerUsed = "claude";
   try {
-    result = await runWithRetry((prompt) => [
-      ...fileUris.map(f => ({ file_data: { mime_type: f.mimeType, file_uri: f.uri } })),
-      { text: prompt },
-    ]);
-  } catch (geminiErr) {
-    console.error("[extract-pattern-vision] Gemini failed for images path, trying Claude:", geminiErr.message);
+    result = await callClaudeVision(claudeImageContents, fullPrompt);
+    console.log("[extract-pattern-vision] Claude primary succeeded for images path");
+  } catch (claudeErr) {
+    console.error("[extract-pattern-vision] Claude failed for images path, trying Gemini:", claudeErr.message);
     try {
-      result = await callClaudeVision(claudeImageContents, fullPrompt);
-      providerUsed = "claude";
-      console.log("[extract-pattern-vision] Claude fallback succeeded for images path");
-    } catch (claudeErr) {
-      console.error("[extract-pattern-vision] Claude fallback also failed:", claudeErr.message);
-      throw new Error("All 3 attempts failed. Gemini: " + geminiErr.message.substring(0, 100) + " | Claude: " + claudeErr.message.substring(0, 100));
+      result = await runWithRetry((prompt) => [
+        ...fileUris.map(f => ({ file_data: { mime_type: f.mimeType, file_uri: f.uri } })),
+        { text: prompt },
+      ]);
+      providerUsed = "gemini";
+      console.log("[extract-pattern-vision] Gemini fallback succeeded for images path");
+    } catch (geminiErr) {
+      console.error("[extract-pattern-vision] Gemini fallback also failed:", geminiErr.message);
+      throw new Error("All 3 attempts failed. Claude: " + claudeErr.message.substring(0, 100) + " | Gemini: " + geminiErr.message.substring(0, 100));
     }
   }
   if (_url && _key) {
