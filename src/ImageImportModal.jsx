@@ -126,7 +126,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
 
     try {
       const extractController = new AbortController();
-      const extractTimeout = setTimeout(() => extractController.abort(), 55000);
+      const extractTimeout = setTimeout(() => extractController.abort(), 240000);
       let res;
       try {
         res = await fetch("/api/extract-pattern-vision", {

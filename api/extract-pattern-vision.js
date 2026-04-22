@@ -129,7 +129,7 @@ export default async function handler(req, res) {
   const callClaudeVision = async (imageContents, prompt) => {
     if (!ANTHROPIC_KEY) throw new Error("Anthropic API key not configured");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000);
+    const timeout = setTimeout(() => controller.abort(), 240000);
     let r;
     try {
       r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -154,7 +154,7 @@ export default async function handler(req, res) {
       });
     } catch (fetchErr) {
       clearTimeout(timeout);
-      if (fetchErr.name === "AbortError") throw new Error("Claude timeout after 55s");
+      if (fetchErr.name === "AbortError") throw new Error("Claude timeout after 240s");
       throw fetchErr;
     }
     clearTimeout(timeout);
