@@ -1,291 +1,337 @@
-# WOVELY_CONTEXT.md
-**Version:** 100
-**Last updated:** Session 58 close
-**Next session:** 59
+# Wovely Project Context
+
+Single source of truth for Wovely project context. Both Claude.ai and Claude Code read this file at session start.
+
+Last updated: Session 59 close, 2026-04-22
 
 ---
 
-## Purpose & context
+# WOVELY MASTER DOC v100
 
-Adam (adam@terrainnovations.com, primary: adam@wovely.app) is the solo technical founder of **Wovely** (wovely.app), an AI-first crochet pattern management platform. Users save and manage patterns, track rows, validate patterns, and identify stitches via AI-powered features. Adam builds in iterative numbered sessions using Claude.ai for strategy/diagnosis and Claude Code for execution.
+## SESSION CLOSE WORKFLOW (adopted Session 59)
+Claude.ai writes the updated doc as plain text in chat at session close. Adam copies it into C:\Users\adam\wovely\WOVELY_CONTEXT.md and saves. No Claude Code prompt required at close.
 
-Danielle (co-founder, north star user) tests primarily on iPhone Safari. Her account: `danielle2673@me.com`. Trial user `turttlesong@yahoo.com` expires May 3 — active conversion target.
+Claude Code pushes to GitHub opportunistically — next time Adam is in Claude Code for any reason, one-line instruction at the top: "also commit WOVELY_CONTEXT.md to main." Zero logic, zero avalanche risk.
 
-**Core values & constraints:**
-- Never push directly to main for code changes — always feature branches, preview verification, then merge
-- One complete self-contained Claude Code prompt per task — no split formatting
-- Direct communication, no fluff; Claude takes initiative rather than over-asks
-- Proactively flag platform limits and upgrade paths before they become blockers
-- Cost concerns should not delay recommendations — flag early, cross bridge when needed
-- All Dani feedback tagged NEEDS DISCUSSION before any implementation
-- No Facebook group posts until import is rock solid across all devices
+Session open workflow unchanged: Claude.ai fetches from GitHub raw URL. If GitHub is behind local, Adam pastes current local content into chat at session open and Claude treats that as canonical for the session.
 
-**Brand:** Mascot is **Bev** — hyper-realistic crochet amigurumi lavender snake, named after Dani's grandmother Beverly. Canonical reference IMG_3968 (no text, navy hexagon frame). The CHARACTER is canonical; the frame is a contextual design element. Character bible locked Session 19.
+## CURRENT PRODUCTION STATE
+Live on wovely.app. Session 59 merged test/claude-primary-vision to main — vision pipeline now Haiku-primary with Gemini fallback, reasoning-first prompt schema, hard IF/THEN rejection rules. Production deployment dpl_DuZ4LiY276sHbDfiYBaC7y1LYk9L confirmed READY.
 
----
+Supabase still free tier. DKIM still missing. WEBHOOK_SECRET not yet set.
 
-## Current state (end of Session 58)
+## FIRST THING SESSION 60 (in order)
+1. Founder dashboard artifact — live React artifact pulling Supabase + PostHog. Three scope questions pending.
+2. Collections build — turttlesong trial expires May 3. Blocks retention.
+3. Welcome re-engagement email send (script built Session 56, not yet sent).
 
-**Active infrastructure:**
-- Stack: React/Vite, Supabase, Vercel Pro, Claude Haiku 4.5 primary on vision endpoints, Gemini 1.5 Flash as fallback
-- Anthropic API: Tier 2 (450K input / 90K output TPM, current spend $14.07 / $500 monthly ceiling)
-- GitHub repo: `alabare01/yarnhive` (repo name differs from product name)
-- Live site: wovely.app
-- 16 total active users, 3 paying (Danielle x2, turttlesong trial)
+## SESSION 60 PRIORITY ORDER
+1. Founder dashboard artifact
+2. Collections build (queue system foundation first)
+3. Welcome re-engagement email send
+4. DKIM email fix
+5. Supabase Pro upgrade ($25/mo, GoGno.me org)
+6. WEBHOOK_SECRET env var + Stripe signature verification
+7. CORS audit — all serverless functions
+8. RLS full table audit
+9. BevCheck UI polish — needs Danielle written feedback first
+10. notify-signup.js wiring
+11. Yearly pricing ($9.99)
+12. Pattern Share / Trophy Case
+13. Stitch Library build (post-Collections)
 
-**Recent architectural decisions (Session 58):**
-- Claude Haiku 4.5 made PRIMARY on /api/stitch-vision and /api/extract-pattern-vision. Gemini is now the fallback (inversion of previous architecture). Rationale: Gemini Flash was silently failing on vision path for 10+ days; Claude was carrying 100% of successful imports with no observability. Wrong model for precision work.
-- Three-dimensional stitch schema adopted based on Dani's domain expertise: stitch_technique ≠ pattern_arrangement ≠ construction_method. Prevents conflation (e.g. "Granny Square" is construction, "Chevron" is arrangement, "Linen Stitch" is technique).
-- Reasoning-first prompt schema. Model must output observation_notes and candidate_analysis BEFORE classification. Eliminates post-hoc rationalization.
-- Hard IF/THEN rejection rules replace soft guidance.
+## WHAT SHIPPED SESSION 59
+- Master doc workflow overhauled: local-first, opportunistic GitHub push. Eliminates session-close ceremony failure.
+- Master doc reconciled to v100 with full drift capture (Sessions 52-58 previously undocumented in GitHub).
+- Stitch Library spec captured from Danielle's Session 58 proposal.
+- test/claude-primary-vision merged to main after controlled gated merge:
+  - Rebased 5 commits onto main cleanly (zero doc conflicts)
+  - Mandalorian 9-image pattern extraction verified on mobile preview
+  - Second pattern import verified
+  - Fast-forward merge to main, deployed to production, branch deleted
+  - Vision pipeline now Haiku-primary, Gemini fallback
+- Key learning: controlled merge workflow with human gates and rebase-over-merge prevents drama on complex state.
 
-**Branch status:**
-- `test/claude-primary-vision` — all Session 58 code work committed here, NOT merged to main
-- Do not merge without Session 59 review. Known overcorrection issue (Rule A) creates false positives on dc and front-post dc.
+## SESSION 57/58 SUMMARY (merged session, reconciled in 59)
+Goal: Fix Stitch-O-Vision overcorrection on Mandalorian 9-image pattern.
 
-**Known issues from Session 58 (requires Session 59+):**
-1. Rule A overcorrection — prompt biases too heavily toward linen stitch on textured fabrics. Dani confirmed two test images as dc (one as dc with front-post variant), both misclassified as linen stitch in chevron arrangement. Prompt iteration alone has hit diminishing returns without ground-truth data.
-2. No front-post / back-post stitch awareness in prompt. Entire stitch category (FPdc, BPdc, Alpine, Suzette, waffle, herringbone) invisible to current classification logic.
-3. Pattern import path (/api/extract-pattern-vision) deployed but NOT TESTED on branch. Mandalorian 9-image pattern that started Session 58 still untested against new Claude-primary architecture. **Do this first in Session 59.**
+What shipped on branch (now merged to main):
+- Reasoning-first prompt schema — model outputs observation_notes and candidate_analysis BEFORE classification
+- Hard IF/THEN rejection rules replacing soft guidance
+- Architectural swap: Claude-primary vision pipeline (Haiku first, Gemini fallback)
 
-**Open security gaps (unchanged from v98):**
-- WEBHOOK_SECRET env var not set in Vercel — financial integrity gap, priority slot 3
-- Wildcard CORS headers likely present across serverless functions — needs audit
-- RLS policies need full audit; new tables must have RLS applied at creation
-- Zero automated test coverage
+Verified Session 59:
+- Pattern extraction works: 62s server-side on Mandalorian, structured output, 8 components, 65 rows
+- The 55s client timeout was the actual bug blocking original failure mode
+- Timeout raised to 240s client and server
 
-**Named AI feature suite:** Stitch-O-Vision, BevCheck, with Ask Bev as future third pillar
+Known issues live on main (accepted at merge):
+1. Rule A overcorrection — prompt biases toward linen stitch on textured fabrics. Two dc test images misclassified as linen stitch in chevron arrangement. Prompt iteration has hit diminishing returns without ground-truth data. Fix path: Stitch Library.
+2. No front-post / back-post stitch awareness (FPdc, BPdc, Alpine, Suzette, waffle, herringbone invisible to classification). Fix path: Stitch Library.
 
----
+## STITCH LIBRARY (proposed Session 58 by Danielle)
+Summary: Curated, bounded library of core crochet stitch techniques, pattern arrangements, and construction methods. Source of truth for Stitch-O-Vision matching, BevCheck validation, Ask Bev, and pattern extraction normalization.
 
-## Session 59 opening priorities
+Origin: Danielle's observation — "there are only so many stitch types in crochet, why not pull them all together as a resource to compare against?" Reframes Stitch-O-Vision from unbounded generation into bounded retrieval + matching.
 
-Session 59 opening priorities moved to end of file — see Session 58 late-night addendum section for current priorities.
+Strategic value:
+- Fixes Rule A overcorrection root cause (unbounded generation against training priors)
+- Makes "also known as," tutorial links, Bev descriptions authoritative instead of per-request guesses
+- Every entry becomes /stitches/[slug] SEO landing page
+- Backbone of future Ask Bev (bounded Q&A)
+- Makes BevCheck smarter, makes pattern extraction normalize stitch naming
+- Proprietary curated content = real competitive moat
 
----
-
-## On the horizon
-
-### 🆕 Stitch Library (Proposed Session 58, Dani's idea)
-
-**Summary:** A curated, bounded library of all core crochet stitch techniques, pattern arrangements, and construction methods. Serves as source of truth for Stitch-O-Vision, BevCheck, Ask Bev, and pattern extraction normalization.
-
-**Origin:** Dani observed during Session 58 that "there are only so many stitch types in crochet — why not pull them all together as a resource to compare against?" This reframes Stitch-O-Vision from an open-ended generation problem into a bounded retrieval + matching problem.
-
-**Why this matters strategically:**
-- Current Stitch-O-Vision failure mode (overcorrection, confident wrong answers) traces to unbounded generation against training-data priors. A library constrains the answer space to real, curated stitches.
-- Makes "also known as," tutorial links, and Bev descriptions into authoritative data instead of per-request model guesses
-- Every library entry becomes a permanent `/stitches/[slug]` SEO landing page
-- Becomes the backbone of Ask Bev (bounded Q&A against real knowledge)
-- Makes BevCheck smarter (pattern validation references real definitions)
-- Makes pattern extraction smarter (model normalizes stitch naming against known vocabulary)
-- Proprietary curated content asset becomes a real moat — competitors would need to rebuild from scratch
-
-**Scope estimate:**
-- ~60-120 core stitch techniques cover 95% of what shows up in Facebook groups
+Scope:
+- 60-120 core stitch techniques = 95% of Facebook group uploads
 - 8-12 pattern arrangements
 - 10-15 construction methods
-- Total: ~150 entries for MVP
+- Total ~150 entries for MVP
 
-**Proposed schema (Supabase `stitch_library` table):**
-- id (uuid)
-- slug (string, e.g. "linen-stitch")
-- primary_name ("Linen Stitch")
-- also_known_as (text[])
+Proposed schema (Supabase stitch_library):
+- id (uuid), slug, primary_name, also_known_as (text[])
 - dimension ("stitch_technique" | "pattern_arrangement" | "construction_method")
-- difficulty ("Beginner" | "Intermediate" | "Advanced")
-- description (Dani-written, short)
-- visual_cues (text[], Dani-authored signatures)
-- rejection_cues (text[], what rules it OUT)
-- common_uses (text)
-- tutorial_url (curated YouTube link)
-- reference_image_urls (text[], Cloudinary)
-- created_by (defaults Dani)
+- difficulty, description, visual_cues (text[]), rejection_cues (text[])
+- common_uses, tutorial_url, reference_image_urls (text[])
+- created_by (defaults Danielle)
 
-**Proposed build phases:**
-- Phase 1 (Sessions 59-60): Seed top 30 stitches covering 80% of real-world uploads. Admin UI for Dani to author entries. Estimated ~3 hours of Dani's authoring time.
-- Phase 2 (Session 61): Rewrite Stitch-O-Vision as two-step observe-then-match against library.
-- Phase 3 (Session 62): Ship. Launch /stitches/[slug] pages.
+Phases:
+- Phase 1 (post-Collections): Seed top 30 stitches. Admin UI for Danielle. ~3 hours authoring.
+- Phase 2: Rewrite Stitch-O-Vision as two-step observe-then-match.
+- Phase 3: Ship /stitches/[slug] pages.
 
-**Sequencing decision (Session 58):** Waits behind Collections. Trial user expiration May 3 makes Collections highest retention priority. Library waits until after eval harness confirms current accuracy is bad enough to justify the investment (expected, not assumed).
+Sequencing: Waits behind Collections. turttlesong trial May 3 = Collections priority.
 
-**Capture Dani's energy:** If Dani is lit up about authoring the library this week, reconsider sequencing. Her authoring time is the single most valuable input — if she volunteers to start writing entries Week of April 21, accept and start the admin UI immediately.
+## WHAT SHIPPED SESSIONS 52-56
+Sessions 52-55: Anonymous mode fully built and merged. AuthWallModal, gateAction helper with anonymous-first → auth-wall → Pro-paywall hierarchy, session hydration retry logic.
+Session 56: Facebook launch executed. PostHog showed strong traffic with meaningful anonymous mode + auth wall engagement. Database cleanup (test accounts removed). Welcome re-engagement email script built (dry-run/test/send modes, per-user magic links, three recipient segments) but PARKED, not yet sent.
 
----
+## SECURITY AUDIT (from Session 50 Reddit review)
+[SOLID] Vendor lock-in — Provider router with Gemini + Haiku fallback. Own both keys.
+[SOLID] Auth — Supabase handles all auth + crypto.
+[ACTION REQUIRED] WEBHOOK_SECRET — not set. Without it, Stripe signatures unverified. Fix FIRST.
+[ACTION REQUIRED] CORS — Wildcard likely present on all serverless functions. Restrict to wovely.app origin.
+[ACTION REQUIRED] RLS audit — Verify all existing tables. New tables must have RLS from day one.
+[ACTION REQUIRED] Stripe webhook verification — Confirm checkout.session.completed verifies stripe-signature header.
+[ACKNOWLEDGED] Zero automated tests — Defensible at 9 users. Liability at scale.
 
-### Other horizon items (unchanged from v98 unless noted)
+## BACKGROUND FUNCTIONS + QUEUE SYSTEM SPEC
+Problem: Large PDFs take 150s+ of Haiku chunking. Client times out, user sees failure when server succeeds.
 
-- **BevCheck UI polish** — requires Dani's written feedback first
-- **Chunked PDF extraction** — queued
-- **Collections** — multi-pattern/MKAL/MCAL episodic import with background processing; schema built, Claude Code prompts written; urgent before trial user expires May 3. RLS must be applied at table creation
-- **Find Patterns page** — replace gradient card headers with real site logos or site og:images. Targets: AllFreeCrochet, Drops Design, Yarnspirations, Sarah Maker, Hopeful Honey, The Woobles, Ravelry, LoveCrafts
-- **Bev's Read** — Gemini-powered visual chart translation with per-row trust meter (🟢/🟡/🔴)
-- **Amazon Associates** — affiliate link generation from extracted materials
-- **Three-tier pricing** — Free / Pro / Craft (decided); yearly not yet shipped
-- **AI logo generation** — Recraft.ai flagged; deferred
-- **Home Feed / Carousel** — Bev's Corner, From the Loop, What's Trending (specced, not built)
-- **Ask Bev** — future AI tool completing named suite; depends on stitch library
-- **VS Code tunnel** — mobile dev access queued
-- **Apple Sign-In** — queued as Adam action item
-- **🆕 Debug reasoning as Pro feature** — "Bev's reasoning" trace (observation_notes + candidate_analysis) could be gated behind Pro tier. Adds transparency as differentiator. Not urgent.
+Solution: Async import queue with background processing.
 
----
+Architecture:
+- Supabase table: import_jobs (id, user_id, status, pdf_url, result, created_at, updated_at)
+- RLS REQUIRED FROM DAY ONE: auth.uid() = user_id
+- Client submits → gets job_id immediately
+- Vercel background function processes async, updates row on completion
+- Client polls import_jobs every 3s
+- UI: Bev loading state with progress
+- On completion, flows into normal pattern review UI
 
-## Key learnings & principles
+This is the foundation Collections needs. Build queue first, Collections becomes UI wrapper.
 
-### New learnings (Session 58)
-- **Prompt engineering has a ceiling without ground-truth eval data.** Three prompt iterations in one night swung model output dramatically in both directions. Each "fix" created a new failure mode. You cannot calibrate a classifier against a sample size of 1-2 images. Build the eval harness before the next prompt iteration.
-- **Model choice > model behavior tuning.** Gemini Flash was silently broken for 10+ days on vision; switching the primary to Claude Haiku 4.5 solved reliability problem that weeks of Gemini prompt tuning could not. Always validate model reliability as first-order debugging step.
-- **Confidence without reasoning is dangerous.** Post-hoc rationalization ("Why Bev thinks this") generated confident justifications for wrong answers in Dani's own voice. Reasoning-first schema (observation_notes → candidate_analysis → classification) is the architectural fix.
-- **Three-dimensional schema > flat classification.** stitch_technique, pattern_arrangement, construction_method are independent axes. Conflating them (e.g. calling a chevron blanket "Double Crochet Chevron" when it's linen stitch in chevron arrangement) is the single biggest source of incorrect identification.
-- **Domain expertise encoded into prompts > LLM capability.** Dani's 5-step decision tree turned Claude from a confident-wrong model into one that correctly identified linen stitch in chevron. Product accuracy is now gated on domain expertise, not LLM capability. That's a more scalable problem.
-- **Overcorrection is the price of aggressive prompt fixes.** Rule A ("default assumption must be linen stitch for colorful chevron") fixed the Dani-chevron case but created false positives on dc and front-post dc. Prompt rules need to be weighted, not absolute.
+## COLLECTIONS SPEC
+Extends import queue. Schema ready. 4 Claude Code prompts. 2 sessions to ship v1.
+v1: collections table + collection_patterns join + UI list + detail page + import wiring.
+MCAL import already works. Collections is grouping wrapper.
+Monetization: gate behind Craft tier (~$14.99/mo).
+RLS from day one on collections and collection_patterns.
 
-### Retained learnings (from prior sessions)
-- **RLS at creation, never retroactively** — new Supabase tables must have RLS at moment of creation
-- **Vercel log truncation is structural** — get_runtime_logs truncates to one line per request; query vercel_logs Supabase table directly for full errors
-- **Silent failures are the hardest bugs** — missing await, max_tokens over-reservation, detached async IIFE on mobile
-- **Custom supabase.js is NOT the Supabase SDK** — async SDK patterns don't apply
-- **iOS Safari distinct failure modes** — momentum scroll false triggers, file attachment race conditions, PWA cache, background tab killing fetches
-- **Cloudinary cannot accept local paths or base64 from Claude.ai** — brand assets in /public, Cloudinary uploads route through Claude Code
-- **Supabase user_profiles has no email column** — always join through auth.users
-- **Vercel env var changes require fresh deployment** — empty git commit fastest trigger
-- **Stitch-O-Vision share links = primary viral acquisition loop** for Facebook crochet communities; treat as growth-critical infrastructure
+## OPEN BUGS (priority order)
+1. Client timeout on very large PDFs before server finishes — queue system needed
+2. Rule A overcorrection on Stitch-O-Vision (fix via Stitch Library)
+3. BevCheck UI — gauge typography, zone labels, full report unfinished. Needs Danielle feedback
+4. Modal layering bug — desktop import modal stacked background layers
+5. Stitch-O-Vision complex geometric prompts
+6. StitchResultPage favicon missing
+7. Bev Notes nav icon — blue shield needs personality
+8. PDF cover intelligence — text-heavy first pages as hero
+9. /hive fossil route — YarnHive remnant
+10. Pages not scrolling to top on load
+11. Gemini client-side calls in AddPatternModal.jsx and HiveVisionForm still need to move server-side via /api/snap-vision
 
----
+## GEMINI STATUS
+Gemini 2.5 Flash: ACTIVE as fallback. Model string: gemini-2.5-flash. API path: /v1beta/
+Rollback tag: pre-gemini-25 on main.
+API key rotated Session 54.
 
-## Approach & patterns
+## ANTHROPIC API STATUS
+Tier 1 — 90K OTPM, 1K RPM. $40 credit added Apr 14 2026.
+Haiku: claude-haiku-4-5-20251001
+max_tokens BevCheck: 2000. max_tokens extract: 32000
 
-- **Session structure:** Open with master doc fetch + audit. Execute prioritized work. Close with master doc update (version increment, change summary, full content replacement).
-- **Branching discipline:** Every code change on feature branch → preview URL verification → merge to main. Master doc updates commit direct to main (no code involved).
-- **Debugging protocol:** Check vercel_logs Supabase table first (full error strings); curl API endpoints for actual response bodies; curl -s https://raw.githubusercontent.com/alabare01/wovely/[branch]/[path] to inspect deployed source before writing fix prompts
-- **Claude Code prompt format:** Single unbroken copyable block. No exceptions.
-- **Design authority:** Dani's feedback canonical on UX/design; queued as NEEDS DISCUSSION before code
-- **Mobile-first:** Adam often on iPhone; prompts copy-pasteable on mobile
-- **Master doc as persistent memory:** Versioned JSON maintained across sessions
-- **🆕 Eval before iterate:** For any feature with classification/accuracy stakes, build the labeled test set FIRST. Don't prompt-iterate against a sample of 1.
+## EXTRACT PIPELINE ARCHITECTURE (post-Session 59 merge)
+Client detects avgText/page:
+- <300 or 300-1200 (mixed) = vision path = POST /api/extract-pattern-vision with pdfUrl — HAIKU PRIMARY, GEMINI FALLBACK
+- >1200 = text path = POST /api/extract-pattern with full pdfText, 240s client timeout — HAIKU CHUNKED
 
----
+Server extract-pattern.js:
+- <14k chars = single pass
+- >14k chars = chunked with 500 overlap, sequential, 240s budget guard, maxDuration 300
 
-## Tools & resources
+BevCheck cascade: Gemini 2.5 Flash v1beta (8s) → Haiku 55s (2000 max_tokens) → bev_tangled
+BevCheck still Gemini-primary (not swapped in Session 59 merge).
 
-**Infrastructure:**
-- Supabase project ID: `vbtsdyxvqqwxjzpuseaf`
-- Vercel project ID: `prj_SZYwLGH5V7kCZYryr4MSy3US3bfz` | team ID: `team_mRQaDsQzhF6HFGU5Ka7hi5OM`
-- Vercel dashboard: https://vercel.com/alabare-8435s-projects/wovely
-- GitHub: `alabare01/yarnhive`
-- PostHog project ID: `363175` | Personal API key: stored in Vercel env as POSTHOG_PERSONAL_API_KEY and in Adam's 1Password (NOT in this doc — public repo)
-- Stripe: $8.99/mo Pro tier (live mode active)
-- Email: adam@wovely.app (primary), support@wovely.app (users), Resend as SMTP
+## DANIELLE FEEDBACK LOG
+- [LOVES IT] My Wovely redesign — confirmed iMessage Apr 6
+- [SHIPPED S40] Instructions/Rows tab rename, import spinner, nav guard removed, email capture removed, iPad scroll fix
+- [NEEDS DISCUSSION] BevCheck full report UI — get written feedback
+- [NEEDS DISCUSSION] Stitch Check — link to error location in pattern
+- [NEEDS DISCUSSION] Floating import banner covers side nav while processing
+- [NEEDS DISCUSSION] No warning when user refreshes during import
+- [NEEDS DISCUSSION] Stash + button should add yarn not upload pattern
+- [NEEDS DISCUSSION] Color palette — Danielle finds pure white cold
+- [S58 PROPOSAL] Stitch Library (see full spec above)
+- [PENDING REVIEW] Rule A overcorrection — two dc patterns misclassified as linen stitch
 
-**Master doc API:**
-- Fetch: curl -s -X POST https://wovely.app/api/master-doc -H "Content-Type: application/json" -d '{"password":"Dani2673!@#"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['content'])"
-- Update: POST to https://wovely.app/api/update-master-doc with password, version, change_summary, content (full replacement)
-- Reddit short links do not resolve via web fetch — paste content directly
+## KEY USERS (strategic only)
+Danielle (me.com) — north star, UX veto, 17 patterns
+Danielle (gmail) — second account
+Adam — founder
+Steffanie Brown — engaged Pro, champion candidate
+turttlesong — trial, expires May 3, retention priority
 
-**Supabase patterns:**
-- User pro upgrade: UPDATE user_profiles SET is_pro = true WHERE id = (SELECT id FROM auth.users WHERE email = '[email]')
-- Logs: SELECT message, level, timestamp FROM vercel_logs WHERE timestamp > '[recent-time]' ORDER BY timestamp ASC
-- vercel_logs RLS requires explicit service role policy; direct SQL via execute_sql bypasses RLS
+For current user count and activity, query Supabase live or PostHog.
 
-**Vercel patterns:**
-- list_deployments with since in epoch ms to confirm branch deployment
-- Preview URL: https://wovely-git-[branch-name]-alabare-8435s-projects.vercel.app
-- iOS Safari background CSS: position: fixed on body::before and body::after, both width: 100vw; height: 100vh
+## USER IDS
+Adam: 6e1a02d9-c210-4bc4-968e-dde3435565d1
+Danielle me.com: d6b18345-a85e-42bd-b7cb-f20efd4b2fe7
+Danielle gmail: 038442a2-b13d-4abb-9960-24a360078f6c
 
-**PostHog:**
-- API: POST to https://us.posthog.com/api/projects/363175/query/ with Authorization: Bearer [POSTHOG_PERSONAL_API_KEY], body {"query": {"kind": "HogQLQuery", "query": "[sql]"}}
-- Production filter: properties.$current_url LIKE '%wovely.app%'
+## INFRASTRUCTURE
+Live: wovely.app
+GitHub: github.com/alabare01/wovely
+Local: C:/Users/adam/wovely
+Supabase: vbtsdyxvqqwxjzpuseaf — FREE TIER (upgrade pending)
+Vercel: prj_SZYwLGH5V7kCZYryr4MSy3US3bfz / team_mRQaDsQzhF6HFGU5Ka7hi5OM — PRO
+Stripe: acct_1TDQ1WGbX5hxxc0T (LIVE) $8.99/mo Pro
+Cloudinary: dmaupzhcx
+PostHog: Project 363175
+Current session: 60 (next)
 
-**Design system:**
-- Colors: white canvas, lavender #9B7EC8 (primary), navy #2D3A7C (structural)
-- Typography: Playfair Display (headings), Inter (body)
-- Glass card treatment with max-width 960px containers on desktop
+## EMAIL STACK
+Google Workspace: adam@wovely.app, support@wovely.app
+Resend: RESEND_API_KEY in Vercel
+DNS: GoDaddy. MX records fine. SPF chained. DKIM MISSING.
 
----
+## LEGAL
+Wovely LLC — filed March 30 2026, doc L26000181882, Florida
+Annual report due Jan 1 to May 1 2027
 
-## Session 58 handoff state
+## TECH STACK
+React/Vite, Supabase, Vercel PRO, Claude Haiku 4.5 primary (vision + text extract), Gemini 2.5 Flash fallback + BevCheck primary, Stripe $8.99/mo, Cloudinary, Resend, PostHog
 
-**Untested but deployed on branch test/claude-primary-vision:**
-- Pattern import Claude-primary path (api/extract-pattern-vision)
+## STYLE GUIDE v1.0 (LOCKED)
+Primary: #9B7EC8, Navy: #2D3A7C, White: #FFFFFF, Surface: #F8F6FF, Border: #EDE4F7
+Text primary: #2D2D4E, Text secondary: #6B6B8A, Danger: #C0544A
+Fonts: Playfair Display (headings), Inter (body)
+NEVER USE: #1A1A2E, terracotta #B85A3C or #C05A5A, cream #FAF7F2
 
-**Tested and working on branch:**
-- Dani's chevron blanket → correctly identified as Linen Stitch in Chevron Arrangement
-- Debug reasoning trace via ?debug=1
-- Confidence pills (high/medium/low) rendering correctly
-- Step 0 content gate preserved
+## BEV
+Hyper-realistic crochet amigurumi lavender snake, named after Danielle's grandmother Beverly.
+Canonical reference: IMG_3968 (no text, navy hexagon frame). Character bible locked Session 19.
+bev_neutral.png in /public.
+ALL loading states: static Bev inside spinning ring.
+NEVER snake emoji where Bev image can be used.
+NEVER use "AI" in user-facing copy — Bev owns all intelligence.
+Future assets: bev_happy.png, bev_warning.png, bev_concerned.png
+Named AI suite: Stitch-O-Vision, BevCheck, Ask Bev (future).
 
-**Tested and FAILING on branch:**
-- Solid green dc swatch (Jessie At Home) → misidentified as Linen Stitch in Chevron. Dani confirms: double crochet.
-- Teal textured swatch → misidentified as Linen Stitch solid. Dani confirms: double crochet with front post variant.
+## BACKGROUND CSS (CRITICAL)
+body::before: image, position fixed, z-index -1
+body::after: gradient overlay, position fixed, z-index -1
+#root: position relative, z-index 1
+App.jsx: NO background-color on any layout wrapper
 
-**Adam's psychological state at session close:** Productive night despite not clearing the final accuracy gate. Architecture wins (Claude primary, three-dimensional schema, reasoning-first prompt) are real. Dani's stitch library idea is a category shift, not an iteration — captured above. Session ended on strategic clarity, not code despair.
+## Z-INDEX MAP
+FeedbackWidget: 60, Add Pattern tab: 40, Mobile header: 20, Tooltips: 100, Modals: 50+
 
-**First thing in Session 59:** Fetch this doc. Verify v99. Resume with pattern import test on test/claude-primary-vision (the untested Mandalorian case). Then decide on branch merge based on Dani's review of overcorrection.
+## PENDING ADAM ACTIONS
+1. Fix Google Workspace DKIM
+2. Upgrade Supabase Free → Pro (GoGno.me org)
+3. Add WEBHOOK_SECRET env var to Vercel — CRITICAL
+4. Supabase webhook: auth.users INSERT → https://wovely.app/api/notify-signup
+5. Replace cover image on First Sunrise Blanket Pattern
+6. Claim @wovely on Instagram + TikTok
+7. File annual report Wovely LLC at sunbiz.org (L26000181882) Jan 1 to May 1 2027
+8. Try Recraft.ai for Bev vector logo
+9. Create bev_happy.png, bev_warning.png, bev_concerned.png
+10. Get Danielle written feedback on BevCheck full report UI
+11. Send welcome re-engagement email (script built Session 56, not yet sent)
+12. Commit WOVELY_CONTEXT.md to main opportunistically (next time in Claude Code)
 
-**⚠️ Action items for Adam (Session 59 open):**
-- Rotate PostHog Personal API Key. Previous key (prefix `phx_ExuBKg…`, suffix `…rKYnw`, full value in v98 git history on public repo) — assume compromised. Generate new key at https://us.posthog.com/settings/user-api-keys, store in 1Password, add to Vercel env as POSTHOG_PERSONAL_API_KEY. Remove the old key from PostHog once new key confirmed working.
-- Audit WOVELY_CONTEXT.md v98 and earlier for other secrets (master doc password `Dani2673!@#` is also in git history — consider rotating and moving reference to 1Password only).
-- Repeat pattern going forward: no live credentials in the master doc. Reference by name + storage location only.
+## TECHNICAL GOTCHAS
+supabaseAuth.getUser() is SYNCHRONOUS — never await
+Pattern fetch needs Range: 0-499 header
+DEFAULT_STARTERS excluded from stats
+detailOnSave must spread updated_at onto local state
+Hero image: PILL sentinel check before using photo field
+Vercel Pro: maxDuration 300 on extract-pattern.js and extract-pattern-vision.js
+iOS: background-attachment fixed broken — use fixed pseudo-elements
+Gemini: strip markdown fences before JSON.parse
+Gemini responses: skip parts where part.thought === true
+Claude Haiku model: MUST use claude-haiku-4-5-20251001
+BevCheck max_tokens: 2000
+Missing await on async = silent 500. Check this first.
+Mobile background fetch: start fetch before UI transition
+user_profiles has NO email column — join through auth.users
+Auth schema FK relationships not reliably discoverable via information_schema — use pg_constraint joined to pg_class/pg_namespace with pg_get_constraintdef() for CASCADE discovery
+RLS with zero policies silently blocks all writes — no error surfaced
+Supabase signup returns sessions in two shapes (nested or flat) — normalization required
+Vercel env var changes require fresh deployment
+Client-side API keys bundled in Vite are exposed — remaining client-side Gemini calls must move server-side
+PDFs → Supabase Storage. Images → Cloudinary. Brand assets → /public
+SessionStorage: wovely_feedback_draft, wovely_redirect_intent
+useBlocker requires createBrowserRouter — Wovely uses BrowserRouter, do NOT use
+iPad Safari scroll bounce: never overflow-y scroll on inner containers
+BevCheck calls never go direct to Gemini from browser
+Provider router: probes gemini-2.5-flash on /v1beta/ — must match actual call model and path
+Fixed position banners in Dashboard.jsx: DO NOT USE
+App.jsx fragment wrapping: DO NOT wrap App return in React fragments
+Client timeout: raised to 240s in Session 58
+RLS must be applied to ALL new tables at creation
+CORS: audit all serverless functions
+Stripe webhook env var: STRIPE_WEBHOOK_SECRET (not WEBHOOK_SECRET)
+Stitch-O-Vision: Haiku-primary on main as of Session 59 merge
+BevCheck events still named stitch_check_run in PostHog from pre-rename
+PostHog production traffic filter: properties.$current_url LIKE '%wovely.app%'
+Vercel runtime logs truncate at first console.log — use vercel_logs Supabase table for full error strings
+Supabase execute_sql requires auth.users with explicit schema prefix
 
----
+## STITCH-O-VISION (post-Session 59)
+Vision pipeline: Haiku primary (claude-haiku-4-5-20251001) → Gemini 2.5 Flash fallback
+Reasoning-first prompt schema: observation_notes → candidate_analysis → classification
+Hard IF/THEN rejection rules in prompt
+Known issue: Rule A overcorrection on textured fabrics, no front-post/back-post awareness
+Fix path: Stitch Library (post-Collections)
 
-## Session 58 late-night addendum (post-9pm verification)
+## CHANGELOG RULE
+Only user-facing features. Never mention AI — Bev language only. Prepend each session.
 
-After initial close at ~9pm, Adam ran the deferred Mandalorian pattern import test before bed. This changed the session's conclusions materially.
+## FOUNDER DASHBOARD (Session 60 queued)
+Live React artifact pulling Supabase + PostHog. Three scope questions pending:
+1. Which metrics matter day-to-day (total users, Pro/free, new signups, patterns created, turttlesong trial countdown, Danielle activity, PostHog top events)
+2. Supabase anon key source
+3. Usage frequency (weekly → artifact fine; daily → skip to in-app /founder route)
 
-**Test 1 result — initial failure:**
-- User flow: 9 Mandalorian images uploaded via Import Pattern on test/claude-primary-vision preview
-- Client showed: "Couldn't read these photos — Server extraction failed: timeout"
-- Server log revealed: `POST /api/extract-pattern-vision → 200 images claude (61758ms)` — extraction actually SUCCEEDED server-side in 61.7s
-- Root cause: client-side AbortController in src/ImageImportModal.jsx:129 fired at 55000ms, discarding the response 6.7s before server completed
+Path forward: artifact as v1, migrate to in-app /founder route post-Collections.
 
-**Fix applied (commit 70f486f):**
-- Raised client-side fetch abort from 55s → 240s in src/ImageImportModal.jsx
-- Raised server-side Claude call abort from 55s → 240s in api/extract-pattern-vision.js callClaudeVision
-- Error message text updated to match new 240s window
-- Both under Vercel Pro 300s maxDuration ceiling already configured on this endpoint
-- stitch-vision timeout left at 55s (appropriate for single-image classification)
+## CLAUDE CODE DESKTOP APP WORKFLOW
+Two-window setup: Claude.ai browser = strategy. Claude Code desktop = execution.
+New session per feature branch. Isolated git worktrees. Parallel sessions for independent tasks.
+Permission modes: Ask (Stripe/auth/hotfixes), Auto (queue system/CORS/RLS/Collections), Plan (before large refactors).
+Model: Opus 4.7 xhigh default.
 
-**Test 2 result — success:**
-- Same 9 Mandalorian images, same preview, post-fix
-- Completed successfully at 9:38pm with structured pattern on screen
-- Extracted: title "The Mandalorian", hook E/4 (3.5mm), light worsted yarn, 65 rows total across 8 components
-- Components correctly identified: HEAD AND BODY (38 rows, rounds), ARMS MAKE 2 × 2 (7 rows), LEFT/RIGHT SHOULDER ARMOR (3 rows each), HELMET SIDE SECTIONS MAKE 2 × 2 (2 rows), CLOAK (8 rows, flat ROW labels), SHOULDER STRAP (1 row), ASSEMBLY & FINISHING (3 rows with STEP/action_item labels)
-- Make counts populated correctly for components marked (MAKE 2)
-- Round vs. row distinction correctly detected per component (rounds for amigurumi head/body, rows for flat cloak/panels)
-- Row-level notes attached as row.note field rather than separate row entries (per prompt spec)
-- BevCheck ran automatically and flagged "Stitch count math" — not verified whether true positive or false positive
-- UI rendered "Looks good — save pattern" + "Try different photos" fallback CTAs cleanly
-
-**What remains verified vs. unverified:**
-- ✅ Claude primary pattern extraction pipeline works end-to-end on multi-image pattern
-- ✅ Structural extraction (components, rows, labels, make_counts, action_items) is correct at summary level
-- ✅ Round/row distinction working per prompt spec
-- ✅ Row-level notes vs. standalone rows distinction working per prompt spec
-- ❓ Row-level text accuracy on rows 2+ of each component (user saw summary view; "+35 more" on HEAD AND BODY not spot-checked)
-- ❓ Cross-reference expansion (e.g. "Repeat R32") — pattern may not have contained any, so prompt instruction not exercised
-- ❓ Abbreviations map completeness
-- ❓ BevCheck's "Stitch count math" flag — true positive or false positive
-
-**Merge decision:**
-Adam elected NOT to merge test/claude-primary-vision at session close. Rationale: wants spot-check of row-level extraction accuracy against source images, and Dani's review of extraction quality, before merging. Branch stays alive. This is the correct call — structural verification is solid, but row-level accuracy spot-check should happen with fresh eyes and domain-expert input.
-
-**Session 58 final accomplishments (amended):**
-- Claude Haiku 4.5 primary on both vision endpoints with Gemini fallback
-- Three-dimensional stitch schema
-- Reasoning-first Stitch-O-Vision prompt with Dani's decision tree (known overcorrection issue on Rule A)
-- **Pattern extraction Claude-primary pipeline VERIFIED WORKING on 9-image Mandalorian** (originally thought untested at 9pm close)
-- Client+server timeout alignment at 240s
-- Security hygiene gap discovered and partial remediation (Personal API key redacted from master doc; rotation required in Session 59)
-
----
-
-**Session 59 opening priorities (AMENDED FROM INITIAL v99):**
-
-1. **FIRST thing: spot-check Mandalorian extraction row-level accuracy on test/claude-primary-vision.** Open HEAD AND BODY component, compare 3-5 random rounds to source pattern images. Verify abbreviations map captured correctly. Review BevCheck "Stitch count math" flag for true vs. false positive. Get Dani's take on extraction quality.
-2. **Decision on branch merge** based on spot-check. If row-level accuracy is good → merge the whole branch to main (Stitch-O-Vision + pattern extraction + timeout fixes ship together). If row-level accuracy has issues → identify specific gaps and decide whether to fix-then-merge or split the commits.
-3. **Security cleanup (mandatory before any new feature work):** Rotate PostHog Personal API Key (old key `phx_ExuBKg…rKYnw` compromised via v98 in public repo). Rotate master doc password `Dani2673!@#` and update /api/master-doc + /api/update-master-doc endpoints. Consider flipping repo to private. Audit git history for any other leaked credentials in older master doc versions.
-4. **Stitch-O-Vision Rule A overcorrection** — if time permits after above, iterate prompt to soften linen stitch default; add front-post / back-post stitch awareness. Defer if eval harness / stitch library path takes priority.
-5. **Collections build** (trial user May 3).
-6. **Text-extraction timeout parity** — three 55s Claude timeouts in api/extract-pattern.js (lines 286, 395, 691) mirror the bug we just fixed on the vision path. Not urgent (no production failures observed on text path), but queue for when vision work is stable.
+## CLAUDE RULES
+Fetch master doc first, no exceptions (local or GitHub raw URL)
+Next session = 60
+Danielle feedback overrides everything
+ONE complete Claude Code prompt per task
+Never push direct to main (except WOVELY_CONTEXT.md)
+Match Adam energy
+ALWAYS query vercel_logs first when debugging
+Model swap first when provider is flaky
+Proactively flag platform limits and upgrade paths
+Never use em dashes in copy or emails written for Adam
+Session close: plain text doc in chat, Adam saves locally, GitHub push opportunistic
