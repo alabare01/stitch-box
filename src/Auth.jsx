@@ -141,6 +141,26 @@ const ProductPreview = () => {
             </div>
           </div>
         </div>
+
+        {/* RIGHT — Stitch-O-Vision */}
+        <div style={{ background: "rgba(255,255,255,0.84)", border: "1px solid rgba(155,126,200,0.18)", borderRadius: 12, overflow: "hidden", flex: 1, display: "flex", flexDirection: "column", minHeight: 160, height: "auto" }}>
+          <img src="https://vbtsdyxvqqwxjzpuseaf.supabase.co/storage/v1/object/public/pattern-files/stitch-vision/6e1a02d9-c210-4bc4-968e-dde3435565d1/1775515182975.jpg" alt="" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "12px 12px 0 0", display: "block" }} />
+          <div style={{ padding: "10px 12px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, minHeight: 0 }}>
+            <div>
+              <div style={{ ...CARD_LABEL, whiteSpace: "nowrap", fontSize: 8 }}>STITCH-O-VISION</div>
+              <div style={CARD_TITLE}>Moss Stitch</div>
+              <div style={CARD_SUBTITLE}>Linen &middot; Granite Stitch</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...CARD_SUBTITLE, flex: 1 }}>High confidence</span>
+              <svg width={BADGE.width} height={BADGE.height} viewBox="0 0 32 32" style={{ flexShrink: BADGE.flexShrink }}>
+                <circle cx="16" cy="16" r="15" fill="#5B9B6B" />
+                <text x="16" y="17" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: 11, fontWeight: 700, fill: "#fff" }}>91%</text>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── BEV CARD ── */}
