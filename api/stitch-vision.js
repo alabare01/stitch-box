@@ -28,7 +28,7 @@ const POSTHOG_HOST = "https://us.i.posthog.com";
 // invocations, so this dramatically reduces Supabase round-trips. Cold start
 // re-fetches automatically.
 const LIBRARY_TTL_MS = 5 * 60 * 1000;
-let libraryCache = null; // { fetchedAt, primaryNames, lookup }
+let libraryCache = null; // { fetchedAt, stitches, lookup }
 
 function normalize(s) {
   if (!s) return "";
@@ -39,16 +39,16 @@ async function fetchLibrary(supaUrl, supaKey) {
   if (libraryCache && Date.now() - libraryCache.fetchedAt < LIBRARY_TTL_MS) {
     return libraryCache;
   }
-  console.log("[SOV-LIBRARY] Fetching stitch_library names");
-  const res = await fetch(`${supaUrl}/rest/v1/stitch_library?select=slug,primary_name,also_known_as&limit=1000`, {
-    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
-  });
+  console.log("[SOV-LIBRARY] Fetching stitch_library names + visual cues + descriptions");
+  const res = await fetch(
+    `${supaUrl}/rest/v1/stitch_library?select=slug,primary_name,also_known_as,visual_cues,description&limit=1000`,
+    { headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` } }
+  );
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`stitch_library fetch failed: ${res.status} ${body.slice(0, 200)}`);
   }
   const rows = await res.json();
-  const primaryNames = rows.map(r => r.primary_name);
   // Build a normalized lookup: any primary_name OR also_known_as -> slug
   const lookup = new Map();
   for (const r of rows) {
@@ -60,18 +60,47 @@ async function fetchLibrary(supaUrl, supaKey) {
       }
     }
   }
-  libraryCache = { fetchedAt: Date.now(), primaryNames, lookup };
+  libraryCache = { fetchedAt: Date.now(), stitches: rows, lookup };
   console.log(`[SOV-LIBRARY] Cached ${rows.length} stitches, ${lookup.size} normalized lookup keys`);
   return libraryCache;
 }
 
-function buildPrompt(primaryNames) {
-  const list = primaryNames.join(", ");
-  return `You are looking at a photo a user uploaded, hoping to identify which crochet stitch is shown. Your job is to pick the matching stitch from a fixed library, or say UNSURE.
+// First sentence of a description, capped at 160 chars. Strips paragraph breaks.
+function firstSentence(s) {
+  if (!s) return "";
+  const para = String(s).trim().split(/\n+/)[0];
+  if (!para) return "";
+  const m = para.match(/^.+?[.!?](?=\s|$)/);
+  const sent = m ? m[0] : para;
+  return sent.length <= 160 ? sent : sent.slice(0, 160).trimEnd() + "…";
+}
+
+function formatStitchEntry(s) {
+  const vc = Array.isArray(s.visual_cues) && s.visual_cues.length > 0
+    ? s.visual_cues.join(", ")
+    : "";
+  const desc = firstSentence(s.description || "");
+  let line = s.primary_name;
+  if (vc && desc) line += `: ${vc} — ${desc}`;
+  else if (vc)    line += `: ${vc}`;
+  else if (desc)  line += ` — ${desc}`;
+  return line;
+}
+
+function buildPrompt(stitches) {
+  const list = stitches.map(formatStitchEntry).join("\n");
+  return `You are looking at a photo of a crochet swatch. Each stitch below has its name followed by visual cues describing its appearance, and a short description. Match the image to a stitch ONLY if multiple visual cues clearly correspond to what you see in the image. If the image shows features that don't clearly match any stitch's visual cues, respond UNSURE.
 
 You MUST respond with EXACTLY one of these stitch names (verbatim, including capitalization), OR the literal word UNSURE if you cannot confidently match the image to any of these stitches.
 
 Respond with UNSURE if the image shows a printed pattern page, a stitch chart or symbol diagram, knitting instead of crochet, a finished object too far away to see individual stitches, or anything that does not clearly show crocheted fabric matching one of the listed stitches. Do NOT guess. Picking the wrong stitch is worse than admitting uncertainty.
+
+Confidence guidelines:
+- HIGH: Image clearly shows multiple distinguishing features that match this stitch's visual cues. You could point to specific features and explain why this stitch is the answer.
+- MEDIUM: Some features match the visual cues but there is ambiguity, OR the image quality limits certainty.
+- LOW: Image shows visual similarity to this stitch but you have meaningful doubt. Strongly consider UNSURE instead.
+
+When in doubt, prefer UNSURE over a LOW-confidence pick. UNSURE is the correct answer when no stitch's visual cues clearly match what you see.
 
 Available stitches:
 ${list}
@@ -270,7 +299,7 @@ export default async function handler(req, res) {
     await postHog("sov_scan_failed", distinctId, { error_type: "library_fetch" });
     return res.status(500).json({ error: true, message: "Server not configured" });
   }
-  const prompt = buildPrompt(library.primaryNames);
+  const prompt = buildPrompt(library.stitches);
   const imgBase64 = imgBuffer.toString("base64");
 
   // Vision call: Claude primary, Gemini fallback
