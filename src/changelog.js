@@ -1,5 +1,14 @@
 export const CHANGELOG = [
   {
+    version: "Session 63",
+    date: "2026-05-02",
+    updates: [
+      { emoji: "🌀", text: "Stitch-O-Vision is back — and now I only name stitches I actually know from Dani's library" },
+      { emoji: "📚", text: "Photo of a stitch I haven't learned? I'll honestly say so and tuck your photo away to study later" },
+      { emoji: "🛡️", text: "No more confidently-wrong identifications — every answer comes from the canonical Stitch Library" },
+    ]
+  },
+  {
     version: "Session 42",
     date: "2026-04-09",
     updates: [

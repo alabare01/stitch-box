@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { T } from "./theme.jsx";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
+import { SUPABASE_URL, supabaseAuth, getSession } from "./supabase.js";
 
 const MSGS = [
   "Analyzing the stitch pattern…",
@@ -8,7 +8,7 @@ const MSGS = [
   "Almost there…",
 ];
 
-const DIFF_COLORS = { Beginner: "#5C9E7A", Intermediate: "#C9853A", Advanced: "#C05A5A" };
+const DIFF_COLORS = { beginner: "#5C9E7A", intermediate: "#C9853A", advanced: "#C05A5A" };
 
 const compressForVision = (file) => new Promise((resolve, reject) => {
   const url = URL.createObjectURL(file);
@@ -70,8 +70,6 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
   const [thumb, setThumb] = useState(null);
   const [loadingMsg, setLoadingMsg] = useState(MSGS[0]);
   const [error, setError] = useState(null);
-  const [shareId, setShareId] = useState(null);
-  const [copied, setCopied] = useState(false);
   const fileRef = useRef(null);
 
   const handleFile = async (e) => {
@@ -125,39 +123,17 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
       const res = await fetch("/api/stitch-vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: publicUrl }),
+        body: JSON.stringify({ imageUrl: publicUrl, user_id: user?.id || null }),
       });
 
       clearInterval(intv);
       const data = await res.json();
-      console.log("[StitchVision] Step 3 done: API status:", res.status, "data keys:", Object.keys(data), "data:", JSON.stringify(data).substring(0, 500));
+      console.log("[StitchVision] Step 3 done: API status:", res.status, "data keys:", Object.keys(data));
       if (!res.ok) throw new Error(data.message || data.error || "Server error: " + res.status);
-      if (data.error) throw new Error(data.message || "Stitch identification failed. Please try again.");
+      if (data.error) throw new Error(data.message || "Something went wrong on my end. Try again in a moment?");
       incrementUsage();
       setResult(data);
       setStage("result");
-      // Save result to Supabase (best-effort, don't block)
-      try {
-        const session2 = getSession();
-        const user2 = supabaseAuth.getUser();
-        console.log("[stitch-vision] Saving result, user:", user2?.id, "session:", !!session2);
-        const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/stitch_results`, {
-          method: "POST",
-          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session2?.access_token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-          body: JSON.stringify({ image_url: publicUrl, result: data, user_id: user2?.id || null }),
-        });
-        const saveText = await saveRes.text();
-        console.log("[stitch-vision] Save response:", saveRes.status, saveText.substring(0, 200));
-        if (saveRes.ok) {
-          let savedData;
-          try {
-            savedData = typeof saveText === 'string' ? JSON.parse(saveText) : saveText;
-            const savedRecord = Array.isArray(savedData) ? savedData[0] : savedData;
-            if (savedRecord?.id) { setShareId(savedRecord.id); console.log("[stitch-vision] Share ID set:", savedRecord.id); }
-            else { console.error("[stitch-vision] No ID in save response:", JSON.stringify(savedData).substring(0, 200)); }
-          } catch (parseErr) { console.error("[stitch-vision] Save parse error:", parseErr.message, saveText.substring(0, 200)); }
-        } else { console.error("[stitch-vision] Save failed:", saveRes.status, saveText); }
-      } catch (saveErr) { console.error("[stitch-vision] Save error:", saveErr.message); }
     } catch (err) {
       clearInterval(intv);
       console.error("[StitchVision] Error:", err);
@@ -166,7 +142,7 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
     }
   };
 
-  const reset = () => { setStage("pick"); setResult(null); setThumb(null); setError(null); setShareId(null); setCopied(false); if (fileRef.current) fileRef.current.value = ""; };
+  const reset = () => { setStage("pick"); setResult(null); setThumb(null); setError(null); if (fileRef.current) fileRef.current.value = ""; };
 
   // ── LIMIT SCREEN ──
   if (stage === "limit") return (
@@ -196,153 +172,81 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
   if (stage === "result") {
     if (error) return (
       <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Something went wrong</div>
-        <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>{error}</div>
+        <img src="/bev_neutral.png" alt="Bev" style={{ width: 100, height: "auto", margin: "0 auto 16px", display: "block", filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.3))" }} />
+        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Something went wrong on my end</div>
+        <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>Try again in a moment?</div>
         <button onClick={reset} style={{ background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
       </div>
     );
 
-    if (result?.not_stitch) return (
-      <div style={{ padding: "40px 20px 60px", textAlign: "center", maxWidth: 440, margin: "0 auto" }}>
+    // ── NO MATCH ──
+    if (!result?.matched) return (
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "40px 20px 60px", textAlign: "center" }}>
         {thumb && <img src={thumb} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
         <img src="/bev_neutral.png" alt="Bev" style={{ width: 110, height: "auto", margin: "0 auto 16px", display: "block", filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.3))" }} />
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>That looks like a pattern, not a stitch</div>
-        <div style={{ fontSize: 13, color: "#6B6B8A", lineHeight: 1.7, marginBottom: 20 }}>
-          Stitch-O-Vision identifies stitches from photos of actual fabric. Looks like you uploaded a pattern page — Bev can import that for you instead.
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {onImportAsPattern && (
-            <button
-              onClick={() => onImportAsPattern()}
-              style={{ width: "100%", background: "#9B7EC8", color: "#fff", border: "none", borderRadius: 99, padding: "13px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-            >
-              Import as a pattern instead
-            </button>
-          )}
-          <button onClick={reset} style={{ width: "100%", background: "transparent", color: T.ink2, border: `1.5px solid ${T.border}`, borderRadius: 99, padding: "12px 28px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            Try a different photo
-          </button>
-        </div>
-      </div>
-    );
-
-    if (!result || (!result.primary_identifier && !result.stitch_name)) return (
-      <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Couldn't identify the stitch</div>
-        <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>Try a closer, well-lit photo of the stitch texture.</div>
-        <button onClick={reset} style={{ background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try again</button>
-      </div>
-    );
-
-    if (result?.not_crochet) return (
-      <div style={{ padding: "60px 20px", textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
-        {thumb && <img src={thumb} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
-        <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 600, color: T.ink, marginBottom: 8 }}>That doesn't look like a crochet stitch</div>
-        <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.7, marginBottom: 20 }}>Try a closer photo of the stitch texture.</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#2D3A7C", marginBottom: 10 }}>Hmm, I haven't learned this one yet</div>
+        <div style={{ fontSize: 14, color: "#6B6B8A", lineHeight: 1.7, marginBottom: 24 }}>I've saved your photo and I'll keep learning. Want to try another swatch?</div>
         <button onClick={reset} style={{ background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try another photo</button>
       </div>
     );
 
-    const diffColor = DIFF_COLORS[result.difficulty] || T.ink3;
-    const isLowConf = result.confidence === "low" || !result.description || !result.description.trim();
-    const showDebug = new URLSearchParams(window.location.search).has('debug');
+    // ── MATCH ── library row only, no free generation
+    const stitch = result.stitch;
+    const confidence = result.confidence;
+    const diffKey = (stitch.difficulty || "").toLowerCase();
+    const diffColor = DIFF_COLORS[diffKey] || T.ink3;
+    const diffLabel = stitch.difficulty ? stitch.difficulty.charAt(0).toUpperCase() + stitch.difficulty.slice(1) : null;
 
-    // ── LOW CONFIDENCE / UNSURE STATE ──
-    if (isLowConf) return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px", textAlign: "center" }}>
-        {thumb && <img src={thumb} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 20 }} />}
-        <img src="/bev_neutral.png" alt="Bev" style={{ width: 120, height: "auto", margin: "0 auto 16px", display: "block", filter: "drop-shadow(0 4px 16px rgba(155,126,200,0.3))" }} />
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: "#2D3A7C", marginBottom: 8 }}>Bev's not quite sure about this one...</div>
-        {result.stitch_name && <div style={{ fontSize: 14, color: "#6B6B8A", marginBottom: 16 }}>This might be a <span style={{ fontWeight: 600, color: "#9B7EC8" }}>{result.stitch_name}</span></div>}
-        {result.base_stitch && <div style={{ display: "inline-block", background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600, marginBottom: 16 }}>Base stitch: {result.base_stitch}</div>}
-        <div style={{ background: "#F8F6FF", border: "1px solid #EDE4F7", borderRadius: 12, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
-          <div style={{ fontSize: 13, color: "#2D2D4E", lineHeight: 1.6 }}>💡 Try a closer shot focusing just on the stitch texture — Bev gets more confident with detail shots!</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {shareId && result.stitch_name && (
-            <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              {copied ? "✓ Copied!" : "🔗 Copy share link"}
-            </button>
-          )}
-          <button onClick={reset} style={{ width: "100%", background: T.terra, color: "#fff", border: "none", borderRadius: 99, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Try another photo</button>
-        </div>
-      </div>
-    );
-
-    // ── CONFIDENT RESULT ──
     return (
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 20px" }}>
         {thumb && <img src={thumb} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, marginBottom: 16 }} />}
 
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, color: "#2D3A7C", marginBottom: 6 }}>{result.primary_identifier || result.stitch_name}</div>
+        <div style={{ fontSize: 13, color: T.ink2, marginBottom: 4, fontWeight: 500 }}>Looks like you're working on</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C", marginBottom: 14 }}>{stitch.primary_name}!</div>
+
+        {stitch.image_url && (
+          <img src={stitch.image_url} alt={stitch.primary_name} style={{ width: "100%", maxHeight: 240, objectFit: "contain", background: T.linen, borderRadius: 12, marginBottom: 16 }} />
+        )}
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-          <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{result.difficulty}</span>
-          {result.confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
-          {result.confidence === "medium" && <span style={{ background: "#FDF3D7", color: "#A88730", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Medium confidence</span>}
-          {(result.stitch_technique || result.base_stitch) && <span style={{ background: "#9B7EC8", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Stitch: {result.stitch_technique || result.base_stitch}</span>}
-          {result.pattern_arrangement && <span style={{ background: "#E8DFF5", color: "#5E4680", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Arrangement: {result.pattern_arrangement}</span>}
-          {result.construction_method && <span style={{ background: "#D5E0F0", color: "#3D5A8C", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Construction: {result.construction_method}</span>}
-          {(result.also_known_as || []).map(name => (
-            <span key={name} style={{ background: T.terraLt, color: T.terra, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{name}</span>
+          {diffLabel && <span style={{ background: diffColor + "22", color: diffColor, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{diffLabel}</span>}
+          {confidence === "high" && <span style={{ background: "#D8EAD8", color: "#5C9E7A", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>High confidence</span>}
+          {confidence === "medium" && <span style={{ background: "#FDF3D7", color: "#A88730", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>Medium confidence</span>}
+          {(stitch.also_known_as || []).map(name => (
+            <span key={name} style={{ background: T.terraLt, color: T.terra, borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>aka {name}</span>
           ))}
         </div>
 
-        {result.description && result.description.trim() && (
-          <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 16 }}>{result.description}</div>
+        {stitch.description && stitch.description.trim() && (
+          <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 16, whiteSpace: "pre-wrap" }}>{stitch.description}</div>
         )}
 
-        {result.confidence_reasoning && result.confidence_reasoning.trim() && (
+        {Array.isArray(stitch.visual_cues) && stitch.visual_cues.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>Why Bev thinks this</div>
-            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, fontStyle: "italic" }}>{result.confidence_reasoning}</div>
+            <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 }}>What to look for</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {stitch.visual_cues.map(cue => (
+                <span key={cue} style={{ background: "#E8DFF5", color: "#5E4680", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{cue}</span>
+              ))}
+            </div>
           </div>
         )}
 
-        {showDebug && (result.observation_notes || result.candidate_analysis) && (
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(155, 126, 200, 0.06)', borderRadius: '12px', border: '1px dashed rgba(155, 126, 200, 0.3)' }}>
-            <div style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2D3A7C', opacity: 0.7, marginBottom: '0.5rem' }}>Debug: Reasoning Trace</div>
-            {result.observation_notes && (
-              <div style={{ marginBottom: '0.75rem' }}>
-                <strong style={{ fontSize: '0.85rem' }}>Observations:</strong>
-                <div style={{ fontSize: '0.85rem', fontStyle: 'italic', opacity: 0.85, marginTop: '0.25rem' }}>{result.observation_notes}</div>
-              </div>
-            )}
-            {result.candidate_analysis && (
-              <div>
-                <strong style={{ fontSize: '0.85rem' }}>Candidate analysis:</strong>
-                <div style={{ fontSize: '0.85rem', fontStyle: 'italic', opacity: 0.85, marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>{result.candidate_analysis}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {result.common_uses && result.common_uses.trim() && (
+        {Array.isArray(stitch.common_uses) && stitch.common_uses.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>Common uses</div>
-            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>{result.common_uses}</div>
+            <div style={{ fontSize: 10, color: T.ink3, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>Often used for</div>
+            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>{stitch.common_uses.join(", ")}</div>
           </div>
         )}
 
-        {result.tutorial_search && (
-          <button onClick={() => window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(result.tutorial_search), "_blank")} style={{ width: "100%", background: T.terra, color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(155,126,200,.3)", marginBottom: 12 }}>
-            Watch a tutorial →
-          </button>
+        {stitch.instructions && stitch.instructions.trim() && (
+          <details style={{ marginBottom: 16, background: T.linen, borderRadius: 12, padding: "10px 14px" }}>
+            <summary style={{ fontSize: 13, fontWeight: 600, color: T.ink, cursor: "pointer" }}>Show stitch instructions</summary>
+            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, whiteSpace: "pre-wrap", marginTop: 10 }}>{stitch.instructions}</div>
+          </details>
         )}
 
-        <div style={{marginBottom:12}}>
-          {shareId ? (
-            <button onClick={() => { navigator.clipboard.writeText(`https://wovely.app/stitch/${shareId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ width: "100%", background: "transparent", color: T.terra, border: `1.5px solid ${T.terra}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              {copied ? "✓ Copied!" : "🔗 Copy share link"}
-            </button>
-          ) : (
-            <div style={{ width: "100%", background: T.linen, borderRadius: 12, padding: "12px", fontSize: 13, color: T.ink3, textAlign: "center" }}>Preparing share link…</div>
-          )}
-        </div>
-
-        <button onClick={reset} style={{ width: "100%", background: "transparent", color: T.ink3, border: "none", borderRadius: 12, padding: "12px", fontSize: 13, cursor: "pointer" }}>Try another photo</button>
+        <button onClick={reset} style={{ width: "100%", background: T.terra, color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(155,126,200,.3)" }}>Try another photo</button>
       </div>
     );
   }
@@ -356,7 +260,7 @@ const StitchVision = ({ isPro, isAnon, onUpgrade, onRequireAccount, onImportAsPa
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 26, fontWeight: 700, color: "#2D3A7C" }}>Stitch-O-Vision</div>
         <img src="/bev_neutral.png" alt="Bev" style={{ width: 20, height: 20, objectFit: "contain" }} />
       </div>
-      <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 24 }}>Photograph any stitch — we'll tell you what it is</div>
+      <div style={{ fontSize: 14, color: T.ink2, lineHeight: 1.7, marginBottom: 24 }}>Photograph any stitch and I'll tell you what it is</div>
 
       <label style={{ display: "block", cursor: "pointer" }}>
         <div style={{ border: `2px dashed ${T.border}`, borderRadius: 16, padding: "48px 20px", background: T.linen, transition: "border-color .2s" }} onMouseEnter={e => e.currentTarget.style.borderColor = T.terra} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>

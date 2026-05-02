@@ -1,11 +1,12 @@
 // api/stitch-vision.js
-// Vercel serverless function — identifies crochet stitch from a photo via Gemini
+// Library-grounded Stitch-O-Vision identification.
+// Vision model picks from a constrained list of stitch_library names. No free
+// generation reaches users. Unmatched scans become candidate rows for review.
 
 export const config = { maxDuration: 60, api: { bodyParser: { sizeLimit: "10mb" } } };
 
 import sharp from "sharp";
 
-// Global error catchers — log full details for any unhandled errors in this function
 process.on("unhandledRejection", (reason) => {
   console.error("[STITCH-FULL-ERROR] Unhandled rejection:", reason);
   if (reason instanceof Error) console.error("[STITCH-FULL-ERROR] Stack:", reason.stack);
@@ -15,387 +16,347 @@ process.on("uncaughtException", (err) => {
   console.error("[STITCH-FULL-ERROR] Stack:", err.stack);
 });
 
-const PROMPT = `You are Bev, an expert crocheter helping identify what stitch is shown in a photo. A user likely saw this on social media and wants to make it themselves. Accuracy matters more than confidence.
-
-You MUST follow this exact reasoning process. Do not skip steps. Do not reorder.
-
-=== STEP 0: CONTENT CHECK (gate before anything else) ===
-
-Before classifying, determine what kind of image this is. If the image is NOT a photo of crocheted fabric showing actual stitches, you MUST output the refusal response and stop.
-
-Refuse with the structure below if ANY of these are true:
-- The image shows a printed pattern page, PDF, book page, or written instructions (text-heavy, typeset, looks like a document)
-- The image shows a crochet chart, graph, or symbol diagram (not actual yarn)
-- The image shows a finished object from far away where individual stitches aren't visible
-- The image shows something that isn't crochet at all (knitting, weaving, embroidery, random object)
-
-If refusing, respond with ONLY this JSON:
-
-{
-  "not_stitch": true,
-  "content_type": "printed_pattern" | "chart" | "too_far" | "not_crochet" | "other",
-  "message": "One sentence explaining what you see and suggesting the next action (e.g. 'This looks like a printed pattern page — try importing it as a pattern instead.' or 'This looks like a knitting stitch, not crochet.')"
-}
-
-Only continue to Step 1 if the image clearly shows crocheted fabric with visible individual stitches.
-
-=== STEP 1: OBSERVE (describe before you classify) ===
-
-Before naming anything, describe what you literally see in the fabric. Write this into observation_notes. Include:
-- Approximate stitch height vs. width (taller than wide? square? shorter than tall?)
-- Shape of the tops of stitches (V-shape? tight loop? elongated?)
-- Are there any horizontal dashes, gaps, or short horizontal lines visible between or above the V-shapes? (This is the single most important observation. Look carefully.)
-- Is there a brick/offset pattern row to row, or do stitches stack directly?
-- How many full rows are clearly visible in the photo?
-- Any color changes, and do they reveal structure?
-
-=== STEP 2: APPLY HARD REJECTION RULES ===
-
-These are NOT guidelines. These are rules. You must apply them.
-
-RULE A — THE CHEVRON TRAP:
-A colorful blanket with peaks and valleys / zigzag / ripple pattern is MOST OFTEN linen stitch (also called moss, woven, or granite stitch) worked in a chevron arrangement — NOT double crochet chevron. The interlocking sc+ch+sc+ch structure creates V-shapes that LOOK tall but are actually short.
-
-IF you see a multicolor zigzag/chevron blanket, THEN your default assumption must be "linen stitch in chevron arrangement." You may only classify it as double crochet chevron if you can affirmatively confirm BOTH: (1) no horizontal dashes/gaps between V's, AND (2) stitches are clearly taller than they are wide (roughly 2x height). State this explicitly in confidence_reasoning.
-
-RULE B — HORIZONTAL DASHES = LINEN STITCH:
-IF you observe any horizontal dashes, gaps, or short horizontal lines between stitches at the top of rows, THEN the stitch is almost certainly linen/moss/woven/granite stitch. These dashes are the chain-1 spaces. You cannot classify this as plain double crochet, single crochet, or half double crochet.
-
-RULE C — HEIGHT SANITY CHECK:
-IF the stitches are not meaningfully taller than they are wide, THEN it is NOT double crochet or treble crochet. Double crochet is roughly 2x the width of a single crochet in height. If stitches look square or brick-shaped, rule out dc and tr.
-
-RULE D — CONFIDENCE CEILING ON CLOSE-UPS:
-IF fewer than 2 full rows are clearly visible, OR the photo is too zoomed in to see stitch-to-stitch relationships, THEN confidence CANNOT be "High." Cap at "Medium" and note the limitation in confidence_reasoning.
-
-=== STEP 3: CANDIDATE ELIMINATION ===
-
-Before committing to an answer, list 2 or 3 plausible candidates in candidate_analysis. For each, write one sentence arguing AGAINST it based on your observations. The one you cannot argue against is your answer.
-
-Example format:
-"Candidate 1 — Double Crochet Chevron: Argued against because visible horizontal dashes between V-shapes indicate chain spaces, not plain dc.
-Candidate 2 — Linen Stitch in Chevron: Cannot argue against; matches observed horizontal dashes and stitch height.
-Committing to: Linen Stitch in Chevron arrangement."
-
-=== STEP 4: CLASSIFY USING THREE DIMENSIONS ===
-
-A crochet fabric has THREE independent properties. Do not conflate them.
-
-1. STITCH TECHNIQUE — the individual stitch(es) used
-   Examples: Single Crochet (sc), Half Double Crochet (hdc), Double Crochet (dc), Treble Crochet (tr), Linen/Moss/Woven Stitch, Granny Cluster, Bobble, Puff, Shell, V-Stitch, Cable, Cross Stitch, Front Post / Back Post variants
-
-2. PATTERN ARRANGEMENT — how stitches are arranged across the fabric
-   Examples: Solid/Plain, Chevron/Ripple, Stripes, Colorwork, Chart-based image, Mosaic, Tapestry
-
-3. CONSTRUCTION METHOD — how the overall piece is built
-   Examples: Worked in rows (flat), Worked in rounds, Granny Square, Hexagon motif, Join-as-you-go, C2C (corner-to-corner), Tunisian
-
-Critical distinctions:
-- "Chevron" is an ARRANGEMENT, never a stitch technique. A chevron can be made with sc, hdc, dc, linen stitch, or any base.
-- "Granny Square" is a CONSTRUCTION METHOD, not a stitch. The stitch inside a granny square is typically dc clusters.
-- "Ripple" is a synonym for chevron arrangement.
-
-=== LINEN/MOSS STITCH VISUAL CUES (memorize these) ===
-
-Linen stitch (aka moss, woven, granite stitch) creates:
-- Short stitches, roughly square or shorter than tall (NOT elongated)
-- Visible horizontal dashes between every V-shape (these are the ch-1 spaces)
-- Brick-offset pattern — stitches in one row sit between stitches in the previous row
-- When worked with color changes, colors appear to "weave" or alternate in tight bands
-- In chevron arrangement: creates a wavy fabric with subtle peaks rather than sharp dc-chevron peaks
-
-If you see these features, it is linen stitch. Not dc. Not sc alone. Linen stitch.
-
-=== OUTPUT FORMAT ===
-
-Respond with ONLY valid JSON. No markdown fences. No preamble. This exact shape:
-
-{
-  "observation_notes": "Step 1 observations in 2-4 sentences. Describe what you literally see before classifying.",
-  "candidate_analysis": "Step 3 candidate elimination. 2-3 candidates with arguments against each, ending with your committed answer.",
-  "stitch_technique": "The base stitch(es). E.g. 'Linen Stitch' or 'Double Crochet' or 'Single Crochet + Chain'",
-  "pattern_arrangement": "How stitches are arranged. E.g. 'Chevron/Ripple' or 'Solid' or 'Stripes'. Use 'None' if not applicable.",
-  "construction_method": "How the piece is built. E.g. 'Worked in rows' or 'Granny Square' or 'Worked in rounds'. Use 'Unknown' if not visible.",
-  "primary_identifier": "The short human-readable name combining the above. E.g. 'Linen Stitch in Chevron arrangement' or 'Double Crochet Chevron' or 'Granny Square'",
-  "stitch_name": "Mirror of primary_identifier for backward compatibility",
-  "base_stitch": "Mirror of stitch_technique for backward compatibility",
-  "also_known_as": ["Array of alternate names. For linen stitch include Moss Stitch, Woven Stitch, Granite Stitch. For chevron include Ripple Stitch, Zigzag Stitch, Wave Pattern."],
-  "difficulty": "Beginner | Intermediate | Advanced",
-  "confidence": "high | medium | low",
-  "confidence_reasoning": "Cite specific observations from Step 1 that support the classification. Reference which rejection rules you applied. If confidence is capped by Rule D, say so explicitly.",
-  "description": "2-3 sentence beginner-friendly explanation of how this fabric is made.",
-  "common_uses": "1-2 sentence description of what this is typically used for."
-}
-
-Return ONLY the JSON object. No other text.`;
-
 const NEEDS_CONVERSION = new Set([
   "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence",
   "image/avif", "image/tiff", "image/bmp", "image/x-ms-bmp",
 ]);
 
+const POSTHOG_KEY = process.env.POSTHOG_PROJECT_KEY || "phc_CgK3ydJGk6XRtRPLQ8cnXxkqSroQBsuYrV9VsWk2r76Y";
+const POSTHOG_HOST = "https://us.i.posthog.com";
+
+// Module-level library cache. Vercel keeps the function instance warm between
+// invocations, so this dramatically reduces Supabase round-trips. Cold start
+// re-fetches automatically.
+const LIBRARY_TTL_MS = 5 * 60 * 1000;
+let libraryCache = null; // { fetchedAt, primaryNames, lookup }
+
+function normalize(s) {
+  if (!s) return "";
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+async function fetchLibrary(supaUrl, supaKey) {
+  if (libraryCache && Date.now() - libraryCache.fetchedAt < LIBRARY_TTL_MS) {
+    return libraryCache;
+  }
+  console.log("[SOV-LIBRARY] Fetching stitch_library names");
+  const res = await fetch(`${supaUrl}/rest/v1/stitch_library?select=slug,primary_name,also_known_as&limit=1000`, {
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`stitch_library fetch failed: ${res.status} ${body.slice(0, 200)}`);
+  }
+  const rows = await res.json();
+  const primaryNames = rows.map(r => r.primary_name);
+  // Build a normalized lookup: any primary_name OR also_known_as -> slug
+  const lookup = new Map();
+  for (const r of rows) {
+    lookup.set(normalize(r.primary_name), r.slug);
+    if (Array.isArray(r.also_known_as)) {
+      for (const aka of r.also_known_as) {
+        const k = normalize(aka);
+        if (k && !lookup.has(k)) lookup.set(k, r.slug);
+      }
+    }
+  }
+  libraryCache = { fetchedAt: Date.now(), primaryNames, lookup };
+  console.log(`[SOV-LIBRARY] Cached ${rows.length} stitches, ${lookup.size} normalized lookup keys`);
+  return libraryCache;
+}
+
+function buildPrompt(primaryNames) {
+  const list = primaryNames.join(", ");
+  return `You are looking at a photo a user uploaded, hoping to identify which crochet stitch is shown. Your job is to pick the matching stitch from a fixed library, or say UNSURE.
+
+You MUST respond with EXACTLY one of these stitch names (verbatim, including capitalization), OR the literal word UNSURE if you cannot confidently match the image to any of these stitches.
+
+Respond with UNSURE if the image shows a printed pattern page, a stitch chart or symbol diagram, knitting instead of crochet, a finished object too far away to see individual stitches, or anything that does not clearly show crocheted fabric matching one of the listed stitches. Do NOT guess. Picking the wrong stitch is worse than admitting uncertainty.
+
+Available stitches:
+${list}
+
+Respond with ONLY this JSON shape, no markdown fences, no preamble:
+{
+  "identification": "<exact stitch name from the list, OR 'UNSURE'>",
+  "confidence": "<HIGH|MEDIUM|LOW>",
+  "reasoning": "<one short sentence explaining the choice>"
+}`;
+}
+
+function tryParseJson(text) {
+  if (!text) return null;
+  let t = text.trim().replace(/^```[\w]*\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+  if (!t.startsWith("{")) {
+    const m = t.match(/\{[\s\S]*\}/);
+    t = m ? m[0] : t;
+  }
+  t = t.replace(/,\s*([\]}])/g, "$1").trim();
+  try { return JSON.parse(t); } catch { return null; }
+}
+
+async function callClaude(imgBase64, mimeType, prompt, anthropicKey) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      messages: [{ role: "user", content: [
+        { type: "image", source: { type: "base64", media_type: mimeType, data: imgBase64 } },
+        { type: "text", text: prompt },
+      ] }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[SOV-CLAUDE] non-ok:", res.status, body.slice(0, 300));
+    return null;
+  }
+  const data = await res.json();
+  const text = data.content?.[0]?.text || "";
+  return tryParseJson(text);
+}
+
+async function callGemini(imgBase64, mimeType, prompt, geminiKey) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: mimeType, data: imgBase64 } },
+          { text: prompt },
+        ] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[SOV-GEMINI] non-ok:", res.status, body.slice(0, 300));
+    return null;
+  }
+  const data = await res.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  let text = "";
+  for (const p of parts) { if (!p.thought && p.text) { text = p.text; break; } }
+  if (!text && parts.length > 0) text = parts[parts.length - 1]?.text || "";
+  return tryParseJson(text);
+}
+
+async function fetchLibraryRow(supaUrl, supaKey, slug) {
+  const res = await fetch(`${supaUrl}/rest/v1/stitch_library?slug=eq.${encodeURIComponent(slug)}&limit=1`, {
+    headers: { apikey: supaKey, Authorization: `Bearer ${supaKey}` },
+  });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
+async function insertCandidate(supaUrl, supaKey, row) {
+  const res = await fetch(`${supaUrl}/rest/v1/stitch_library_candidates`, {
+    method: "POST",
+    headers: {
+      apikey: supaKey,
+      Authorization: `Bearer ${supaKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("[SOV-CANDIDATE] insert failed:", res.status, body.slice(0, 300));
+    return false;
+  }
+  return true;
+}
+
+async function postHog(eventName, distinctId, properties) {
+  try {
+    await fetch(`${POSTHOG_HOST}/capture/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: POSTHOG_KEY,
+        event: eventName,
+        distinct_id: distinctId || `anon-server-${Date.now()}`,
+        properties: { ...(properties || {}), $lib: "wovely-server", source: "stitch-vision" },
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error("[SOV-POSTHOG]", eventName, "fire failed:", err.message);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const _url = process.env.VITE_SUPABASE_URL;
-  const _key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const _t0 = Date.now();
+  const supaUrl = process.env.VITE_SUPABASE_URL;
+  const supaKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
 
-  // ── STEP 1: Parse request body ──
-  console.log("[STITCH-STEP-1] Parsing request body");
-  let imageUrl;
-  try {
-    const body = req.body || {};
-    imageUrl = body.imageUrl;
-    console.log("[STITCH-STEP-1] imageUrl:", imageUrl ? imageUrl.substring(0, 120) + "..." : "MISSING");
-    if (!imageUrl) return res.status(400).json({ error: "imageUrl required" });
-  } catch (err) {
-    console.error("[STITCH-STEP-1] FAILED — body parse error:", err);
-    console.error("[STITCH-STEP-1] Stack:", err.stack);
-    return res.status(200).json({ error: true, message: "Invalid request. Please try again." });
+  if (!supaUrl || !supaKey) {
+    console.error("[SOV] Missing Supabase env vars");
+    return res.status(500).json({ error: true, message: "Server not configured" });
+  }
+  if (!anthropicKey && !geminiKey) {
+    console.error("[SOV] Missing both ANTHROPIC_API_KEY and GEMINI_API_KEY");
+    return res.status(500).json({ error: true, message: "Server not configured" });
   }
 
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_KEY) {
-    console.error("[STITCH-STEP-1] GEMINI_API_KEY not configured");
-    return res.status(500).json({ error: "API key not configured" });
-  }
+  // Parse body — accept both image_url (snake) and imageUrl (camel)
+  const body = req.body || {};
+  const imageUrl = body.image_url || body.imageUrl;
+  const userId = body.user_id || body.userId || null;
+  if (!imageUrl) return res.status(400).json({ error: "image_url required" });
 
-  // ── STEP 2: Fetch image from storage URL ──
-  console.log("[STITCH-STEP-2] Fetching image from:", imageUrl);
-  let imgBuffer, mimeType, fileName;
+  const distinctId = userId || `anon-${Math.random().toString(36).slice(2, 10)}`;
+
+  await postHog("sov_scan_started", distinctId, { user_id: userId, has_user: !!userId });
+
+  // Fetch + normalize image
+  let imgBuffer, mimeType;
   try {
     const imgRes = await fetch(imageUrl);
-    console.log("[STITCH-STEP-2] Fetch response — status:", imgRes.status, "content-type:", imgRes.headers.get("content-type"), "content-length:", imgRes.headers.get("content-length"));
-
     if (!imgRes.ok) {
-      let respBody = "";
-      try { respBody = await imgRes.text(); } catch {}
-      console.error("[STITCH-STEP-2] FAILED — non-ok status:", imgRes.status, "body:", respBody.substring(0, 500));
+      await postHog("sov_scan_failed", distinctId, { error_type: "image_fetch_non_ok", status: imgRes.status });
       return res.status(200).json({ error: true, message: "Could not load the uploaded image. Please try again." });
     }
-
     imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     mimeType = (imgRes.headers.get("content-type") || "image/jpeg").split(";")[0].trim().toLowerCase();
-    fileName = "unknown";
-    try { fileName = new URL(imageUrl).pathname.split("/").pop() || "unknown"; } catch {}
-
-    console.log("[STITCH-STEP-2] Success — file:", fileName, "size:", imgBuffer.byteLength, "bytes, mime:", mimeType, "buffer valid:", Buffer.isBuffer(imgBuffer));
   } catch (err) {
-    console.error("[STITCH-STEP-2] FAILED — exception during image fetch:", err);
-    console.error("[STITCH-STEP-2] Stack:", err.stack);
+    console.error("[SOV] image fetch failed:", err.message);
+    await postHog("sov_scan_failed", distinctId, { error_type: "image_fetch_exception" });
     return res.status(200).json({ error: true, message: "Could not load the uploaded image. Please try again." });
   }
 
-  // ── STEP 3: Sharp conversion/resize ──
-  console.log("[STITCH-STEP-3] Processing image — mime:", mimeType, "size:", imgBuffer.byteLength, "needs conversion:", NEEDS_CONVERSION.has(mimeType) || !mimeType.startsWith("image/"));
   try {
-    // Normalize non-standard MIME types to JPEG
     if (NEEDS_CONVERSION.has(mimeType) || !mimeType.startsWith("image/")) {
-      console.log("[STITCH-STEP-3] Converting", mimeType, "to JPEG via sharp");
       imgBuffer = await sharp(imgBuffer).jpeg({ quality: 85 }).toBuffer();
       mimeType = "image/jpeg";
-      console.log("[STITCH-STEP-3] Converted — new size:", imgBuffer.byteLength, "bytes");
     }
-
-    // Resize if over 4MB
     if (imgBuffer.byteLength > 4 * 1024 * 1024) {
-      console.log("[STITCH-STEP-3] Resizing — image is", imgBuffer.byteLength, "bytes (over 4MB)");
       imgBuffer = await sharp(imgBuffer)
         .resize({ width: 1500, height: 1500, fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toBuffer();
       mimeType = "image/jpeg";
-      console.log("[STITCH-STEP-3] Resized — new size:", imgBuffer.byteLength, "bytes");
     }
-
-    console.log("[STITCH-STEP-3] Success — final size:", imgBuffer.byteLength, "bytes, mime:", mimeType);
   } catch (err) {
-    console.error("[STITCH-STEP-3] FAILED — sharp processing error:", err);
-    console.error("[STITCH-STEP-3] Stack:", err.stack);
-    return res.status(200).json({ error: true, message: "Could not process this image. Try taking a screenshot and uploading that instead." });
+    console.error("[SOV] sharp processing failed:", err.message);
+    await postHog("sov_scan_failed", distinctId, { error_type: "image_processing" });
+    return res.status(200).json({ error: true, message: "Could not process this image. Try a different photo." });
   }
 
-  // Helper: parse raw text into stitch result
-  const parseStitchText = (text, tag) => {
-    if (!text) return null;
-    let toParse = text.trim();
-    toParse = toParse.replace(/^```[\w]*\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    if (!toParse.startsWith("{")) {
-      const match = toParse.match(/\{[\s\S]*\}/);
-      toParse = match ? match[0] : toParse;
-    }
-    toParse = toParse.replace(/,\s*([\]}])/g, "$1").trim();
-    try {
-      return JSON.parse(toParse);
-    } catch (parseErr) {
-      console.error(`[${tag}] JSON.parse failed, attempting regex extraction. Raw text:`, toParse.substring(0, 500));
-      const nameMatch = toParse.match(/"stitch_name"\s*:\s*"([^"]+)"/);
-      const diffMatch = toParse.match(/"difficulty"\s*:\s*"([^"]+)"/);
-      const descMatch = toParse.match(/"description"\s*:\s*"([^"]+)"/);
-      const confMatch = toParse.match(/"confidence"\s*:\s*"([^"]+)"/);
-      const usesMatch = toParse.match(/"common_uses"\s*:\s*"([^"]+)"/);
-      const tutMatch  = toParse.match(/"tutorial_search"\s*:\s*"([^"]+)"/);
-      if (nameMatch) {
-        console.log(`[${tag}] Regex extraction succeeded — stitch_name:`, nameMatch[1]);
-        return {
-          stitch_name: nameMatch[1],
-          difficulty: diffMatch?.[1] || "Intermediate",
-          description: descMatch?.[1] || "",
-          confidence: confMatch?.[1] || "low",
-          common_uses: usesMatch?.[1] || "",
-          tutorial_search: tutMatch?.[1] || nameMatch[1] + " crochet stitch tutorial",
-          also_known_as: [],
-          not_crochet: false,
-        };
-      }
-      console.error(`[${tag}] Regex extraction also failed.`);
-      return null;
-    }
-  };
-
-  // ── STEP 4: Call Claude Haiku (primary) ──
+  // Fetch library + build prompt
+  let library;
+  try {
+    library = await fetchLibrary(supaUrl, supaKey);
+  } catch (err) {
+    console.error("[SOV] library fetch failed:", err.message);
+    await postHog("sov_scan_failed", distinctId, { error_type: "library_fetch" });
+    return res.status(500).json({ error: true, message: "Server not configured" });
+  }
+  const prompt = buildPrompt(library.primaryNames);
   const imgBase64 = imgBuffer.toString("base64");
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  let result;
 
-  if (ANTHROPIC_KEY) {
-    console.log("[STITCH-STEP-4] Calling Haiku (primary) — base64 length:", imgBase64.length, "mime:", mimeType);
-    try {
-      const haikuRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
-          messages: [{ role: "user", content: [
-            { type: "image", source: { type: "base64", media_type: mimeType, data: imgBase64 } },
-            { type: "text", text: PROMPT },
-          ] }],
-        }),
-      });
-      console.log("[STITCH-STEP-4] Haiku response status:", haikuRes.status);
-      if (haikuRes.ok) {
-        const haikuData = await haikuRes.json();
-        const haikuText = haikuData.content?.[0]?.text || "";
-        console.log("[STITCH-STEP-4] Haiku text:", haikuText.substring(0, 500));
-        if (haikuText) {
-          result = parseStitchText(haikuText, "STITCH-STEP-4");
-        } else {
-          console.error("[STITCH-STEP-4] Empty response from Haiku — will try Gemini fallback");
-        }
-      } else {
-        let haikuErr = "";
-        try { haikuErr = await haikuRes.text(); } catch {}
-        console.error("[STITCH-STEP-4] Haiku non-ok — status:", haikuRes.status, "body:", haikuErr.substring(0, 500));
-        console.log("[STITCH-STEP-4] Haiku failed — trying Gemini fallback");
-      }
-    } catch (haikuErr) {
-      console.error("[STITCH-STEP-4] FAILED — Haiku network error:", haikuErr.message);
-      console.error("[STITCH-STEP-4] Stack:", haikuErr.stack);
-    }
-  } else {
-    console.error("[STITCH-STEP-4] ANTHROPIC_API_KEY not configured — skipping Haiku primary, going straight to Gemini");
+  // Vision call: Claude primary, Gemini fallback
+  let parsed = null;
+  if (anthropicKey) {
+    try { parsed = await callClaude(imgBase64, mimeType, prompt, anthropicKey); }
+    catch (err) { console.error("[SOV] Claude exception:", err.message); }
+  }
+  if (!parsed && geminiKey) {
+    try { parsed = await callGemini(imgBase64, mimeType, prompt, geminiKey); }
+    catch (err) { console.error("[SOV] Gemini exception:", err.message); }
   }
 
-  // ── STEP 4b: Gemini fallback if Haiku failed or returned no result ──
-  if (!result) {
-    console.log("[STITCH-STEP-4-GEMINI] Calling Gemini fallback — base64 length:", imgBase64.length, "mime:", mimeType);
-    let geminiRes;
-    try {
-      geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [
-              { inline_data: { mime_type: mimeType, data: imgBase64 } },
-              { text: PROMPT },
-            ] }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
-          }),
-        }
-      );
-      console.log("[STITCH-STEP-4-GEMINI] Gemini response — status:", geminiRes.status);
-    } catch (err) {
-      console.error("[STITCH-STEP-4-GEMINI] FAILED — Gemini network error:", err);
-      console.error("[STITCH-STEP-4-GEMINI] Network error:", err.message);
-      console.error("[STITCH-STEP-4-GEMINI] Stack:", err.stack);
-      geminiRes = null;
-    }
-
-    if (!geminiRes || !geminiRes.ok) {
-      if (geminiRes) {
-        let errBody = "";
-        try { errBody = await geminiRes.text(); } catch {}
-        console.error("[STITCH-STEP-4-GEMINI] Gemini non-ok — status:", geminiRes.status, "body:", errBody.substring(0, 500));
-      }
-      return res.status(200).json({ error: true, message: "Stitch identification failed. Please try again with a different photo." });
-    }
-
-    console.log("[STITCH-STEP-5] Parsing Gemini response");
-    try {
-      const data = await geminiRes.json();
-      const finishReason = data.candidates?.[0]?.finishReason;
-      const parts = data.candidates?.[0]?.content?.parts || [];
-      console.log("[STITCH-STEP-5] Parts count:", parts.length, "finish reason:", finishReason);
-      let text = "";
-      for (const part of parts) {
-        const t = part.text || "";
-        console.log("[STITCH-STEP-5] Part type:", part.thought ? "thinking" : "output", "length:", t.length, "preview:", t.substring(0, 100));
-        if (!part.thought && t.trim().length > 0) { text = t; break; }
-      }
-      if (!text && parts.length > 0) text = parts[parts.length - 1]?.text || "";
-      console.log("[STITCH-STEP-5] Selected text:", text.substring(0, 500));
-
-      if (!text) {
-        console.error("[STITCH-STEP-5] Empty text — finishReason:", finishReason, "full response:", JSON.stringify(data).substring(0, 500));
-      } else {
-        result = parseStitchText(text, "STITCH-STEP-5");
-      }
-    } catch (err) {
-      console.error("[STITCH-STEP-5] FAILED — parse error:", err);
-      console.error("[STITCH-STEP-5] Stack:", err.stack);
-    }
+  if (!parsed || typeof parsed.identification !== "string") {
+    console.error("[SOV] Both vision models failed or returned unparseable JSON");
+    await postHog("sov_scan_failed", distinctId, { error_type: "vision_unparseable" });
+    return res.status(200).json({ error: true, message: "Something went wrong on my end. Try again in a moment?" });
   }
 
-  if (!result) {
-    return res.status(200).json({ error: true, message: "Could not interpret the stitch analysis. Please try a clearer photo." });
-  }
-  console.log("[STITCH-STEP-5] Success — identified:", result.stitch_name, "confidence:", result.confidence);
+  const identificationRaw = parsed.identification.trim();
+  const confidenceRaw = String(parsed.confidence || "").toLowerCase();
+  const confidence = ["high", "medium", "low"].includes(confidenceRaw) ? confidenceRaw : "low";
 
-  // inline log — direct, no utility dependency
-  if (_url && _key) {
-    await fetch(`${_url}/rest/v1/vercel_logs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': _key,
-        'Authorization': `Bearer ${_key}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: `POST /api/stitch-vision → 200 (${Date.now() - _t0}ms)`,
-        source: 'serverless',
-        request_path: '/api/stitch-vision',
-        request_method: 'POST',
-        status_code: 200,
-        project_id: 'wovely'
-      })
-    }).catch(() => {});
+  console.log(`[SOV] model said: identification="${identificationRaw}" confidence=${confidence}`);
+
+  // UNSURE path → no match, save candidate
+  if (identificationRaw.toUpperCase() === "UNSURE") {
+    await insertCandidate(supaUrl, supaKey, {
+      user_id: userId,
+      image_url: imageUrl,
+      vision_model_guess: "UNSURE",
+      vision_model_confidence: confidence,
+      library_attempted_match: null,
+      match_failed_reason: "unsure",
+    });
+    await postHog("sov_scan_no_match", distinctId, { vision_model_guess: "UNSURE", match_failed_reason: "unsure" });
+    return res.status(200).json({ matched: false });
   }
 
-  return res.status(200).json(result);
+  // Try to match identification against library
+  const slug = library.lookup.get(normalize(identificationRaw));
+
+  // Lookup miss (model said something not in our list)
+  if (!slug) {
+    await insertCandidate(supaUrl, supaKey, {
+      user_id: userId,
+      image_url: imageUrl,
+      vision_model_guess: identificationRaw,
+      vision_model_confidence: confidence,
+      library_attempted_match: null,
+      match_failed_reason: "lookup_miss",
+    });
+    await postHog("sov_scan_no_match", distinctId, { vision_model_guess: identificationRaw, match_failed_reason: "lookup_miss" });
+    return res.status(200).json({ matched: false });
+  }
+
+  // Low confidence → treat as no match, save candidate with the slug we almost matched
+  if (confidence === "low") {
+    await insertCandidate(supaUrl, supaKey, {
+      user_id: userId,
+      image_url: imageUrl,
+      vision_model_guess: identificationRaw,
+      vision_model_confidence: "low",
+      library_attempted_match: slug,
+      match_failed_reason: "low_confidence",
+    });
+    await postHog("sov_scan_no_match", distinctId, { vision_model_guess: identificationRaw, match_failed_reason: "low_confidence" });
+    return res.status(200).json({ matched: false });
+  }
+
+  // Matched: fetch the full row and return it
+  const stitch = await fetchLibraryRow(supaUrl, supaKey, slug);
+  if (!stitch) {
+    // Shouldn't happen — slug was in our cache but row not found. Treat as lookup miss.
+    await insertCandidate(supaUrl, supaKey, {
+      user_id: userId,
+      image_url: imageUrl,
+      vision_model_guess: identificationRaw,
+      vision_model_confidence: confidence,
+      library_attempted_match: slug,
+      match_failed_reason: "lookup_miss",
+    });
+    await postHog("sov_scan_no_match", distinctId, { vision_model_guess: identificationRaw, match_failed_reason: "lookup_miss" });
+    return res.status(200).json({ matched: false });
+  }
+
+  await postHog("sov_scan_matched", distinctId, { matched_slug: slug, confidence });
+  return res.status(200).json({ matched: true, stitch, confidence });
 }
-
