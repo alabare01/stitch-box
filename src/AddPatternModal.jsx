@@ -4,6 +4,7 @@ import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
 import { CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
+import { setActiveImportJob } from "./components/ImportPill.jsx";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -835,7 +836,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,initialExtracted}) => {
+const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,initialExtracted}) => {
   const [stage,setStage]=useState(initialExtracted?"review":"pick");
   const [progress,setProgress]=useState(initialExtracted?100:0);
   const [stageText,setStageText]=useState("");
@@ -938,6 +939,49 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
         if(isPDF){
           console.log("[Wovely] Using pdf.js text extraction for PDF...");
           const pdfText=await extractTextFromPDF(f);extractedText=pdfText;
+
+          // Queue path (S64 active): post job, close modal, ImportPill takes over.
+          // Replaces inline /api/extract-pattern* calls below. TODO(S65): remove inline fallback.
+          {
+            const session = getSession();
+            const userToken = session?.access_token;
+            if (userToken && uploaded?.url) {
+              try {
+                const jobRes = await fetch('/api/import-job', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+                  body: JSON.stringify({ file_url: uploaded.url, file_type: 'pdf', raw_text: pdfText }),
+                });
+                if (jobRes.ok) {
+                  const { job_id } = await jobRes.json();
+                  setActiveImportJob(job_id);
+                  clearInterval(intv2); clearInterval(intv3);
+                  onExtractionEnd?.();
+                  onClose?.();
+                  return;
+                }
+                const errBody = await jobRes.json().catch(() => ({}));
+                console.error('[Wovely] Queue POST failed:', jobRes.status, errBody);
+                clearInterval(intv2); clearInterval(intv3);
+                onExtractionEnd?.();
+                setStage('error');
+                setErrorType('extraction_failed');
+                setErrorMsg(errBody.error || 'We couldn’t start your import. Try again.');
+                return;
+              } catch (queueErr) {
+                console.error('[Wovely] Queue POST exception:', queueErr.message);
+                clearInterval(intv2); clearInterval(intv3);
+                onExtractionEnd?.();
+                setStage('error');
+                setErrorType('server_hiccup');
+                setErrorMsg('We couldn’t reach the import service. Try again.');
+                return;
+              }
+            }
+            // Falls through to inline extraction below if no session / no upload URL —
+            // shouldn't happen in normal flow, kept as deprecated safety net.
+          }
+
           // Detect complexity from page count + text density
           const pageMatches=(pdfText.match(/--- PAGE \d+ ---/g)||[]).length;
           const textLen=pdfText.replace(/--- PAGE \d+ ---/g,"").replace(/\s+/g," ").trim().length;
@@ -1298,9 +1342,12 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
   );
 };
 
-const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
-  const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
-  const [pdfHandoff,setPdfHandoff]=useState(null);
+const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,initialExtracted,minimized,onMinimize,onExpand}) => {
+  // initialExtracted (from ImportPill queue completion) is wrapped into pdfHandoff
+  // so PDFUploadForm lands directly on its review stage.
+  const initialHandoff = initialExtracted ? { extracted: initialExtracted, pdfText: "", fileInfo: null, coverUrl: null } : null;
+  const [method,setMethod]=useState(initialExtracted?"pdf":(initialMethod||null)),[closing,setClosing]=useState(false);
+  const [pdfHandoff,setPdfHandoff]=useState(initialHandoff);
   const extractingRef=useRef(false);
   const bevCheckActiveRef=useRef(false);
   const{isDesktop}=useBreakpoint();
@@ -1379,7 +1426,7 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
       {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>

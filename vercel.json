@@ -2,12 +2,18 @@
   "functions": {
     "api/extract-pattern.js": { "maxDuration": 300, "memory": 1024 },
     "api/extract-pattern-vision.js": { "maxDuration": 300, "memory": 1024 },
+    "api/cron/process-queue.js": { "maxDuration": 300, "memory": 1024 },
+    "api/import-job.js": { "maxDuration": 30 },
+    "api/job-status/[job_id].js": { "maxDuration": 10 },
     "api/fetch-pattern.js": { "maxDuration": 60 },
     "api/stripe-webhook.js": { "maxDuration": 30 },
     "api/stitch-vision.js": { "maxDuration": 30 },
     "api/send-feedback.js": { "maxDuration": 10 },
     "api/notify-signup.js": { "maxDuration": 10 }
   },
+  "crons": [
+    { "path": "/api/cron/process-queue", "schedule": "* * * * *" }
+  ],
   "headers": [
     {
       "source": "/(favicon.*|apple-touch-icon.*)",

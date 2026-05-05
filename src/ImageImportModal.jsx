@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { buildRowsFromComponents } from "./AddPatternModal.jsx";
 import { CHECK_ICON } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
+import { getSession } from "./supabase.js";
+import { setActiveImportJob } from "./components/ImportPill.jsx";
 
 
 const MAX_DIM = 1200;
@@ -39,7 +41,30 @@ const LOADING_MSGS = [
   "Almost there...",
 ];
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand }) => {
+// Stitch multiple JPEG dataURLs into one tall composite for the queue worker.
+// Uses the existing per-image `thumb` (already JPEG via compressImage) as input.
+async function mergeImagesVertically(items) {
+  const imgs = await Promise.all(items.map(it => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("failed to decode image"));
+    img.src = it.thumb;
+  })));
+  const W = Math.min(1200, ...imgs.map(i => i.naturalWidth));
+  const heights = imgs.map(i => Math.round(i.naturalHeight * (W / i.naturalWidth)));
+  const totalH = heights.reduce((a, b) => a + b, 0);
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = totalH;
+  const ctx = cvs.getContext("2d");
+  let y = 0;
+  for (let i = 0; i < imgs.length; i++) {
+    ctx.drawImage(imgs[i], 0, y, W, heights[i]);
+    y += heights[i];
+  }
+  return cvs.toDataURL("image/jpeg", 0.85);
+}
+
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand, initialExtracted }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -65,6 +90,19 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
 
   const dismiss = () => { setClosing(true); setTimeout(() => { setClosing(false); onClose(); }, 220); };
   const backdropDismiss = () => { if (!validationReport && !bevCheckFailed) dismiss(); };
+
+  // Handoff from ImportPill (queue completed) → land directly on review stage.
+  useEffect(() => {
+    if (initialExtracted) {
+      setExtracted(initialExtracted);
+      setEditTitle(initialExtracted.title || "");
+      setEditDesigner(initialExtracted.designer || "");
+      setEditHook(initialExtracted.hook_size || "");
+      setEditWeight(initialExtracted.yarn_weight || "");
+      setStage("review");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFiles = async (fileList) => {
     const arr = Array.from(fileList).filter(f => f.type.startsWith("image/"));
@@ -113,11 +151,12 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   }, [dragIdx]);
   const onThumbDragEnd = useCallback(() => { setDragIdx(null); }, []);
 
+  // Queue path (S64 active): merge → upload to Cloudinary → POST /api/import-job → close.
+  // The pill takes over and re-opens this modal in review stage when extraction completes.
   const handleSubmit = async () => {
     if (items.length === 0) return;
     setStage("loading");
     setLoadingMsg(LOADING_MSGS[0]);
-
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
       msgIdx = (msgIdx + 1) % LOADING_MSGS.length;
@@ -125,66 +164,51 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
     }, 3000);
 
     try {
-      const extractController = new AbortController();
-      const extractTimeout = setTimeout(() => extractController.abort(), 240000);
-      let res;
-      try {
-        res = await fetch("/api/extract-pattern-vision", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            images: items.map(it => it.base64),
-            pageCount: items.length,
-            fileName: items[0].file.name,
-          }),
-          signal: extractController.signal,
-        });
-      } catch (fetchErr) {
-        clearTimeout(extractTimeout);
-        clearInterval(msgInterval);
-        if (fetchErr.name === "AbortError") throw new Error("Server extraction failed: timeout");
-        throw fetchErr;
+      const session = getSession();
+      if (!session?.access_token) throw new Error("Sign in to import patterns");
+
+      // Single image: use thumb directly. Multi-image: merge into one tall composite.
+      const uploadDataUrl = items.length === 1 ? items[0].thumb : await mergeImagesVertically(items);
+
+      // Upload to Cloudinary (same preset as cover-image upload above)
+      const fd = new FormData();
+      fd.append("file", uploadDataUrl);
+      fd.append("upload_preset", "yarnhive_patterns");
+      fd.append("folder", "pattern-imports");
+      const upRes = await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload", { method: "POST", body: fd });
+      if (!upRes.ok) throw new Error("Photo upload failed (" + upRes.status + ")");
+      const upData = await upRes.json();
+      const cloudUrl = upData.secure_url;
+      if (!cloudUrl) throw new Error("Photo upload returned no URL");
+
+      // POST queue job
+      const jobRes = await fetch("/api/import-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ file_url: cloudUrl, file_type: "image" }),
+      });
+      if (!jobRes.ok) {
+        const errBody = await jobRes.json().catch(() => ({}));
+        throw new Error(errBody.error || "Couldn't queue import (" + jobRes.status + ")");
       }
-      clearTimeout(extractTimeout);
+      const { job_id } = await jobRes.json();
+      setActiveImportJob(job_id);
       clearInterval(msgInterval);
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || "Server extraction failed: " + res.status);
-      }
-
-      const result = await res.json();
-      setExtracted(result);
-      setEditTitle(result.title || "");
-      setEditDesigner(result.designer || "");
-      setEditHook(result.hook_size || "");
-      setEditWeight(result.yarn_weight || "");
-      setStage("review");
-      // Run BevCheck in background (non-blocking)
-      {
-        setValidating(true);
-        const valText = JSON.stringify(result, null, 2);
-        const trimmed = valText.length > 20000 ? valText.slice(0, valText.lastIndexOf("\n", 20000) || 20000) : valText;
-        bevCheckTextRef.current = trimmed;
-        (async () => {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 90000);
-            const vr = await fetch("/api/extract-pattern", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "bevcheck", patternText: trimmed }), signal: controller.signal });
-            clearTimeout(timeout);
-            const data = await vr.json();
-            if (vr.ok && !data.error) { setValidationReport(data); } else { console.warn("[ImageImport] BevCheck API error:", vr.status, data.message); setBevCheckFailed(true); }
-          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setBevCheckFailed(true); }
-          setValidating(false);
-        })();
-      }
+      onClose();
     } catch (err) {
       clearInterval(msgInterval);
-      console.error("[ImageImport] Extraction failed:", err);
-      setErrorMsg(err.message || "We couldn't read this pattern from the photos.");
+      console.error("[ImageImport] Queue submission failed:", err);
+      setErrorMsg(err.message || "We couldn't start your import. Try again.");
       setStage("error");
     }
   };
+
+  /* DEPRECATED S64 — old inline extraction path replaced by queue above. Cleanup S65.
+  const handleSubmitInline = async () => {
+    // (kept for rollback reference) Old path: POST /api/extract-pattern-vision directly
+    // with images:items.map(it=>it.base64), wait for sync extraction, render review.
+  };
+  */
 
   const handleSave = () => {
     const rows = buildRowsFromComponents(extracted.components);

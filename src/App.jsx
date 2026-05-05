@@ -16,6 +16,7 @@ import AddPatternModal, { uploadPatternFile, buildRowsFromComponents } from "./A
 import CollectionView, { PatternCard } from "./Dashboard.jsx";
 import Detail, { CoverImagePicker, DeleteConfirmModal, ReadyToBuildPrompt, PatternCreatedOverlay } from "./PatternDetail.jsx";
 import ImageImportModal from "./ImageImportModal.jsx";
+import ImportPill, { setActiveImportJob } from "./components/ImportPill.jsx";
 import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import TermsOfService from "./TermsOfService.jsx";
 import FeedbackWidget from "./FeedbackWidget.jsx";
@@ -1575,6 +1576,8 @@ export default function Wovely() {
   const [upgradeToast,setUpgradeToast]=useState(null);
   const [coverPickerTarget,setCoverPickerTarget]=useState(null);
   const [pendingImportUrl,setPendingImportUrl]=useState(null);
+  // Handoff from ImportPill (queue completed) → review modal. { fileType, extractedData } or null.
+  const [pendingExtractedHandoff,setPendingExtractedHandoff]=useState(null);
   // Anonymous mode: set when user clicks "Try it free" on landing. Persists in sessionStorage so
   // refresh/nav within the tab keeps them in the app shell instead of bouncing to the landing.
   const [anonymousMode,setAnonymousMode]=useState(()=>{try{return sessionStorage.getItem("wovely_anonymous_mode")==="1";}catch{return false;}});
@@ -2095,6 +2098,18 @@ export default function Wovely() {
       () => { if(tier.atCap){setShowPaywall(true);return;} setImageImportOpen(true); }
     );
   };
+  // ImportPill callbacks. Completed: open the review modal with extracted data.
+  // Failed: open a fresh import modal (no auto-requeue per spec).
+  const handlePillReview=({jobId,fileType,extractedData})=>{
+    setPendingExtractedHandoff({ fileType, extractedData });
+    if (fileType === 'pdf') { setPendingMethod('pdf'); setAddOpen(true); }
+    else if (fileType === 'image') { setImageImportOpen(true); }
+  };
+  const handlePillTryAgain=({jobId,fileType})=>{
+    setPendingExtractedHandoff(null);
+    if (fileType === 'pdf') { setPendingMethod('pdf'); setAddOpen(true); }
+    else if (fileType === 'image') { setImageImportOpen(true); }
+  };
   // Generic "see Pro features" entry: routes anonymous users through AuthWall first.
   // Use for locked nav items, BevCheck-style Pro triggers, and any CTA that previously called setShowProModal directly.
   const openProGate=(intent)=>gateAction(
@@ -2158,11 +2173,12 @@ export default function Wovely() {
       <CSS/>
       <WhatsNewModal/>
       <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      <ImportPill onTapReview={handlePillReview} onTapTryAgain={handlePillTryAgain}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
-      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
+      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);setPendingExtractedHandoff(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} initialExtracted={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.extractedData:null} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
+      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);setPendingExtractedHandoff(null);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} initialExtracted={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.extractedData:null} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
       {addMenuOpen&&menuAnchor&&<><div onClick={()=>{setAddMenuOpen(false);setMenuAnchor(null);}} style={{position:"fixed",inset:0,zIndex:49}}/><div style={{position:"fixed",top:menuAnchor.top,left:menuAnchor.left,zIndex:50,background:"#fff",border:`1px solid ${T.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(45,45,78,.12)",minWidth:220,padding:"6px 0",fontFamily:"Inter,sans-serif"}}>{[{icon:"📄",label:"Add PDF",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openAddModal("pdf");}},{icon:"📸",label:"Add from photos",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openImageImport();}},{icon:"🔗",label:"Paste a URL",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openAddModal("url");}},{icon:"🌐",label:"Explore free patterns",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);navigateToView("browse");}}].map(item=>(<div key={item.label} onClick={item.action} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",cursor:"pointer",fontSize:13,fontWeight:500,color:T.ink,transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}><span style={{fontSize:16,width:22,textAlign:"center"}}>{item.icon}</span>{item.label}</div>))}</div></>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
@@ -2204,14 +2220,15 @@ export default function Wovely() {
       <CSS/>
       <WhatsNewModal/>
       <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      <ImportPill onTapReview={handlePillReview} onTapTryAgain={handlePillTryAgain}/>
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       {upgradeToast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:upgradeToast==="success"?"#5B9B6B":"#6B6B8A",color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(0,0,0,.2)",animation:"modalPop .3s ease both",textAlign:"center"}}>{upgradeToast==="success"?"Welcome to Wovely Pro!":"No worries — you can upgrade anytime"}</div>}
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} isAnonymous={!authed} onSignOut={handleSignOut} onUpgrade={()=>openProGate("locked_nav")} onOpenAuthWall={()=>gateAction({ intent: "nav_sign_in", title: "Create a free account", subtitle: "Takes 10 seconds. No credit card." }, ()=>{})}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
-      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
+      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);setPendingExtractedHandoff(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} initialExtracted={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.extractedData:null} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
+      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);setPendingExtractedHandoff(null);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} initialExtracted={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.extractedData:null} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
