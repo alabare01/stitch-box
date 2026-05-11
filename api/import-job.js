@@ -79,13 +79,16 @@ export default async function handler(req, res) {
   if (!jobId) return res.status(500).json({ error: "Insert succeeded but no id returned" });
 
   // Fire-and-forget kick to the worker. keepalive:true lets the request outlive
-  // this function so we can return job_id to the client immediately.
+  // this function so we can return job_id to the client immediately. We always
+  // attempt the kick when VERCEL_URL is available; if CRON_SECRET is empty here
+  // it will also be empty on the worker side, where the auth check is skipped.
   const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
-  if (baseUrl && cronSecret) {
+  if (baseUrl) {
     try {
+      const kickHeaders = cronSecret ? { 'Authorization': `Bearer ${cronSecret}` } : {};
       fetch(`${baseUrl}/api/cron/process-queue`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${cronSecret}` },
+        headers: kickHeaders,
         keepalive: true,
       }).catch(() => {});
     } catch {}
