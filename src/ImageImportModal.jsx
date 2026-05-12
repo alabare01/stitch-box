@@ -64,7 +64,7 @@ async function mergeImagesVertically(items) {
   return cvs.toDataURL("image/jpeg", 0.85);
 }
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand, initialExtracted }) => {
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand, initialExtracted, initialCoverUrl }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -81,7 +81,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   const [bevCheckFailed, setBevCheckFailed] = useState(false);
   const bevCheckTextRef = useRef(null);
   const [showFullReport, setShowFullReport] = useState(false);
-  const [coverUrl, setCoverUrl] = useState(null);
+  // coverUrl: for image imports the uploaded Cloudinary URL is the natural
+  // cover. Threaded through import_jobs.cover_image_url so it survives the
+  // modal-close → queue → pill → re-open round trip and mirrors to
+  // patterns.photo on save.
+  const [coverUrl, setCoverUrl] = useState(initialCoverUrl || null);
   const [coverUploading, setCoverUploading] = useState(false);
   const fileRef = useRef(null);
   const dropRef = useRef(null);
@@ -89,7 +93,13 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   const { isDesktop } = useBreakpoint();
 
   const dismiss = () => { setClosing(true); setTimeout(() => { setClosing(false); onClose(); }, 220); };
-  const backdropDismiss = () => { if (!validationReport && !bevCheckFailed) dismiss(); };
+  // Backdrop click only dismisses while the modal has nothing recoverable to
+  // lose. Once we're showing a BevCheck report or an extracted-pattern review,
+  // require an explicit close — accidental click-outside would otherwise
+  // strand the user with no in-UI path back to data that's already saved on
+  // the import_jobs row. (The pill self-dismisses on tap, so it isn't a
+  // fallback re-open surface.)
+  const backdropDismiss = () => { if (!validationReport && !bevCheckFailed && !extracted) dismiss(); };
 
   // Handoff from ImportPill (queue completed) → land directly on review stage.
   useEffect(() => {
@@ -102,6 +112,62 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
       setStage("review");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── In-modal queue polling (S65 Task 2) ───────────────────────────────────
+  // POST /api/import-job, keep this modal mounted, poll job-status here. On
+  // completion the form flips to review in place. If the user navigates away
+  // mid-import the unmount cleanup hands the active job to ImportPill.
+  // TODO(S66): extract useImportJobPolling hook shared with PDFUploadForm
+  // and ImportPill (~25 lines duplicated three places).
+  const [pollingJobId, setPollingJobId] = useState(null);
+  const msgIntervalRef = useRef(null);
+  const pollingJobIdRef = useRef(null);
+  useEffect(() => { pollingJobIdRef.current = pollingJobId; }, [pollingJobId]);
+  useEffect(() => {
+    if (!pollingJobId) return;
+    const session = getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/job-status/${encodeURIComponent(pollingJobId)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        if (data.status === "completed") {
+          if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+          const result = data.extracted_data || {};
+          setExtracted(result);
+          setEditTitle(result.title || "");
+          setEditDesigner(result.designer || "");
+          setEditHook(result.hook_size || "");
+          setEditWeight(result.yarn_weight || "");
+          if (data.cover_image_url) setCoverUrl(data.cover_image_url);
+          setStage("review");
+          setPollingJobId(null);
+        } else if (data.status === "failed") {
+          if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+          setErrorMsg(data.error_message || "Bev got tangled — try again.");
+          setStage("error");
+          setPollingJobId(null);
+        }
+        // pending/processing: keep polling
+      } catch (e) { /* network blip — try next tick */ }
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [pollingJobId]);
+  // Unmount-only: if we still have an active polling job (user navigated
+  // away during import), hand off to ImportPill so progress survives.
+  useEffect(() => {
+    return () => {
+      if (pollingJobIdRef.current) {
+        setActiveImportJob(pollingJobIdRef.current);
+        if (msgIntervalRef.current) clearInterval(msgIntervalRef.current);
+      }
+    };
   }, []);
 
   const handleFiles = async (fileList) => {
@@ -151,8 +217,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   }, [dragIdx]);
   const onThumbDragEnd = useCallback(() => { setDragIdx(null); }, []);
 
-  // Queue path (S64 active): merge → upload to Cloudinary → POST /api/import-job → close.
-  // The pill takes over and re-opens this modal in review stage when extraction completes.
+  // Queue path (S65 Task 2): merge → upload to Cloudinary → POST /api/import-job
+  // → keep this modal mounted and poll job-status here. On completion the
+  // form flips to review in place. If the user navigates away mid-import the
+  // unmount cleanup hands off to ImportPill — the pill is the navigate-away
+  // fallback, not the default handoff.
   const handleSubmit = async () => {
     if (items.length === 0) return;
     setStage("loading");
@@ -162,6 +231,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
       msgIdx = (msgIdx + 1) % LOADING_MSGS.length;
       setLoadingMsg(LOADING_MSGS[msgIdx]);
     }, 3000);
+    msgIntervalRef.current = msgInterval;
 
     try {
       const session = getSession();
@@ -181,22 +251,29 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
       const cloudUrl = upData.secure_url;
       if (!cloudUrl) throw new Error("Photo upload returned no URL");
 
-      // POST queue job
+      // POST queue job. For images the Cloudinary URL is both the file and
+      // the natural cover, so we hand it in as cover_image_url too — the
+      // existing wire threads it back to the review modal.
       const jobRes = await fetch("/api/import-job", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ file_url: cloudUrl, file_type: "image" }),
+        body: JSON.stringify({ file_url: cloudUrl, file_type: "image", cover_image_url: cloudUrl }),
       });
       if (!jobRes.ok) {
         const errBody = await jobRes.json().catch(() => ({}));
         throw new Error(errBody.error || "Couldn't queue import (" + jobRes.status + ")");
       }
       const { job_id } = await jobRes.json();
-      setActiveImportJob(job_id);
-      clearInterval(msgInterval);
-      onClose();
+      // Cover for the in-modal review state — cloudUrl is the natural cover
+      // for image imports. The polling effect will also populate this from
+      // job-status response, but setting locally is faster and avoids one
+      // round-trip's worth of "no cover" frame.
+      setCoverUrl(cloudUrl);
+      setPollingJobId(job_id);
+      // Don't close the modal; the polling effect transitions to review.
     } catch (err) {
       clearInterval(msgInterval);
+      msgIntervalRef.current = null;
       console.error("[ImageImport] Queue submission failed:", err);
       setErrorMsg(err.message || "We couldn't start your import. Try again.");
       setStage("error");

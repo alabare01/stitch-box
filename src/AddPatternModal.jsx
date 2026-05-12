@@ -663,11 +663,12 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onPdfHandoff}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,onPdfHandoff}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
   useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
+  useEffect(()=>{onReviewActive?.(!!preview);},[preview]);
   const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
@@ -836,7 +837,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,initialExtracted}) => {
+const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,initialExtracted}) => {
   const [stage,setStage]=useState(initialExtracted?"review":"pick");
   const [progress,setProgress]=useState(initialExtracted?100:0);
   const [stageText,setStageText]=useState("");
@@ -863,6 +864,75 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
   const bevCheckTextRef=useRef(null);
   useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
+  useEffect(()=>{onReviewActive?.(!!extracted);},[extracted]);
+
+  // ── In-modal queue polling (S65 Task 2) ───────────────────────────────────
+  // We POST to /api/import-job, keep this modal mounted, and poll job-status
+  // ourselves. On completion the form flips to its review stage directly —
+  // no pill, no modal-close dance. If the user navigates away mid-import the
+  // unmount-only cleanup below hands off to ImportPill so progress survives.
+  // TODO(S66): extract useImportJobPolling hook so this and ImportPill share
+  // the polling logic instead of duplicating it (~25 lines).
+  const [pollingJobId,setPollingJobId]=useState(null);
+  const intv2Ref=useRef(null);
+  const intv3Ref=useRef(null);
+  const pollingJobIdRef=useRef(null);
+  useEffect(()=>{pollingJobIdRef.current=pollingJobId;},[pollingJobId]);
+  useEffect(()=>{
+    if(!pollingJobId) return;
+    const session=getSession();
+    const token=session?.access_token;
+    if(!token) return;
+    let cancelled=false;
+    const poll=async()=>{
+      try{
+        const res=await fetch(`/api/job-status/${encodeURIComponent(pollingJobId)}`,{headers:{Authorization:`Bearer ${token}`}});
+        if(cancelled||!res.ok) return;
+        const data=await res.json();
+        if(data.status==="completed"){
+          if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
+          if(intv3Ref.current){clearInterval(intv3Ref.current);intv3Ref.current=null;}
+          const result=data.extracted_data||{};
+          setExtracted(result);
+          setEditTitle(result.title||"");setEditDesigner(result.designer||"");
+          setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
+          if(data.cover_image_url) setCoverUrl(data.cover_image_url);
+          // Lightweight client-side validation flags (parity with inline path).
+          const allRows=(result.components||[]).flatMap(c=>(c.rows||[]));
+          const flags=[];
+          if(allRows.length<3) flags.push("Fewer than 3 rows extracted");
+          const rndNums=allRows.map(r=>{const m=(r.label||"").match(/\d+/);return m?parseInt(m[0]):null;}).filter(Boolean);
+          for(let i=1;i<rndNums.length;i++){if(rndNums[i]-rndNums[i-1]>2) flags.push("Gap detected between round "+rndNums[i-1]+" and "+rndNums[i]);}
+          setValidationFlags(flags);
+          setProgress(100);setStage("review");
+          setPollingJobId(null);
+          onExtractionEnd?.();
+        } else if(data.status==="failed"){
+          if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
+          if(intv3Ref.current){clearInterval(intv3Ref.current);intv3Ref.current=null;}
+          setStage("error");setErrorType("extraction_failed");
+          setErrorMsg(data.error_message||"Bev got tangled — try again.");
+          setPollingJobId(null);
+          onExtractionEnd?.();
+        }
+        // pending/processing: keep polling
+      } catch(e){ /* network blip — try next tick */ }
+    };
+    poll();
+    const id=setInterval(poll,3000);
+    return ()=>{cancelled=true;clearInterval(id);};
+  },[pollingJobId]);
+  // Unmount-only: if we still have an active polling job (user navigated
+  // away during extraction), hand off to ImportPill so the import survives.
+  useEffect(()=>{
+    return ()=>{
+      if(pollingJobIdRef.current){
+        setActiveImportJob(pollingJobIdRef.current);
+        if(intv2Ref.current) clearInterval(intv2Ref.current);
+        if(intv3Ref.current) clearInterval(intv3Ref.current);
+      }
+    };
+  },[]);
   const [showFullReport,setShowFullReport]=useState(false);
   const [matExpanded,setMatExpanded]=useState(false);
   const [compExpanded,setCompExpanded]=useState({});
@@ -934,14 +1004,20 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
       setStage("extracting");setStageText(EXTRACT_MSGS[0]);
       const intv2=setInterval(()=>setProgress(p=>Math.min(p+1,62)),300);
       const intv3=setInterval(()=>{extractMsgIdx=(extractMsgIdx+1)%EXTRACT_MSGS.length;setStageText(EXTRACT_MSGS[extractMsgIdx]);},8000);
+      intv2Ref.current=intv2;intv3Ref.current=intv3;
       let result;let extractedText=null;
       try{
         if(isPDF){
           console.log("[Wovely] Using pdf.js text extraction for PDF...");
           const pdfText=await extractTextFromPDF(f);extractedText=pdfText;
 
-          // Queue path (S64 active): post job, close modal, ImportPill takes over.
-          // Replaces inline /api/extract-pattern* calls below. TODO(S65): remove inline fallback.
+          // Queue path (S65 Task 2): post the job, keep this modal mounted,
+          // and poll job-status from the in-modal effect above. On completion
+          // the form flips to its review stage in place. If the user
+          // navigates away mid-import the unmount-only cleanup hands off to
+          // ImportPill. The PILL is the navigate-away fallback, not the
+          // default handoff. TODO(S66): remove inline extract-pattern path
+          // entirely once queue path is the only one in use.
           {
             const session = getSession();
             const userToken = session?.access_token;
@@ -954,15 +1030,12 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
                 });
                 if (jobRes.ok) {
                   const { job_id } = await jobRes.json();
-                  setActiveImportJob(job_id);
-                  clearInterval(intv2); clearInterval(intv3);
-                  onExtractionEnd?.();
-                  onClose?.();
-                  return;
+                  setPollingJobId(job_id);
+                  return; // intervals + stage="extracting" stay running; polling effect transitions to review
                 }
                 const errBody = await jobRes.json().catch(() => ({}));
                 console.error('[Wovely] Queue POST failed:', jobRes.status, errBody);
-                clearInterval(intv2); clearInterval(intv3);
+                clearInterval(intv2);clearInterval(intv3);intv2Ref.current=null;intv3Ref.current=null;
                 onExtractionEnd?.();
                 setStage('error');
                 setErrorType('extraction_failed');
@@ -970,7 +1043,7 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
                 return;
               } catch (queueErr) {
                 console.error('[Wovely] Queue POST exception:', queueErr.message);
-                clearInterval(intv2); clearInterval(intv3);
+                clearInterval(intv2);clearInterval(intv3);intv2Ref.current=null;intv3Ref.current=null;
                 onExtractionEnd?.();
                 setStage('error');
                 setErrorType('server_hiccup');
@@ -1353,9 +1426,15 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
   const [pdfHandoff,setPdfHandoff]=useState(initialHandoff);
   const extractingRef=useRef(false);
   const bevCheckActiveRef=useRef(false);
+  // True once a child form is showing an extracted/preview review state.
+  // Backdrop click is blocked in that state — accidental click-outside would
+  // strand the user with no in-UI path back to data that's already saved on
+  // the import_jobs row (the pill self-dismisses when its tap opens review,
+  // so it isn't a fallback re-open surface).
+  const reviewActiveRef=useRef(!!initialExtracted);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const backdropClick=()=>{if(bevCheckActiveRef.current)return;if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
+  const backdropClick=()=>{if(bevCheckActiveRef.current||reviewActiveRef.current)return;if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
   const handleSave=(p)=>{onSave(p);dismiss();};
   const METHODS=[
     {key:"manual",icon:"✏️",label:"Manual Entry",sub:"Type it in yourself"},
@@ -1428,8 +1507,8 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onReviewActive={(v)=>{reviewActiveRef.current=v;}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onReviewActive={(v)=>{reviewActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>
