@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
   // RLS via user JWT — only returns row if user_id = auth.uid()
   const r = await fetch(
-    `${supabaseUrl}/rest/v1/import_jobs?id=eq.${encodeURIComponent(jobId)}&select=id,status,extracted_data,error_message,extraction_method,file_type,retry_count,created_at,updated_at,cover_image_url`,
+    `${supabaseUrl}/rest/v1/import_jobs?id=eq.${encodeURIComponent(jobId)}&select=id,status,extracted_data,error_message,extraction_method,file_type,retry_count,created_at,updated_at,cover_image_url,validation_report,current_phase,phase_timestamps`,
     {
       headers: {
         'apikey': anonKey,
@@ -59,5 +59,8 @@ export default async function handler(req, res) {
     created_at: job.created_at,
     updated_at: job.updated_at,
     cover_image_url: job.cover_image_url,
+    validation_report: job.validation_report || null,
+    current_phase: job.current_phase || null,
+    phase_timestamps: job.phase_timestamps || {},
   });
 }

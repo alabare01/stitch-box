@@ -1,33 +1,27 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { T, useBreakpoint } from "../theme.jsx";
-import { getSession } from "../supabase.js";
+import { useImportJobPolling, buildPhaseDisplay } from "../hooks/useImportJobPolling.js";
 
 // Floating import status pill. Mounts at App.jsx so it persists across navigation.
 // Reads/writes sessionStorage key 'wovely_active_import_job' (string job id).
 //
-// Polls /api/job-status/[job_id] every 3s while processing. Stops on completed/failed.
+// Polling now lives in useImportJobPolling (shared with the in-modal flows in
+// PDFUploadForm and ImageImportModal). The hook supplies job state, current
+// phase, and elapsed-time ticking — the pill renders.
 //
 // States:
 //   idle:        nothing rendered
-//   processing:  Bev avatar + spinning ring + rotating status copy
+//   processing:  Bev avatar + spinning ring + phase copy with elapsed/reference range
 //   completed:   prominent pulse for 5s, then settle to "Tap to review"
 //   failed:      "Bev got tangled — try again" with Try again action
 //
 // Tap behavior:
-//   processing:  expands (inline card on desktop, modal sheet on mobile) with file type + elapsed time
-//   completed:   calls props.onTapReview({ jobId, fileType, extractedData }) and clears sessionStorage
-//   failed:      calls props.onTapTryAgain({ jobId, fileType }) and clears sessionStorage
+//   processing:  expands (inline card on desktop, modal sheet on mobile)
+//   completed:   calls onTapReview({ jobId, fileType, extractedData, coverImageUrl, validationReport }) and clears sessionStorage
+//   failed:      calls onTapTryAgain({ jobId, fileType }) and clears sessionStorage
 
 const SESSION_KEY = "wovely_active_import_job";
-const POLL_INTERVAL_MS = 3000;
 const PROMINENT_DURATION_MS = 5000;
-
-const STATUS_MESSAGES = [
-  "Bev's reading your pattern...",
-  "Counting stitches...",
-  "Untangling the rows...",
-  "Almost there...",
-];
 
 const PROMINENT_STYLE = {
   background: "linear-gradient(135deg, rgba(155,126,200,0.95), rgba(216,234,216,0.95))",
@@ -55,13 +49,9 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
   const [jobId, setJobId] = useState(() => {
     try { return sessionStorage.getItem(SESSION_KEY) || null; } catch { return null; }
   });
-  const [job, setJob] = useState(null); // server response { id, status, extracted_data, error_message, file_type, ... }
-  const [statusMsgIdx, setStatusMsgIdx] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [prominentUntil, setProminentUntil] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const pollTimerRef = useRef(null);
-  const msgTimerRef = useRef(null);
+  const [tick, setTick] = useState(0); // local 1s tick to settle prominent window
 
   // Watch sessionStorage for jobs added by other tabs / by AddPatternModal handoff.
   useEffect(() => {
@@ -74,133 +64,72 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
     return () => clearInterval(checkInterval);
   }, [jobId]);
 
-  // Poll job-status while processing/pending
-  const pollJob = useCallback(async (id) => {
-    if (!id) return;
-    const session = getSession();
-    const token = session?.access_token;
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/job-status/${encodeURIComponent(id)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 404) {
-        // Job no longer accessible — clear
-        setActiveImportJob(null);
-        setJobId(null);
-        setJob(null);
-        return;
-      }
-      if (!res.ok) return;
-      const data = await res.json();
-      setJob(prev => {
-        // Detect completed transition to set prominent window
-        if (data.status === "completed" && (!prev || prev.status !== "completed")) {
-          setProminentUntil(Date.now() + PROMINENT_DURATION_MS);
-        }
-        return data;
-      });
-    } catch (e) {
-      // Network blip — try again next tick
-      console.warn("[ImportPill] poll failed:", e.message);
-    }
-  }, []);
-
   useEffect(() => {
-    if (!jobId) return;
-    pollJob(jobId);
-    pollTimerRef.current = setInterval(() => {
-      // Keep polling only while still pending/processing
-      pollJob(jobId);
-    }, POLL_INTERVAL_MS);
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    };
-  }, [jobId, pollJob]);
-
-  // Stop polling once we know job is settled
-  useEffect(() => {
-    if (!job) return;
-    if (job.status === "completed" || job.status === "failed") {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    }
-  }, [job?.status]);
-
-  // Rotate status messages
-  useEffect(() => {
-    if (!job || job.status === "completed" || job.status === "failed") return;
-    msgTimerRef.current = setInterval(() => {
-      setStatusMsgIdx(i => (i + 1) % STATUS_MESSAGES.length);
-    }, 3500);
-    return () => {
-      if (msgTimerRef.current) clearInterval(msgTimerRef.current);
-      msgTimerRef.current = null;
-    };
-  }, [job?.status]);
-
-  // Tick `now` every second so elapsed time updates and prominent window settles
-  useEffect(() => {
-    const intv = setInterval(() => setNow(Date.now()), 1000);
+    const intv = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(intv);
   }, []);
+
+  const polling = useImportJobPolling(jobId, {
+    onMissing: () => { setActiveImportJob(null); setJobId(null); },
+  });
+
+  const { job, currentPhase, phaseElapsed, totalElapsed, isComplete, isFailed, isActive, validationReport, extractedData, coverImageUrl, fileType, retryCount, extractionMethod, errorMessage } = polling;
+
+  // Detect the completed transition to set the prominent pulse window.
+  useEffect(() => {
+    if (isComplete) setProminentUntil(Date.now() + PROMINENT_DURATION_MS);
+  }, [isComplete]);
 
   const dismiss = () => {
     setActiveImportJob(null);
     setJobId(null);
-    setJob(null);
     setExpanded(false);
   };
 
   const handleTap = () => {
     if (!job) return;
-    if (job.status === "completed") {
-      onTapReview?.({ jobId: job.id, fileType: job.file_type, extractedData: job.extracted_data, coverImageUrl: job.cover_image_url || null });
+    if (isComplete) {
+      onTapReview?.({ jobId: job.id, fileType, extractedData, coverImageUrl, validationReport });
       dismiss();
       return;
     }
-    if (job.status === "failed") {
-      onTapTryAgain?.({ jobId: job.id, fileType: job.file_type });
+    if (isFailed) {
+      onTapTryAgain?.({ jobId: job.id, fileType });
       dismiss();
       return;
     }
-    // processing/pending: expand
     setExpanded(e => !e);
   };
 
   if (!jobId || !job) return null;
+  if (!isActive && !isComplete && !isFailed) return null;
 
-  const status = job.status;
-  if (status !== "pending" && status !== "processing" && status !== "completed" && status !== "failed") {
-    return null;
-  }
-
-  const isProminent = status === "completed" && now < prominentUntil;
-  const elapsed = job.created_at ? Math.max(0, Math.floor((now - new Date(job.created_at).getTime()) / 1000)) : 0;
-  const elapsedLabel = elapsed >= 60 ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s` : `${elapsed}s`;
+  const now = Date.now();
+  const isProminent = isComplete && now < prominentUntil;
+  const phaseDisplay = isActive ? buildPhaseDisplay(currentPhase, phaseElapsed, totalElapsed) : null;
+  const elapsedLabel = totalElapsed >= 60 ? `${Math.floor(totalElapsed / 60)}m ${totalElapsed % 60}s` : `${totalElapsed}s`;
 
   // ─── State copy ─────────────────────────────────────────────────────────────
 
   let title, sub, ringSpinning = false;
-  if (status === "pending" || status === "processing") {
-    title = STATUS_MESSAGES[statusMsgIdx];
-    sub = job.file_type === "pdf" ? "Reading your PDF" : "Reading your photo";
+  if (isActive) {
+    title = phaseDisplay.message;
+    sub = fileType === "pdf" ? "Reading your PDF" : "Reading your photo";
     ringSpinning = true;
-  } else if (status === "completed") {
+  } else if (isComplete) {
     title = isProminent ? "Pattern ready!" : "Tap to review";
-    sub = isProminent ? "Tap to review" : (job.file_type === "pdf" ? "PDF imported" : "Photo imported");
-  } else if (status === "failed") {
+    sub = isProminent ? "Tap to review" : (fileType === "pdf" ? "PDF imported" : "Photo imported");
+  } else if (isFailed) {
     title = "Bev got tangled";
-    sub = job.error_message ? truncate(job.error_message, 80) : "Try again";
+    sub = errorMessage ? truncate(errorMessage, 80) : "Try again";
   }
+  // tick is referenced via Date.now() above for prominent-window settle
+  void tick;
 
   // ─── Layout / sizing ────────────────────────────────────────────────────────
 
-  const baseWidth = isMobile ? 240 : 280;
-  const expandedWidth = isMobile ? 280 : 360;
+  const baseWidth = isMobile ? 240 : 320;
+  const expandedWidth = isMobile ? 280 : 380;
   const desktopRight = 24;
   const desktopBottom = 24;
   const mobileRight = 16;
@@ -218,9 +147,7 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
     fontFamily: T.sans,
     color: isProminent ? "#FFFFFF" : T.ink,
     ...(isProminent ? PROMINENT_STYLE : SETTLED_STYLE),
-    ...(isProminent && {
-      animation: "wovelyPillPulse 1.2s ease-in-out infinite",
-    }),
+    ...(isProminent && { animation: "wovelyPillPulse 1.2s ease-in-out infinite" }),
   };
 
   // Modal sheet for expanded mobile state — replaces inline expand
@@ -243,8 +170,15 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
         }}>
           <SheetContents
             job={job}
+            fileType={fileType}
+            extractionMethod={extractionMethod}
+            errorMessage={errorMessage}
+            retryCount={retryCount}
             elapsedLabel={elapsedLabel}
-            statusMsg={STATUS_MESSAGES[statusMsgIdx]}
+            phaseMessage={phaseDisplay?.message}
+            isActive={isActive}
+            isComplete={isComplete}
+            isFailed={isFailed}
             onClose={() => setExpanded(false)}
             onTapReview={() => handleTap()}
             onTapTryAgain={() => handleTap()}
@@ -261,10 +195,11 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <BevAvatar spinning={ringSpinning} prominent={isProminent} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
+            <div key={currentPhase || "_"} style={{
               fontSize: 13, fontWeight: 600,
               color: isProminent ? "#FFFFFF" : T.ink,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              animation: isActive ? "wovelyPhaseFade 200ms ease both" : undefined,
             }}>{title}</div>
             <div style={{
               fontSize: 11,
@@ -273,7 +208,7 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>{sub}</div>
           </div>
-          {(status === "pending" || status === "processing") && (
+          {isActive && (
             <div style={{
               fontSize: 11, color: T.ink3, fontVariantNumeric: "tabular-nums", flexShrink: 0,
             }}>{elapsedLabel}</div>
@@ -281,11 +216,12 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
         </div>
         {expanded && !isMobile && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.ink2, lineHeight: 1.6 }}>
-            <div><strong>Type:</strong> {job.file_type === "pdf" ? "PDF" : "Photo"}</div>
-            <div><strong>Elapsed:</strong> {elapsedLabel}</div>
-            {job.extraction_method && <div><strong>Method:</strong> {job.extraction_method}</div>}
-            {job.retry_count > 0 && <div><strong>Retries:</strong> {job.retry_count}</div>}
-            {status === "failed" && (
+            <div><strong>Type:</strong> {fileType === "pdf" ? "PDF" : "Photo"}</div>
+            <div><strong>Total elapsed:</strong> {elapsedLabel}</div>
+            {currentPhase && <div><strong>Phase:</strong> {currentPhase}</div>}
+            {extractionMethod && <div><strong>Method:</strong> {extractionMethod}</div>}
+            {retryCount > 0 && <div><strong>Retries:</strong> {retryCount}</div>}
+            {isFailed && (
               <button onClick={(e) => { e.stopPropagation(); handleTap(); }} style={{
                 marginTop: 12, background: T.terra, color: "#FFF", border: "none", borderRadius: 10,
                 padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%",
@@ -303,6 +239,7 @@ function PillKeyframes() {
     <style>{`
       @keyframes wovelyPillPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.025)} }
       @keyframes wovelyPillRing { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+      @keyframes wovelyPhaseFade { from{opacity:0;transform:translateY(2px)} to{opacity:1;transform:translateY(0)} }
     `}</style>
   );
 }
@@ -328,19 +265,19 @@ function BevAvatar({ spinning, prominent }) {
   );
 }
 
-function SheetContents({ job, elapsedLabel, statusMsg, onClose, onTapReview, onTapTryAgain }) {
+function SheetContents({ job, fileType, extractionMethod, errorMessage, retryCount, elapsedLabel, phaseMessage, isActive, isComplete, isFailed, onClose, onTapReview, onTapTryAgain }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-        <BevAvatar spinning={job.status === "pending" || job.status === "processing"} prominent={false} />
+        <BevAvatar spinning={isActive} prominent={false} />
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: T.serif, fontSize: 16, color: T.ink, fontWeight: 600 }}>
-            {job.status === "completed" ? "Pattern ready"
-              : job.status === "failed" ? "Bev got tangled"
-              : statusMsg}
+            {isComplete ? "Pattern ready"
+              : isFailed ? "Bev got tangled"
+              : phaseMessage || "Working on it"}
           </div>
           <div style={{ fontSize: 12, color: T.ink2, marginTop: 2 }}>
-            {job.file_type === "pdf" ? "PDF import" : "Photo import"}
+            {fileType === "pdf" ? "PDF import" : "Photo import"}
           </div>
         </div>
         <button onClick={onClose} aria-label="close" style={{
@@ -353,18 +290,18 @@ function SheetContents({ job, elapsedLabel, statusMsg, onClose, onTapReview, onT
       <div style={{ background: T.linen, borderRadius: 12, padding: 12, marginBottom: 12, fontSize: 12, lineHeight: 1.7 }}>
         <Row label="Status" value={prettyStatus(job.status)} />
         <Row label="Elapsed" value={elapsedLabel} />
-        {job.extraction_method && <Row label="Method" value={job.extraction_method} />}
-        {job.retry_count > 0 && <Row label="Retries" value={String(job.retry_count)} />}
-        {job.error_message && <Row label="Error" value={job.error_message} />}
+        {extractionMethod && <Row label="Method" value={extractionMethod} />}
+        {retryCount > 0 && <Row label="Retries" value={String(retryCount)} />}
+        {errorMessage && <Row label="Error" value={errorMessage} />}
       </div>
 
-      {job.status === "completed" && (
+      {isComplete && (
         <button onClick={onTapReview} style={primaryBtn}>Review pattern →</button>
       )}
-      {job.status === "failed" && (
+      {isFailed && (
         <button onClick={onTapTryAgain} style={primaryBtn}>Try again</button>
       )}
-      {(job.status === "pending" || job.status === "processing") && (
+      {isActive && (
         <div style={{ fontSize: 11, color: T.ink3, textAlign: "center", paddingTop: 4 }}>
           You can navigate away — Bev will keep working in the background.
         </div>

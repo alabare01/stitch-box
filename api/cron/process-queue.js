@@ -15,10 +15,42 @@
 //      - retry_count <= 0 (i.e. first failure → bumped to 1): status='pending', will retry next tick
 //      - retry_count >= 1 (already retried once → bumped to 2): status='failed', error_message set
 
-import { runPdfExtraction } from '../extract-pattern.js';
+import { runPdfExtraction, runBevCheck } from '../extract-pattern.js';
 import { runVisionExtraction } from '../extract-pattern-vision.js';
 
 export const config = { maxDuration: 300 };
+
+// Phase order for the pill UI. The worker writes each as it advances and
+// stamps phase_timestamps['<phase>_started_at'] for elapsed-time display.
+// Keep these slugs aligned with PHASE_CONFIG in src/components/ImportPill.jsx.
+const PHASE_READING = 'reading';
+const PHASE_EXTRACTING = 'extracting';
+const PHASE_VALIDATING = 'validating';
+const PHASE_FINALIZING = 'finalizing';
+
+// Build a single, reasonably faithful text representation of extracted_data for
+// BevCheck on image imports (no raw_text on file). PDF imports send raw_text
+// directly. We include rows because the structural checks (round sequence,
+// stitch math, duplicates, cross-refs) are what the validator looks at — not
+// metadata. Capped at TEXT_LIMIT inside runBevCheck.
+function serializeExtractedForBevCheck(data) {
+  if (!data || typeof data !== 'object') return '';
+  const lines = [];
+  if (data.title) lines.push(`Title: ${data.title}`);
+  if (data.designer) lines.push(`Designer: ${data.designer}`);
+  if (data.hook_size) lines.push(`Hook: ${data.hook_size}`);
+  if (data.yarn_weight) lines.push(`Yarn: ${data.yarn_weight}`);
+  if (data.pattern_notes) lines.push(`Notes: ${data.pattern_notes}`);
+  if (Array.isArray(data.components)) {
+    for (const c of data.components) {
+      lines.push(`\n--- ${c.name || 'Component'} ---`);
+      for (const r of (c.rows || [])) {
+        lines.push(`${r.label || ''}: ${r.text || ''}${r.stitch_count != null ? ` (${r.stitch_count})` : ''}`);
+      }
+    }
+  }
+  return lines.join('\n');
+}
 
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 // A job fails permanently once retry_count reaches this value (so the original
@@ -175,14 +207,23 @@ export default async function handler(req, res) {
       break;
     }
 
-    // Claim: atomically PATCH status pending → processing for this id only.
-    // If another worker beat us, the patched row count is 0; skip.
+    // Claim: atomically PATCH status pending → processing, set initial phase
+    // to 'reading' so the pill UI has a phase to display immediately. If
+    // another worker beat us, the patched row count is 0; skip.
+    const nowIso = new Date().toISOString();
     const claimRes = await fetch(
       `${supabaseUrl}/rest/v1/import_jobs?id=eq.${job.id}&status=eq.pending`,
       {
         method: 'PATCH',
         headers: { ...supaHeaders, 'Prefer': 'return=representation' },
-        body: JSON.stringify({ status: 'processing' }),
+        body: JSON.stringify({
+          status: 'processing',
+          current_phase: PHASE_READING,
+          // Merge into existing object via SQL? PostgREST can't express ||
+          // here without a custom RPC, so we just set the initial stamps.
+          // Subsequent phase updates use Supabase RPC-less round-trips below.
+          phase_timestamps: { [`${PHASE_READING}_started_at`]: nowIso },
+        }),
       }
     );
     if (!claimRes.ok) {
@@ -197,6 +238,26 @@ export default async function handler(req, res) {
       continue;
     }
     const claimedJob = claimed[0];
+
+    // Helper: append a phase transition stamp without losing prior stamps.
+    // We read the current phase_timestamps (already on claimedJob, or refresh
+    // on each call), merge, and PATCH the whole object back. Cheap — single
+    // small jsonb column, single small row.
+    let phaseStamps = claimedJob.phase_timestamps || { [`${PHASE_READING}_started_at`]: nowIso };
+    const setPhase = async (phase) => {
+      phaseStamps = { ...phaseStamps, [`${phase}_started_at`]: new Date().toISOString() };
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/import_jobs?id=eq.${claimedJob.id}`, {
+          method: 'PATCH',
+          headers: { ...supaHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ current_phase: phase, phase_timestamps: phaseStamps }),
+        });
+      } catch (e) {
+        // Phase updates are best-effort instrumentation. A network blip here
+        // shouldn't fail the import.
+        console.warn(`[process-queue] setPhase(${phase}) failed: ${e.message}`);
+      }
+    };
 
     captureServerEvent({
       posthogKey,
@@ -221,6 +282,7 @@ export default async function handler(req, res) {
       }, EXTRACTION_TIMEOUT_MS);
     });
     try {
+      await setPhase(PHASE_EXTRACTING);
       let extractionPromise;
       if (claimedJob.file_type === 'pdf') {
         if (!claimedJob.raw_text) throw new Error('pdf job missing raw_text');
@@ -229,6 +291,7 @@ export default async function handler(req, res) {
           pageCount: null,
           geminiKey,
           anthropicKey,
+          pdfMetadataTitle: claimedJob.pdf_metadata_title || null,
         });
       } else if (claimedJob.file_type === 'image') {
         const dataUri = await fetchImageAsDataUri(claimedJob.file_url);
@@ -284,7 +347,30 @@ export default async function handler(req, res) {
       clearTimeout(extractTimer);
     }
 
-    // Success — mark completed
+    // Validation phase — run BevCheck before flipping to completed so the
+    // modal/pill review path always has a validation_report present. BevCheck
+    // is non-blocking: a network error, parse error, or budget exhaustion is
+    // captured as { error: ... } in validation_report and the import still
+    // succeeds. The pill UI treats null and {error} both as "no report".
+    await setPhase(PHASE_VALIDATING);
+    let validationReport = null;
+    try {
+      const bevText = claimedJob.file_type === 'pdf'
+        ? claimedJob.raw_text
+        : serializeExtractedForBevCheck(result.data);
+      if (bevText && bevText.trim().length > 30) {
+        validationReport = await runBevCheck({ patternText: bevText, geminiKey, anthropicKey });
+      } else {
+        validationReport = { skipped: true, reason: 'no pattern text to validate' };
+      }
+    } catch (bevErr) {
+      console.warn(`[process-queue] BevCheck failed for ${claimedJob.id}: ${bevErr.message}`);
+      validationReport = { error: bevErr.message.substring(0, 300) };
+    }
+
+    await setPhase(PHASE_FINALIZING);
+
+    // Success — mark completed with extracted data + validation report
     const completeRes = await fetch(`${supabaseUrl}/rest/v1/import_jobs?id=eq.${claimedJob.id}`, {
       method: 'PATCH',
       headers: { ...supaHeaders, 'Prefer': 'return=minimal' },
@@ -292,6 +378,7 @@ export default async function handler(req, res) {
         status: 'completed',
         extracted_data: result.data,
         extraction_method: result.extractionMethod,
+        validation_report: validationReport,
         error_message: null,
       }),
     });

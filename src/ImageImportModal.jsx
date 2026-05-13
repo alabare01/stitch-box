@@ -6,6 +6,7 @@ import { CHECK_ICON } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
 import { getSession } from "./supabase.js";
 import { setActiveImportJob } from "./components/ImportPill.jsx";
+import { useImportJobPolling } from "./hooks/useImportJobPolling.js";
 
 
 const MAX_DIM = 1200;
@@ -64,7 +65,7 @@ async function mergeImagesVertically(items) {
   return cvs.toDataURL("image/jpeg", 0.85);
 }
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand, initialExtracted, initialCoverUrl }) => {
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand, initialExtracted, initialCoverUrl, initialValidationReport }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -77,7 +78,10 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   const [closing, setClosing] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
   const [validating, setValidating] = useState(false);
-  const [validationReport, setValidationReport] = useState(null);
+  // Pill → modal handoff supplies the server-side BevCheck result; otherwise
+  // null until the in-modal polling effect picks it up from the job-status
+  // payload as soon as the worker writes it.
+  const [validationReport, setValidationReport] = useState(initialValidationReport || null);
   const [bevCheckFailed, setBevCheckFailed] = useState(false);
   const bevCheckTextRef = useRef(null);
   const [showFullReport, setShowFullReport] = useState(false);
@@ -100,6 +104,16 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   // the import_jobs row. (The pill self-dismisses on tap, so it isn't a
   // fallback re-open surface.)
   const backdropDismiss = () => { if (!validationReport && !bevCheckFailed && !extracted) dismiss(); };
+  // X-button discard confirm (S66). When the modal has reviewable data or a
+  // validation report on screen, a single X click would destroy access with
+  // no recovery — the import_jobs row stays completed but the user has no
+  // in-UI way back. Gate dismiss behind an explicit confirm in those states.
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const hasRecoverableData = !!(validationReport || bevCheckFailed || extracted);
+  const requestDismiss = () => {
+    if (hasRecoverableData) { setDiscardConfirmOpen(true); }
+    else { dismiss(); }
+  };
 
   // Handoff from ImportPill (queue completed) → land directly on review stage.
   useEffect(() => {
@@ -114,51 +128,39 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── In-modal queue polling (S65 Task 2) ───────────────────────────────────
-  // POST /api/import-job, keep this modal mounted, poll job-status here. On
+  // ── In-modal queue polling — via shared hook (S66) ────────────────────────
+  // POST /api/import-job, keep this modal mounted, hook polls job-status. On
   // completion the form flips to review in place. If the user navigates away
   // mid-import the unmount cleanup hands the active job to ImportPill.
-  // TODO(S66): extract useImportJobPolling hook shared with PDFUploadForm
-  // and ImportPill (~25 lines duplicated three places).
   const [pollingJobId, setPollingJobId] = useState(null);
   const msgIntervalRef = useRef(null);
   const pollingJobIdRef = useRef(null);
   useEffect(() => { pollingJobIdRef.current = pollingJobId; }, [pollingJobId]);
+  const polling = useImportJobPolling(pollingJobId);
   useEffect(() => {
     if (!pollingJobId) return;
-    const session = getSession();
-    const token = session?.access_token;
-    if (!token) return;
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/job-status/${encodeURIComponent(pollingJobId)}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (cancelled || !res.ok) return;
-        const data = await res.json();
-        if (data.status === "completed") {
-          if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
-          const result = data.extracted_data || {};
-          setExtracted(result);
-          setEditTitle(result.title || "");
-          setEditDesigner(result.designer || "");
-          setEditHook(result.hook_size || "");
-          setEditWeight(result.yarn_weight || "");
-          if (data.cover_image_url) setCoverUrl(data.cover_image_url);
-          setStage("review");
-          setPollingJobId(null);
-        } else if (data.status === "failed") {
-          if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
-          setErrorMsg(data.error_message || "Bev got tangled — try again.");
-          setStage("error");
-          setPollingJobId(null);
-        }
-        // pending/processing: keep polling
-      } catch (e) { /* network blip — try next tick */ }
-    };
-    poll();
-    const id = setInterval(poll, 3000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [pollingJobId]);
+    if (polling.isComplete) {
+      if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+      const result = polling.extractedData || {};
+      setExtracted(result);
+      setEditTitle(result.title || "");
+      setEditDesigner(result.designer || "");
+      setEditHook(result.hook_size || "");
+      setEditWeight(result.yarn_weight || "");
+      if (polling.coverImageUrl) setCoverUrl(polling.coverImageUrl);
+      if (polling.validationReport) {
+        if (polling.validationReport.error) { setBevCheckFailed(true); }
+        else if (!polling.validationReport.skipped) { setValidationReport(polling.validationReport); }
+      }
+      setStage("review");
+      setPollingJobId(null);
+    } else if (polling.isFailed) {
+      if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+      setErrorMsg(polling.errorMessage || "Bev got tangled — try again.");
+      setStage("error");
+      setPollingJobId(null);
+    }
+  }, [pollingJobId, polling.isComplete, polling.isFailed]);
   // Unmount-only: if we still have an active polling job (user navigated
   // away during import), hand off to ImportPill so progress survives.
   useEffect(() => {
@@ -602,23 +604,44 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
     : stage === "error" ? errorContent
     : reviewContent;
 
+  // Discard-confirm overlay rendered above all three modal shells. Keeps
+  // import_jobs row at status='completed' — user can re-find it from a
+  // future Imports page; we don't delete here.
+  const discardConfirm = discardConfirmOpen ? (
+    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={()=>setDiscardConfirmOpen(false)} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)"}}/>
+      <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:16,maxWidth:360,width:"100%",padding:"24px 22px",boxShadow:"0 24px 64px rgba(28,23,20,.3)",fontFamily:T.sans}}>
+        <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:T.ink,marginBottom:8}}>Discard this import?</div>
+        <div style={{fontSize:13,color:T.ink2,lineHeight:1.6,marginBottom:18}}>Bev's work won't be saved.</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setDiscardConfirmOpen(false)} style={{flex:1,background:T.linen,color:T.ink,border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Keep working</button>
+          <button onClick={()=>{setDiscardConfirmOpen(false);dismiss();}} style={{flex:1,background:"#C0544A",color:"#fff",border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Discard</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   // ── MINIMIZED FLOATING CARD ──
   if (minimized) {
     return (
+      <>
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,overflowY:"auto",borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column"}}>
         <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
-          <button onClick={dismiss} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>
+          <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{background:T.linen,border:"none",borderRadius:99,...(hasRecoverableData?{padding:"4px 12px",fontSize:11,fontWeight:600}:{width:28,height:28,fontSize:14}),cursor:"pointer",color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>{hasRecoverableData?"Discard":"×"}</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"8px 18px 18px"}}>
           {content}
         </div>
       </div>
+      {discardConfirm}
+      </>
     );
   }
 
   // ── MODAL SHELL ──
   if (isDesktop) return (
+    <>
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "fu"} style={{
@@ -627,19 +650,23 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         boxShadow: "0 24px 64px rgba(28,23,20,.3)",
       }}>
         <div style={{ flexShrink: 0, padding: "24px 28px 0", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={dismiss} style={{
-            background: T.linen, border: "none", borderRadius: 99, width: 32, height: 32,
-            cursor: "pointer", fontSize: 18, color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
-          }}>&times;</button>
+          <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{
+            background: T.linen, border: "none", borderRadius: 99,
+            ...(hasRecoverableData ? { padding: "6px 14px", fontSize: 12, fontWeight: 600 } : { width: 32, height: 32, fontSize: 18 }),
+            cursor: "pointer", color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>{hasRecoverableData ? "Discard" : "×"}</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 32px" }}>
           {content}
         </div>
       </div>
     </div>
+    {discardConfirm}
+    </>
   );
 
   return (
+    <>
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "flex-end" }}>
       <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "su"} style={{
@@ -649,10 +676,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         <div style={{ flexShrink: 0, padding: "16px 22px 0" }}>
           <div style={{ width: 36, height: 3, background: T.border, borderRadius: 99, margin: "0 auto 18px" }} />
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={dismiss} style={{
-              background: T.linen, border: "none", borderRadius: 99, width: 30, height: 30,
-              cursor: "pointer", fontSize: 16, color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
-            }}>&times;</button>
+            <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{
+              background: T.linen, border: "none", borderRadius: 99,
+              ...(hasRecoverableData ? { padding: "6px 14px", fontSize: 12, fontWeight: 600 } : { width: 30, height: 30, fontSize: 16 }),
+              cursor: "pointer", color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{hasRecoverableData ? "Discard" : "×"}</button>
           </div>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 22px 40px" }}>
@@ -660,6 +688,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         </div>
       </div>
     </div>
+    {discardConfirm}
+    </>
   );
 };
 

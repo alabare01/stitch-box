@@ -43,6 +43,21 @@ function splitIntoChunks(text, maxChunkSize = 14000, overlapSize = 500) {
   return chunks;
 }
 
+// Top-level metadata fields that the chunked prompt explicitly tells later
+// chunks to leave empty ("metadata already captured from chunk 1"). The pre-S66
+// merger only deep-merged components/notes/abbreviations and left the rest at
+// results[0]; that lost materials/hook_size/yarn_weight/etc. whenever the
+// first chunk didn't include them (e.g. title-page-only chunk 1). Fix:
+// first-non-empty wins, later non-empty overrides if it's "more complete"
+// (longer string for text fields). Materials is handled separately below
+// because it's an array and commonly split across pages.
+const SCALAR_METADATA_KEYS = [
+  'title', 'designer', 'source_url', 'finished_size', 'difficulty',
+  'yarn_weight', 'hook_size', 'gauge', 'image_description',
+];
+
+const isEmptyish = (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+
 function mergeChunkResults(results) {
   if (!results || results.length === 0) return null;
   if (results.length === 1) return results[0];
@@ -51,19 +66,59 @@ function mergeChunkResults(results) {
 
   for (let i = 1; i < results.length; i++) {
     const chunk = results[i];
-    if (!chunk.components) continue;
+    if (!chunk) continue;
 
-    for (const incomingComponent of chunk.components) {
-      const existing = merged.components?.find(
-        c => c.name?.toLowerCase().trim() === incomingComponent.name?.toLowerCase().trim()
-      );
-      if (existing) {
-        const existingLabels = new Set(existing.rows?.map(r => r.label) || []);
-        const newRows = (incomingComponent.rows || []).filter(r => !existingLabels.has(r.label));
-        existing.rows = [...(existing.rows || []), ...newRows];
-      } else {
-        if (!merged.components) merged.components = [];
-        merged.components.push(incomingComponent);
+    // Scalar metadata: fill empties, prefer longer/more-complete strings
+    for (const key of SCALAR_METADATA_KEYS) {
+      const incoming = chunk[key];
+      if (isEmptyish(incoming)) continue;
+      const existing = merged[key];
+      if (isEmptyish(existing)) {
+        merged[key] = incoming;
+      } else if (typeof existing === 'string' && typeof incoming === 'string' && incoming.length > existing.length) {
+        merged[key] = incoming;
+      }
+    }
+
+    // Materials: concatenate and dedupe by lowercased name. Many real patterns
+    // list yarn/hook/notions across multiple pages — first-wins would drop them.
+    if (Array.isArray(chunk.materials) && chunk.materials.length) {
+      const existingMats = Array.isArray(merged.materials) ? merged.materials : [];
+      const seen = new Set(existingMats.map(m => (m?.name || '').toLowerCase().trim()).filter(Boolean));
+      const newMats = chunk.materials.filter(m => {
+        const key = (m?.name || '').toLowerCase().trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      merged.materials = [...existingMats, ...newMats];
+    }
+
+    if (Array.isArray(chunk.suggested_resources) && chunk.suggested_resources.length) {
+      const existingRes = Array.isArray(merged.suggested_resources) ? merged.suggested_resources : [];
+      const seenUrls = new Set(existingRes.map(r => (r?.url || '').toLowerCase()).filter(Boolean));
+      const newRes = chunk.suggested_resources.filter(r => {
+        const url = (r?.url || '').toLowerCase();
+        if (!url || seenUrls.has(url)) return false;
+        seenUrls.add(url);
+        return true;
+      });
+      merged.suggested_resources = [...existingRes, ...newRes];
+    }
+
+    if (Array.isArray(chunk.components)) {
+      for (const incomingComponent of chunk.components) {
+        const existing = merged.components?.find(
+          c => c.name?.toLowerCase().trim() === incomingComponent.name?.toLowerCase().trim()
+        );
+        if (existing) {
+          const existingLabels = new Set(existing.rows?.map(r => r.label) || []);
+          const newRows = (incomingComponent.rows || []).filter(r => !existingLabels.has(r.label));
+          existing.rows = [...(existing.rows || []), ...newRows];
+        } else {
+          if (!merged.components) merged.components = [];
+          merged.components.push(incomingComponent);
+        }
       }
     }
     if (chunk.pattern_notes && chunk.pattern_notes !== merged.pattern_notes) {
@@ -358,7 +413,22 @@ ${chunkText}`;
 // Pure(ish) function called by both the HTTP handler below and the queue worker.
 // Throws on hard failure. Caller decides how to log/persist.
 
-export async function runPdfExtraction({ pdfText, pageCount, geminiKey, anthropicKey }) {
+// Applies the client-supplied PDF metadata title as a fallback when the
+// model returned an empty/null title. Common cause: long PDFs where the
+// title page is image-only and the chunked merger never sees a textual
+// title. Suffix the method so we can measure how often this saves us.
+function applyPdfMetadataTitleFallback(data, pdfMetadataTitle, baseMethod) {
+  if (!data || typeof data !== 'object') return { data, extractionMethod: baseMethod };
+  const currentTitle = data.title;
+  const needsFallback = isEmptyish(currentTitle) && !isEmptyish(pdfMetadataTitle);
+  if (!needsFallback) return { data, extractionMethod: baseMethod };
+  return {
+    data: { ...data, title: pdfMetadataTitle.trim() },
+    extractionMethod: `${baseMethod}_with_pdf_meta_title`,
+  };
+}
+
+export async function runPdfExtraction({ pdfText, pageCount, geminiKey, anthropicKey, pdfMetadataTitle }) {
   if (!pdfText) throw new Error("pdfText is required");
   if (!geminiKey) throw new Error("Gemini API key not configured");
 
@@ -377,7 +447,8 @@ export async function runPdfExtraction({ pdfText, pageCount, geminiKey, anthropi
     if (preferredProvider === 'gemini') {
       try {
         const data = await callGeminiExtract({ prompt: fullPrompt, pdfText, geminiKey, maxTokens: 65536 });
-        return { data, extractionMethod: 'pdf-text', providerUsed: 'gemini', durationMs: Date.now() - t0 };
+        const finalized = applyPdfMetadataTitleFallback(data, pdfMetadataTitle, 'pdf-text');
+        return { data: finalized.data, extractionMethod: finalized.extractionMethod, providerUsed: 'gemini', durationMs: Date.now() - t0 };
       } catch (e) {
         console.error("[runPdfExtraction] Gemini attempt failed:", e.message);
       }
@@ -388,7 +459,8 @@ export async function runPdfExtraction({ pdfText, pageCount, geminiKey, anthropi
 
     try {
       const data = await callClaudeExtract({ pdfText, anthropicKey });
-      return { data, extractionMethod: 'pdf-text', providerUsed: 'claude', durationMs: Date.now() - t0 };
+      const finalized = applyPdfMetadataTitleFallback(data, pdfMetadataTitle, 'pdf-text');
+      return { data: finalized.data, extractionMethod: finalized.extractionMethod, providerUsed: 'claude', durationMs: Date.now() - t0 };
     } catch (e2) {
       throw new Error(`PDF extraction failed: Gemini and Claude both failed. Last error: ${e2.message}`);
     }
@@ -418,9 +490,10 @@ export async function runPdfExtraction({ pdfText, pageCount, geminiKey, anthropi
     throw new Error(`PDF extraction failed: all ${chunks.length} chunks failed`);
   }
   const merged = mergeChunkResults(chunkResults);
+  const finalized = applyPdfMetadataTitleFallback(merged, pdfMetadataTitle, 'pdf-text');
   return {
-    data: merged,
-    extractionMethod: 'pdf-text',
+    data: finalized.data,
+    extractionMethod: finalized.extractionMethod,
     providerUsed: 'claude',
     durationMs: Date.now() - t0,
     chunksTotal: chunks.length,
@@ -446,7 +519,7 @@ export default async function handler(req, res) {
     const { mode = "extract" } = req.body || {};
     if (mode === "bevcheck") return await handleBevCheck(req, res, _url, _key, _t0);
 
-    const { pdfText, pageCount } = req.body || {};
+    const { pdfText, pageCount, pdfMetadataTitle } = req.body || {};
     if (!pdfText) return res.status(400).json({ error: "pdfText required" });
 
     const GEMINI_KEY = process.env.GEMINI_API_KEY;
@@ -454,7 +527,7 @@ export default async function handler(req, res) {
     if (!GEMINI_KEY) return res.status(500).json({ error: "API key not configured on server" });
 
     const { data, providerUsed, chunksTotal, chunksFailed } = await runPdfExtraction({
-      pdfText, pageCount, geminiKey: GEMINI_KEY, anthropicKey: ANTHROPIC_KEY,
+      pdfText, pageCount, geminiKey: GEMINI_KEY, anthropicKey: ANTHROPIC_KEY, pdfMetadataTitle,
     });
 
     if (_url && _key) {
@@ -479,7 +552,7 @@ export default async function handler(req, res) {
   }
 }
 
-// ─── BevCheck (mode: "bevcheck") — unchanged behavior, kept inside handler scope ───
+// ─── BevCheck — core logic shared by HTTP handler and queue worker ──────────
 
 const BEVCHECK_PROMPT = `You are a crochet pattern validator. Analyze this pattern and return ONLY a JSON object with this exact structure — no markdown, no backticks, no explanation:
 {
@@ -521,31 +594,32 @@ Never guess. Never silently pass something you cannot calculate with confidence.
 
 IGNORE: PDF formatting artifacts, OCR typos in tip/intro sections, print-friendly page duplications at end of PDF.`;
 
-async function handleBevCheck(req, res, _url, _key, _t0) {
-  const { patternText } = req.body || {};
-  if (!patternText) return res.status(400).json({ error: "patternText required" });
-
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  if (!GEMINI_KEY && !ANTHROPIC_KEY) return res.status(500).json({ error: "No API keys configured" });
+// runBevCheck — exported core. Called both by the HTTP handler below
+// (handleBevCheck) and directly by the queue worker after extraction so the
+// validation report is committed to import_jobs.validation_report before
+// status flips to 'completed'. Throws on hard failure; the worker swallows
+// and stores `{error: ...}` to keep import success decoupled from BevCheck.
+export async function runBevCheck({ patternText, geminiKey, anthropicKey }) {
+  if (!patternText) throw new Error("patternText is required");
+  if (!geminiKey && !anthropicKey) throw new Error("No API keys configured");
 
   const TEXT_LIMIT = 20000;
   const text = patternText.length > TEXT_LIMIT
     ? patternText.slice(0, patternText.lastIndexOf("\n", TEXT_LIMIT) || TEXT_LIMIT)
     : patternText;
 
-  const callGeminiBevCheck = async (prompt) => {
+  const callGemini = async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     let r;
     try {
       r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt + "\n\nPATTERN TEXT:\n" + text }] }],
+            contents: [{ parts: [{ text: BEVCHECK_PROMPT + "\n\nPATTERN TEXT:\n" + text }] }],
             generationConfig: { temperature: 0, maxOutputTokens: 65536, thinkingConfig: { thinkingBudget: 0 } },
           }),
           signal: controller.signal,
@@ -568,15 +642,15 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
     return JSON.parse(cleaned);
   };
 
-  const callClaudeBevCheck = async () => {
-    if (!ANTHROPIC_KEY) throw new Error("Anthropic API key not configured");
+  const callClaude = async () => {
+    if (!anthropicKey) throw new Error("Anthropic API key not configured");
     const controller = new AbortController();
     const claudeTimeout = setTimeout(() => controller.abort(), 55000);
     let r;
     try {
       r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
+        headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001",
           max_tokens: 2000,
@@ -608,6 +682,32 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
     }
   };
 
+  const t0 = Date.now();
+  const preferredProvider = geminiKey ? await getPreferredProvider(geminiKey) : 'claude';
+
+  if (preferredProvider === 'gemini' && geminiKey) {
+    try {
+      const result = await callGemini();
+      return { ...result, provider: 'gemini' };
+    } catch (e) {
+      console.error("[runBevCheck] Gemini failed:", e.message);
+    }
+  }
+
+  const elapsed = Date.now() - t0;
+  if (elapsed > 40000) throw new Error("BevCheck time budget exceeded before Claude attempt");
+  const result = await callClaude();
+  return { ...result, provider: 'claude' };
+}
+
+async function handleBevCheck(req, res, _url, _key, _t0) {
+  const { patternText } = req.body || {};
+  if (!patternText) return res.status(400).json({ error: "patternText required" });
+
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!GEMINI_KEY && !ANTHROPIC_KEY) return res.status(500).json({ error: "No API keys configured" });
+
   const logToSupabase = (level, message, status) => {
     if (!_url || !_key) return;
     fetch(`${_url}/rest/v1/vercel_logs`, {
@@ -617,28 +717,12 @@ async function handleBevCheck(req, res, _url, _key, _t0) {
     }).catch(() => {});
   };
 
-  const preferredProvider = await getPreferredProvider(GEMINI_KEY);
-
-  if (preferredProvider === 'gemini') {
-    try {
-      const result = await callGeminiBevCheck(BEVCHECK_PROMPT);
-      logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 gemini (${Date.now() - _t0}ms)`, 200);
-      return res.status(200).json({ ...result, provider: "gemini" });
-    } catch (e) {
-      console.error("[bevcheck] Gemini failed:", e.message);
-    }
-  }
-
-  const elapsed = Date.now() - _t0;
-  if (elapsed > 40000) {
-    return res.status(500).json({ error: true, message: "bev_tangled", provider: "failed" });
-  }
   try {
-    const result = await callClaudeBevCheck();
-    logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 claude (${Date.now() - _t0}ms)`, 200);
-    return res.status(200).json({ ...result, provider: "claude" });
-  } catch (e2) {
-    logToSupabase('error', `[bevcheck] all 2 attempts failed (${Date.now() - _t0}ms)`, 500);
+    const result = await runBevCheck({ patternText, geminiKey: GEMINI_KEY, anthropicKey: ANTHROPIC_KEY });
+    logToSupabase('info', `POST /api/extract-pattern?mode=bevcheck → 200 ${result.provider} (${Date.now() - _t0}ms)`, 200);
+    return res.status(200).json(result);
+  } catch (e) {
+    logToSupabase('error', `[bevcheck] failed: ${e.message} (${Date.now() - _t0}ms)`, 500);
     return res.status(500).json({ error: true, message: "bev_tangled", provider: "failed" });
   }
 }
