@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { T, useBreakpoint } from "../theme.jsx";
-import { useImportJobPolling, buildPhaseDisplay } from "../hooks/useImportJobPolling.js";
+import { useImportJobPolling } from "../hooks/useImportJobPolling.js";
 
 // Floating import status pill. Mounts at App.jsx so it persists across navigation.
 // Reads/writes sessionStorage key 'wovely_active_import_job' (string job id).
@@ -22,6 +22,46 @@ import { useImportJobPolling, buildPhaseDisplay } from "../hooks/useImportJobPol
 
 const SESSION_KEY = "wovely_active_import_job";
 const PROMINENT_DURATION_MS = 5000;
+
+// Phase-driven copy pools. One random line is picked when the phase
+// transitions; within a phase the copy stays stable so users aren't visually
+// shuffled every poll. Pool slugs must align with PHASE_* in the worker
+// (api/cron/process-queue.js).
+const PHASE_COPY_POOLS = {
+  analyzing: [
+    "Sizing up your pattern...",
+    "Taking a quick look...",
+    "Getting the lay of the land...",
+  ],
+  reading: [
+    "Reading every word...",
+    "Cracking open the PDF...",
+    "Going page by page...",
+  ],
+  extracting: [
+    "Counting your stitches...",
+    "Untangling the rounds...",
+    "Making sense of the pattern...",
+  ],
+  validating: [
+    "Double-checking the math...",
+    "Making sure it all adds up...",
+    "Running the numbers...",
+  ],
+  finalizing: [
+    "Packing it up for your hive...",
+    "Almost ready to show you...",
+    "Wrapping things up...",
+  ],
+};
+
+const REASSURANCE_LINE = "Bev's working in the background. Feel free to navigate away — I'll let you know when she's done.";
+
+function pickPhaseCopy(phase) {
+  const pool = phase && PHASE_COPY_POOLS[phase];
+  if (!pool || pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 const PROMINENT_STYLE = {
   background: "linear-gradient(135deg, rgba(155,126,200,0.95), rgba(216,234,216,0.95))",
@@ -52,6 +92,8 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
   const [expanded, setExpanded] = useState(false);
   const [prominentUntil, setProminentUntil] = useState(0);
   const [tick, setTick] = useState(0); // local 1s tick to settle prominent window
+  const [phaseCopy, setPhaseCopy] = useState(null);
+  const lastPickedPhaseRef = useRef(null);
 
   // Watch sessionStorage for jobs added by other tabs / by AddPatternModal handoff.
   useEffect(() => {
@@ -80,6 +122,16 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
     if (isComplete) setProminentUntil(Date.now() + PROMINENT_DURATION_MS);
   }, [isComplete]);
 
+  // Pick a new copy line when the phase changes. Stays stable within a phase
+  // so we aren't shuffling text on every 3s poll.
+  useEffect(() => {
+    if (!currentPhase) return;
+    if (currentPhase === lastPickedPhaseRef.current) return;
+    const next = pickPhaseCopy(currentPhase);
+    if (next) setPhaseCopy(next);
+    lastPickedPhaseRef.current = currentPhase;
+  }, [currentPhase]);
+
   const dismiss = () => {
     setActiveImportJob(null);
     setJobId(null);
@@ -106,15 +158,19 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
 
   const now = Date.now();
   const isProminent = isComplete && now < prominentUntil;
-  const phaseDisplay = isActive ? buildPhaseDisplay(currentPhase, phaseElapsed, totalElapsed) : null;
   const elapsedLabel = totalElapsed >= 60 ? `${Math.floor(totalElapsed / 60)}m ${totalElapsed % 60}s` : `${totalElapsed}s`;
 
   // ─── State copy ─────────────────────────────────────────────────────────────
+  // Active state pulls from the phase copy pool (phaseCopy state, set on
+  // phase transition). Sub is the persistent reassurance line. Elapsed
+  // time, ETA, and progress bars are intentionally absent in Stage 1 —
+  // Stage 2 reintroduces them once we have measured medians per phase.
 
-  let title, sub, ringSpinning = false;
+  let title, sub, subAllowsWrap = false, ringSpinning = false;
   if (isActive) {
-    title = phaseDisplay.message;
-    sub = fileType === "pdf" ? "Reading your PDF" : "Reading your photo";
+    title = phaseCopy || "Bev's on it...";
+    sub = REASSURANCE_LINE;
+    subAllowsWrap = true;
     ringSpinning = true;
   } else if (isComplete) {
     title = isProminent ? "Pattern ready!" : "Tap to review";
@@ -125,6 +181,9 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
   }
   // tick is referenced via Date.now() above for prominent-window settle
   void tick;
+  // phaseElapsed is no longer rendered in Stage 1 but the hook still returns
+  // it; reference here so an unused-warning doesn't fire.
+  void phaseElapsed;
 
   // ─── Layout / sizing ────────────────────────────────────────────────────────
 
@@ -175,7 +234,7 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
             errorMessage={errorMessage}
             retryCount={retryCount}
             elapsedLabel={elapsedLabel}
-            phaseMessage={phaseDisplay?.message}
+            phaseMessage={phaseCopy}
             isActive={isActive}
             isComplete={isComplete}
             isFailed={isFailed}
@@ -205,7 +264,10 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
               fontSize: 11,
               color: isProminent ? "rgba(255,255,255,0.85)" : T.ink2,
               marginTop: 2,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              lineHeight: 1.35,
+              ...(subAllowsWrap
+                ? { whiteSpace: "normal", overflow: "visible" }
+                : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
             }}>{sub}</div>
           </div>
           {isActive && (

@@ -22,11 +22,58 @@ export const config = { maxDuration: 300 };
 
 // Phase order for the pill UI. The worker writes each as it advances and
 // stamps phase_timestamps['<phase>_started_at'] for elapsed-time display.
-// Keep these slugs aligned with PHASE_CONFIG in src/components/ImportPill.jsx.
+// Keep these slugs aligned with the phase copy pool in src/components/ImportPill.jsx.
+const PHASE_ANALYZING = 'analyzing';
 const PHASE_READING = 'reading';
 const PHASE_EXTRACTING = 'extracting';
 const PHASE_VALIDATING = 'validating';
 const PHASE_FINALIZING = 'finalizing';
+
+// Component-header vocabulary for analyzeComplexity. Covers the common
+// amigurumi / garment piece names; conservative misses are fine because
+// Stage 1 is measurement, not routing. Add to this list as we see new
+// patterns in the wild.
+const ANALYZE_COMPONENT_NAMES = [
+  'BODY','HEAD','ARM','ARMS','LEG','LEGS','EAR','EARS','TAIL','EYE','EYES',
+  'FOOT','FEET','HAND','HANDS','WING','WINGS','MUZZLE','SNOUT','NECK',
+  'PAW','PAWS','HORN','HORNS','ANTENNA','ANTENNAE','BEAK','FIN','FINS',
+  'MANE','HAIR','FACE','TORSO','BELLY','CHEST','SHELL','ANTLER','ANTLERS',
+  'MOUTH','NOSE','CHEEK','CHEEKS','SLEEVE','SLEEVES','FLOWER','PETAL','PETALS',
+  'LEAF','LEAVES','STEM','BORDER','EDGING','FRINGE','POMPOM','POM-POM',
+];
+
+// Stage 1 of Queue v1.5 — measurement only. Cheap regex passes over rawText
+// (and pdf metadata, when we get it) to estimate pattern complexity. Pure JS,
+// no I/O, completes in <500ms even on 100k-char patterns. Output is written
+// to import_jobs.complexity_score; we use the resulting distribution in Stage
+// 2 to find the single-shot cliff and decide where chunking should kick in.
+//
+// Image imports have no raw_text pre-extraction. Callers pass '' and get a
+// zeroed shape — analyzed_at is still populated so we can count attempts.
+export function analyzeComplexity(rawText, pdfMetadata) {
+  const text = typeof rawText === 'string' ? rawText : '';
+  const meta = pdfMetadata || {};
+
+  const componentRegex = new RegExp(
+    `^\\s*(${ANALYZE_COMPONENT_NAMES.join('|')})\\b(\\s*\\(\\s*make\\s+\\d+\\s*\\))?`,
+    'gim'
+  );
+  const rowRegex = /^\s*(row|rnd|round|r)\s*\d+\b/gim;
+  const chartRegex = /\b(chart|graph|schematic)\b/i;
+
+  const componentCount = (text.match(componentRegex) || []).length;
+  const rowCount = (text.match(rowRegex) || []).length;
+
+  return {
+    component_count: componentCount,
+    row_count: rowCount,
+    text_length: text.length,
+    page_count: typeof meta.page_count === 'number' ? meta.page_count : null,
+    has_chart_markers: chartRegex.test(text),
+    has_images: typeof meta.has_images === 'boolean' ? meta.has_images : false,
+    analyzed_at: new Date().toISOString(),
+  };
+}
 
 // Build a single, reasonably faithful text representation of extracted_data for
 // BevCheck on image imports (no raw_text on file). PDF imports send raw_text
@@ -213,8 +260,8 @@ export default async function handler(req, res) {
     }
 
     // Claim: atomically PATCH status pending → processing, set initial phase
-    // to 'reading' so the pill UI has a phase to display immediately. If
-    // another worker beat us, the patched row count is 0; skip.
+    // to 'analyzing' (Stage 1 of v1.5 — measurement runs before extraction).
+    // If another worker beat us, the patched row count is 0; skip.
     const nowIso = new Date().toISOString();
     const claimRes = await fetch(
       `${supabaseUrl}/rest/v1/import_jobs?id=eq.${job.id}&status=eq.pending`,
@@ -223,11 +270,11 @@ export default async function handler(req, res) {
         headers: { ...supaHeaders, 'Prefer': 'return=representation' },
         body: JSON.stringify({
           status: 'processing',
-          current_phase: PHASE_READING,
+          current_phase: PHASE_ANALYZING,
           // Merge into existing object via SQL? PostgREST can't express ||
           // here without a custom RPC, so we just set the initial stamps.
           // Subsequent phase updates use Supabase RPC-less round-trips below.
-          phase_timestamps: { [`${PHASE_READING}_started_at`]: nowIso },
+          phase_timestamps: { [`${PHASE_ANALYZING}_started_at`]: nowIso },
         }),
       }
     );
@@ -248,7 +295,7 @@ export default async function handler(req, res) {
     // We read the current phase_timestamps (already on claimedJob, or refresh
     // on each call), merge, and PATCH the whole object back. Cheap — single
     // small jsonb column, single small row.
-    let phaseStamps = claimedJob.phase_timestamps || { [`${PHASE_READING}_started_at`]: nowIso };
+    let phaseStamps = claimedJob.phase_timestamps || { [`${PHASE_ANALYZING}_started_at`]: nowIso };
     const setPhase = async (phase) => {
       phaseStamps = { ...phaseStamps, [`${phase}_started_at`]: new Date().toISOString() };
       try {
@@ -264,11 +311,47 @@ export default async function handler(req, res) {
       }
     };
 
+    // Analyze (Stage 1 of v1.5 — measurement only). Run cheap regex passes
+    // over raw_text before we touch Gemini, persist the complexity_score
+    // jsonb so we can find the single-shot cliff empirically. Image jobs
+    // have no raw_text pre-extraction — they get a zeroed shape so the
+    // analyzed_at marker is still present. Path is always 'single_shot' at
+    // this stage; Stage 2 introduces 'chunked' once the cliff is mapped.
+    const analyzeMeta = claimedJob.file_type === 'pdf'
+      ? { title: claimedJob.pdf_metadata_title || null }
+      : {};
+    const analyzeText = claimedJob.file_type === 'pdf' ? (claimedJob.raw_text || '') : '';
+    const complexity = analyzeComplexity(analyzeText, analyzeMeta);
+    phaseStamps = { ...phaseStamps, [`${PHASE_READING}_started_at`]: new Date().toISOString() };
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/import_jobs?id=eq.${claimedJob.id}`, {
+        method: 'PATCH',
+        headers: { ...supaHeaders, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          current_phase: PHASE_READING,
+          phase_timestamps: phaseStamps,
+          complexity_score: complexity,
+          path_taken: 'single_shot',
+        }),
+      });
+    } catch (e) {
+      // Measurement is best-effort instrumentation — never fail the import
+      // because we couldn't write the analyzer output.
+      console.warn(`[process-queue] analyze write failed for ${claimedJob.id}: ${e.message}`);
+    }
+
     captureServerEvent({
       posthogKey,
       distinctId: claimedJob.user_id,
       event: 'import_job_started',
-      properties: { job_id: claimedJob.id, file_type: claimedJob.file_type, retry_count: claimedJob.retry_count },
+      properties: {
+        job_id: claimedJob.id,
+        file_type: claimedJob.file_type,
+        retry_count: claimedJob.retry_count,
+        complexity_text_length: complexity.text_length,
+        complexity_component_count: complexity.component_count,
+        complexity_row_count: complexity.row_count,
+      },
     });
 
     // Run extraction, bounded by EXTRACTION_TIMEOUT_MS. The AbortController
