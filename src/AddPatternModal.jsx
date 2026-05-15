@@ -688,7 +688,7 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,onPdfHandoff}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,onPdfHandoff}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
@@ -824,7 +824,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   useEffect(()=>{if(initialUrl&&!autoTriggered.current){autoTriggered.current=true;doImport();}},[]);
   if(loading) return (
     <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",position:"relative"}}>
-      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+      {/* X removed in S1.5.3 — backdrop click or route nav dismisses. */}
       <style>{`@keyframes spinLoader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{width:60,height:60,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite",marginBottom:24}}/>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Reading pattern page...</div>
@@ -864,9 +864,13 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,initialExtracted,initialValidationReport}) => {
-  const [stage,setStage]=useState(initialExtracted?"review":"pick");
-  const [progress,setProgress]=useState(initialExtracted?100:0);
+const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,initialExtracted,initialValidationReport,initialPollingJobId}) => {
+  // initialPollingJobId (S1.5.3): when the ImportPill re-opens the modal
+  // mid-import, land directly in the extracting stage and let polling
+  // resume against the existing job_id. The hook computes totalElapsed
+  // from job.created_at, so the elapsed counter continues without reset.
+  const [stage,setStage]=useState(initialExtracted?"review":(initialPollingJobId?"extracting":"pick"));
+  const [progress,setProgress]=useState(initialExtracted?100:(initialPollingJobId?40:0));
   const [stageText,setStageText]=useState("");
   const [extracted,setExtracted]=useState(initialExtracted?.extracted||null);
   const [fileInfo,setFileInfo]=useState(initialExtracted?.fileInfo||null);
@@ -902,9 +906,14 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
   // pollingJobId is set after POST /api/import-job succeeds. When the hook
   // reports completed/failed we flip stage in place; if the user navigates
   // away during processing the unmount cleanup hands off to ImportPill.
-  const [pollingJobId,setPollingJobId]=useState(null);
-  const pollingJobIdRef=useRef(null);
+  const [pollingJobId,setPollingJobId]=useState(initialPollingJobId||null);
+  const pollingJobIdRef=useRef(initialPollingJobId||null);
   useEffect(()=>{pollingJobIdRef.current=pollingJobId;},[pollingJobId]);
+  // Pill-resume mount: announce extracting so the modal's backdrop logic
+  // knows we're in the loading state right away, before any in-modal upload.
+  useEffect(()=>{if(initialPollingJobId)onExtractionStart?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
   const intv2Ref=useRef(null);
   const polling=useImportJobPolling(pollingJobId);
   // Stage 1.5.3: phase-driven copy from worker. Stays stable within a
@@ -1219,9 +1228,21 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
     ? {emoji:"🧶🧶", headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
     : {emoji:"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
   const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
-  if(stage==="uploading"||stage==="extracting"||stage==="building") return (
+  if(stage==="uploading"||stage==="extracting"||stage==="building") {
+    // Elapsed shown only when polling is driving — same totalElapsed value
+    // and format the ImportPill uses (computed from job.created_at), so
+    // closing the modal mid-import and tapping the pill resumes the count
+    // without resetting. Hidden on the legacy synchronous path where no
+    // job_id exists.
+    const elapsedLabel = pollingJobId
+      ? (polling.totalElapsed >= 60
+          ? `${Math.floor(polling.totalElapsed / 60)}m ${polling.totalElapsed % 60}s`
+          : `${polling.totalElapsed}s`)
+      : null;
+    return (
     <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:0,position:"relative"}}>
-      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+      {/* X button removed in S1.5.3 — backdrop click or route nav dismisses,
+          and the small ImportPill is the only minimized surface. */}
       <style>{`@keyframes spinLoader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`}</style>
       <div style={{position:"relative",width:60,height:60,marginBottom:24}}>
         <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite"}}/>
@@ -1229,13 +1250,19 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
       </div>
       <div key={loadingInfo.headline} style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4,animation:"fadeInMsg .4s ease both"}}>{loadingInfo.headline}</div>
       {loadingInfo.sub&&(
-        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:16,maxWidth:320}}>
+        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:elapsedLabel?6:16,maxWidth:320}}>
           {loadingInfo.sub}
+        </div>
+      )}
+      {elapsedLabel && (
+        <div style={{fontSize:12,fontFamily:"Inter,sans-serif",color:"#9B87B8",fontVariantNumeric:"tabular-nums",marginBottom:10}}>
+          {elapsedLabel}
         </div>
       )}
       <style>{`@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
+  }
   if(stage==="error") {
     const isHiccup=errorType==="server_hiccup";
     return (
@@ -1451,14 +1478,17 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
   );
 };
 
-const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,initialExtracted,initialCoverUrl,initialValidationReport,minimized,onMinimize,onExpand}) => {
+const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,initialExtracted,initialCoverUrl,initialValidationReport,initialPollingJobId}) => {
   // initialExtracted (from ImportPill queue completion) is wrapped into pdfHandoff
   // so PDFUploadForm lands directly on its review stage. initialCoverUrl is the
   // Cloudinary URL the client rendered & uploaded during the original upload
   // step, threaded back through import_jobs.cover_image_url so the cover
   // survives the modal-close → queue → pill → re-open round trip.
+  // initialPollingJobId (S1.5.3) is set when the pill re-opens this modal
+  // *during* processing — PDFUploadForm mounts directly into the extracting
+  // stage with that job_id so polling resumes seamlessly.
   const initialHandoff = initialExtracted ? { extracted: initialExtracted, pdfText: "", fileInfo: null, coverUrl: initialCoverUrl || null } : null;
-  const [method,setMethod]=useState(initialExtracted?"pdf":(initialMethod||null)),[closing,setClosing]=useState(false);
+  const [method,setMethod]=useState((initialExtracted||initialPollingJobId)?"pdf":(initialMethod||null)),[closing,setClosing]=useState(false);
   const [pdfHandoff,setPdfHandoff]=useState(initialHandoff);
   const extractingRef=useRef(false);
   const bevCheckActiveRef=useRef(false);
@@ -1474,7 +1504,11 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
   const [reviewActiveTick,setReviewActiveTick]=useState(!!initialExtracted);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const backdropClick=()=>{if(bevCheckActiveRef.current||reviewActiveRef.current)return;if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
+  // Backdrop click during loading state → dismiss. The unmount handler in
+  // PDFUploadForm writes pollingJobIdRef → ImportPill via setActiveImportJob,
+  // so the pill takes over without any extra wiring here. Review/BevCheck
+  // states still block accidental dismissal.
+  const backdropClick=()=>{if(bevCheckActiveRef.current||reviewActiveRef.current)return;dismiss();};
   // X-button discard confirm (S66). When the modal is showing review/BevCheck
   // content, a single tap on the dismiss X would lose access to the extracted
   // data even though the import_jobs row is still completed. Gate with an
@@ -1511,26 +1545,19 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     </>
   );
   // ── STYLES ──
-  const minStyle = {position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column",overflowY:"auto"};
+  // Single modal shape on each viewport. The medium "Expand" pill was removed
+  // in S1.5.3 — the small ImportPill is now the only minimized surface, and
+  // closing the modal mid-import hands off to it via the unmount cleanup.
   const deskStyle = {position:"relative",background:T.surface,borderRadius:20,width:"100%",maxWidth:580,maxHeight:"85vh",display:"flex",flexDirection:"column",zIndex:1,boxShadow:"0 24px 64px rgba(28,23,20,.3)"};
   const mobStyle = {position:"relative",background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxHeight:"92vh",display:"flex",flexDirection:"column",zIndex:1};
-  const containerStyle = minimized && !isDesktop ? mobStyle : minimized && isDesktop ? minStyle : isDesktop ? deskStyle : mobStyle;
-  const pad = (minimized && isDesktop) ? "8px 18px 18px" : isDesktop ? "0 28px 32px" : "0 22px 40px";
+  const containerStyle = isDesktop ? deskStyle : mobStyle;
+  const pad = isDesktop ? "0 28px 32px" : "0 22px 40px";
   const wrapStyle = isDesktop
     ? {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"center",justifyContent:"center"}
     : {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"flex-end"};
   const animClass = isDesktop ? (closing?"":"fu") : (closing?"":"su");
 
   // ── HEADER ──
-  const deskMinHeader = (
-    <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
-        <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>Importing…</span>
-      </div>
-      <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{background:T.linen,border:"none",borderRadius:99,...(hasRecoverableData?{padding:"4px 12px",fontSize:11,fontWeight:600}:{width:28,height:28,fontSize:14}),cursor:"pointer",color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>{hasRecoverableData?"Discard":"×"}</button>
-    </div>
-  );
   const deskHeader = (
     <div style={{flexShrink:0,padding:"24px 28px 0"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
@@ -1548,15 +1575,18 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
       {method&&<div style={{fontSize:12,color:T.ink3,marginBottom:12,fontWeight:500}}>{METHODS.find(m=>m.key===method)?.icon} {METHODS.find(m=>m.key===method)?.label}</div>}
     </div>
   );
-  const header = (minimized && isDesktop) ? deskMinHeader : isDesktop ? deskHeader : mobHeader;
+  const header = isDesktop ? deskHeader : mobHeader;
+  // requestDismiss is still used by the review-state X (PDFUploadForm passes
+  // it via onClose). hasRecoverableData controls the Discard-vs-X label.
+  void requestDismiss; void hasRecoverableData;
 
   // ── CONTENT (single instance, never remounts) ──
   const content = (
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} initialExtracted={pdfHandoff} initialValidationReport={initialValidationReport}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} initialExtracted={pdfHandoff} initialValidationReport={initialValidationReport} initialPollingJobId={initialPollingJobId}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>
@@ -1565,28 +1595,9 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
   // ── SINGLE RETURN — no early exits, no remounts ──
   return (
     <>
-      {/* Mobile minimized banner — rendered outside normal flow */}
-      {minimized && !isDesktop && (
-        <div onClick={onExpand} style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,background:"#9B7EC8",display:"flex",alignItems:"center",padding:"0 16px",height:52,cursor:"pointer",boxShadow:"0 2px 12px rgba(0,0,0,0.15)"}}>
-          <style>{`@keyframes bevSpin{to{transform:rotate(360deg)}}`}</style>
-          <div style={{position:"relative",width:32,height:32,flexShrink:0,marginRight:10}}>
-            <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid rgba(255,255,255,0.25)",borderTop:"2.5px solid #fff",animation:"bevSpin 1s linear infinite"}}/>
-            <img src="/bev_neutral.png" alt="Bev" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:22,height:22,objectFit:"contain"}}/>
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Inter,sans-serif"}}>Importing your pattern…</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:"Inter,sans-serif"}}>Tap to review when ready</div>
-          </div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Inter,sans-serif",flexShrink:0}}>Tap to open →</div>
-        </div>
-      )}
-
-      {/* The modal card — always rendered, style changes only */}
-      <div style={minimized && !isDesktop ? {display:"none"} : minimized && isDesktop ? {} : wrapStyle}>
-        {!minimized && (
-          <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)"}}/>
-        )}
-        <div className={minimized?"":animClass} style={containerStyle} onClick={e=>e.stopPropagation()}>
+      <div style={wrapStyle}>
+        <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)"}}/>
+        <div className={animClass} style={containerStyle} onClick={e=>e.stopPropagation()}>
           {header}{content}
         </div>
       </div>

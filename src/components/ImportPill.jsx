@@ -12,12 +12,14 @@ import { PHASE_COPY_POOLS, REASSURANCE_LINE, pickPhaseCopy } from "../utils/impo
 //
 // States:
 //   idle:        nothing rendered
-//   processing:  Bev avatar + spinning ring + phase copy with elapsed/reference range
+//   processing:  Bev avatar + spinning ring + phase copy + elapsed time
 //   completed:   prominent pulse for 5s, then settle to "Tap to review"
 //   failed:      "Bev got tangled — try again" with Try again action
 //
 // Tap behavior:
-//   processing:  expands (inline card on desktop, modal sheet on mobile)
+//   processing:  calls onTapResume({ jobId, fileType }) — reopens the full
+//                AddPatternModal/ImageImportModal in its loading state.
+//                Pill STAYS visible so a close-and-resume can happen again.
 //   completed:   calls onTapReview({ jobId, fileType, extractedData, coverImageUrl, validationReport }) and clears sessionStorage
 //   failed:      calls onTapTryAgain({ jobId, fileType }) and clears sessionStorage
 
@@ -45,12 +47,11 @@ export const setActiveImportJob = (jobId) => {
   } catch {}
 };
 
-export default function ImportPill({ onTapReview, onTapTryAgain }) {
+export default function ImportPill({ onTapReview, onTapTryAgain, onTapResume }) {
   const { isMobile } = useBreakpoint();
   const [jobId, setJobId] = useState(() => {
     try { return sessionStorage.getItem(SESSION_KEY) || null; } catch { return null; }
   });
-  const [expanded, setExpanded] = useState(false);
   const [prominentUntil, setProminentUntil] = useState(0);
   const [tick, setTick] = useState(0); // local 1s tick to settle prominent window
   const [phaseCopy, setPhaseCopy] = useState(null);
@@ -96,7 +97,6 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
   const dismiss = () => {
     setActiveImportJob(null);
     setJobId(null);
-    setExpanded(false);
   };
 
   const handleTap = () => {
@@ -111,7 +111,10 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
       dismiss();
       return;
     }
-    setExpanded(e => !e);
+    // Active/processing: reopen the full modal in its loading state. Pill
+    // stays — the user can close-and-resume any number of times until the
+    // job completes or fails.
+    onTapResume?.({ jobId: job.id, fileType });
   };
 
   if (!jobId || !job) return null;
@@ -147,9 +150,10 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
   void phaseElapsed;
 
   // ─── Layout / sizing ────────────────────────────────────────────────────────
+  // Single compact card, always the same size. Tap routes via handleTap to
+  // the parent (resume modal / open review / try again). No inline expand.
 
   const baseWidth = isMobile ? 240 : 320;
-  const expandedWidth = isMobile ? 280 : 380;
   const desktopRight = 24;
   const desktopBottom = 24;
   const mobileRight = 16;
@@ -158,55 +162,20 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
     position: "fixed",
     bottom: isMobile ? `calc(16px + env(safe-area-inset-bottom, 0px))` : `${desktopBottom}px`,
     right: isMobile ? `${mobileRight}px` : `${desktopRight}px`,
-    width: expanded ? expandedWidth : baseWidth,
+    width: baseWidth,
     zIndex: 50,
     borderRadius: 16,
-    padding: expanded ? 16 : 12,
-    transition: "width .25s ease, padding .25s ease, transform .25s ease",
+    padding: 12,
+    transition: "transform .25s ease",
     cursor: "pointer",
     fontFamily: T.sans,
     color: isProminent ? "#FFFFFF" : T.ink,
     ...(isProminent ? PROMINENT_STYLE : SETTLED_STYLE),
     ...(isProminent && { animation: "wovelyPillPulse 1.2s ease-in-out infinite" }),
   };
-
-  // Modal sheet for expanded mobile state — replaces inline expand
-  if (isMobile && expanded) {
-    return (
-      <>
-        <PillKeyframes />
-        <div onClick={() => setExpanded(false)} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", backdropFilter: "blur(4px)",
-          zIndex: 49,
-        }}/>
-        <div style={{
-          position: "fixed", left: 0, right: 0,
-          bottom: `env(safe-area-inset-bottom, 0px)`,
-          background: T.modal, borderRadius: "20px 20px 0 0",
-          padding: "20px 20px 28px",
-          zIndex: 50,
-          boxShadow: "0 -8px 32px rgba(45,58,124,0.18)",
-          fontFamily: T.sans,
-        }}>
-          <SheetContents
-            job={job}
-            fileType={fileType}
-            extractionMethod={extractionMethod}
-            errorMessage={errorMessage}
-            retryCount={retryCount}
-            elapsedLabel={elapsedLabel}
-            phaseMessage={phaseCopy}
-            isActive={isActive}
-            isComplete={isComplete}
-            isFailed={isFailed}
-            onClose={() => setExpanded(false)}
-            onTapReview={() => handleTap()}
-            onTapTryAgain={() => handleTap()}
-          />
-        </div>
-      </>
-    );
-  }
+  // retryCount + extractionMethod were only surfaced in the removed expanded
+  // detail card; reference here so destructure-unused warnings don't fire.
+  void retryCount; void extractionMethod;
 
   return (
     <>
@@ -237,21 +206,6 @@ export default function ImportPill({ onTapReview, onTapTryAgain }) {
             }}>{elapsedLabel}</div>
           )}
         </div>
-        {expanded && !isMobile && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`, fontSize: 12, color: T.ink2, lineHeight: 1.6 }}>
-            <div><strong>Type:</strong> {fileType === "pdf" ? "PDF" : "Photo"}</div>
-            <div><strong>Total elapsed:</strong> {elapsedLabel}</div>
-            {currentPhase && <div><strong>Phase:</strong> {currentPhase}</div>}
-            {extractionMethod && <div><strong>Method:</strong> {extractionMethod}</div>}
-            {retryCount > 0 && <div><strong>Retries:</strong> {retryCount}</div>}
-            {isFailed && (
-              <button onClick={(e) => { e.stopPropagation(); handleTap(); }} style={{
-                marginTop: 12, background: T.terra, color: "#FFF", border: "none", borderRadius: 10,
-                padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%",
-              }}>Try again</button>
-            )}
-          </div>
-        )}
       </div>
     </>
   );
@@ -288,75 +242,7 @@ function BevAvatar({ spinning, prominent }) {
   );
 }
 
-function SheetContents({ job, fileType, extractionMethod, errorMessage, retryCount, elapsedLabel, phaseMessage, isActive, isComplete, isFailed, onClose, onTapReview, onTapTryAgain }) {
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-        <BevAvatar spinning={isActive} prominent={false} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: T.serif, fontSize: 16, color: T.ink, fontWeight: 600 }}>
-            {isComplete ? "Pattern ready"
-              : isFailed ? "Bev got tangled"
-              : phaseMessage || "Working on it"}
-          </div>
-          <div style={{ fontSize: 12, color: T.ink2, marginTop: 2 }}>
-            {fileType === "pdf" ? "PDF import" : "Photo import"}
-          </div>
-        </div>
-        <button onClick={onClose} aria-label="close" style={{
-          background: T.linen, border: "none", borderRadius: 99, width: 30, height: 30,
-          cursor: "pointer", fontSize: 16, color: T.ink3,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>×</button>
-      </div>
-
-      <div style={{ background: T.linen, borderRadius: 12, padding: 12, marginBottom: 12, fontSize: 12, lineHeight: 1.7 }}>
-        <Row label="Status" value={prettyStatus(job.status)} />
-        <Row label="Elapsed" value={elapsedLabel} />
-        {extractionMethod && <Row label="Method" value={extractionMethod} />}
-        {retryCount > 0 && <Row label="Retries" value={String(retryCount)} />}
-        {errorMessage && <Row label="Error" value={errorMessage} />}
-      </div>
-
-      {isComplete && (
-        <button onClick={onTapReview} style={primaryBtn}>Review pattern →</button>
-      )}
-      {isFailed && (
-        <button onClick={onTapTryAgain} style={primaryBtn}>Try again</button>
-      )}
-      {isActive && (
-        <div style={{ fontSize: 11, color: T.ink3, textAlign: "center", paddingTop: 4 }}>
-          You can navigate away — Bev will keep working in the background.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-      <span style={{ color: T.ink3, fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 600 }}>{label}</span>
-      <span style={{ color: T.ink, fontSize: 12, textAlign: "right", maxWidth: "65%", wordBreak: "break-word" }}>{value}</span>
-    </div>
-  );
-}
-
-const primaryBtn = {
-  width: "100%", background: T.terra, color: "#FFF", border: "none", borderRadius: 12,
-  padding: "12px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer",
-  boxShadow: "0 4px 14px rgba(155,126,200,0.3)",
-};
-
 function truncate(s, n) {
   if (!s || s.length <= n) return s;
   return s.slice(0, n - 1) + "…";
-}
-
-function prettyStatus(s) {
-  if (s === "pending") return "Queued";
-  if (s === "processing") return "Processing";
-  if (s === "completed") return "Completed";
-  if (s === "failed") return "Failed";
-  return s;
 }
