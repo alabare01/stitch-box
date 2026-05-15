@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { T, useBreakpoint } from "../theme.jsx";
 import { useImportJobPolling } from "../hooks/useImportJobPolling.js";
-import { REASSURANCE_LINE, pickPhaseCopy } from "../utils/importPhaseCopy.js";
+import { PHASE_COPY_POOLS, REASSURANCE_LINE, pickPhaseCopy } from "../utils/importPhaseCopy.js";
 
 // Floating import status pill. Mounts at App.jsx so it persists across navigation.
 // Reads/writes sessionStorage key 'wovely_active_import_job' (string job id).

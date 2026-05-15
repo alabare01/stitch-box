@@ -6,7 +6,7 @@ import { CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
 import { setActiveImportJob } from "./components/ImportPill.jsx";
 import { useImportJobPolling } from "./hooks/useImportJobPolling.js";
-import { REASSURANCE_LINE, pickPhaseCopy } from "./utils/importPhaseCopy.js";
+import { PHASE_COPY_POOLS, REASSURANCE_LINE, pickPhaseCopy } from "./utils/importPhaseCopy.js";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 
@@ -906,27 +906,22 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
   const pollingJobIdRef=useRef(null);
   useEffect(()=>{pollingJobIdRef.current=pollingJobId;},[pollingJobId]);
   const intv2Ref=useRef(null);
-  const intv3Ref=useRef(null);
   const polling=useImportJobPolling(pollingJobId);
-  // Phase-driven extracting copy. Mirrors ImportPill — pick a new line each
-  // time polling.currentPhase changes, stable within a phase. Both surfaces
-  // pull from src/utils/importPhaseCopy.js so the modal and the pill speak
-  // with one voice. Legacy synchronous extraction path leaves phaseCopy null
-  // and falls back to stageText.
-  const [phaseCopy,setPhaseCopy]=useState(null);
+  // Stage 1.5.3: phase-driven copy from worker. Stays stable within a
+  // phase, transitions once per phase change. Same source as ImportPill,
+  // so big modal and compact pill speak with one voice.
   const lastPickedPhaseRef=useRef(null);
   useEffect(()=>{
     if(!polling.currentPhase) return;
     if(polling.currentPhase===lastPickedPhaseRef.current) return;
     const next=pickPhaseCopy(polling.currentPhase);
-    if(next) setPhaseCopy(next);
+    if(next) setStageText(next);
     lastPickedPhaseRef.current=polling.currentPhase;
   },[polling.currentPhase]);
   useEffect(()=>{
     if(!pollingJobId) return;
     if(polling.isComplete){
       if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
-      if(intv3Ref.current){clearInterval(intv3Ref.current);intv3Ref.current=null;}
       const result=polling.extractedData||{};
       setExtracted(result);
       setEditTitle(sanitizeTitle(result.title)||"");setEditDesigner(result.designer||"");
@@ -951,7 +946,6 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
       onExtractionEnd?.();
     } else if(polling.isFailed){
       if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
-      if(intv3Ref.current){clearInterval(intv3Ref.current);intv3Ref.current=null;}
       setStage("error");setErrorType("extraction_failed");
       setErrorMsg(polling.errorMessage||"Bev got tangled — try again.");
       setPollingJobId(null);
@@ -965,7 +959,6 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
       if(pollingJobIdRef.current){
         setActiveImportJob(pollingJobIdRef.current);
         if(intv2Ref.current) clearInterval(intv2Ref.current);
-        if(intv3Ref.current) clearInterval(intv3Ref.current);
       }
     };
   },[]);
@@ -1039,15 +1032,15 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
         console.warn("[Wovely] renderPDFCoverImage returned null — canvas render likely failed");
       }
       setFileInfo({url:uploaded.url,name:uploaded.filename,type:uploaded.type,coverUrl:coverCloudinaryUrl});setProgress(33);
-      // Stage 2: Extract — copy now driven by polling.currentPhase via the
-      // phaseCopy effect above. stageText keeps an initial value for the brief
-      // window before the worker claims (and for the legacy sync path which
-      // never starts polling). The static 4-string rotation was removed in
-      // S1.5.3 so the modal and ImportPill never disagree.
+      // Stage 2: Extract — stageText is now rewritten in place by the
+      // phase-change effect above (driven by polling.currentPhase). The
+      // initial value covers the brief pre-claim window and the legacy
+      // sync path which never starts polling. The old 4-string EXTRACT_MSGS
+      // rotation was removed in S1.5.3 so the modal and ImportPill never
+      // disagree about what the worker is doing.
       setStage("extracting");setStageText("Reading your pattern...");
       const intv2=setInterval(()=>setProgress(p=>Math.min(p+1,62)),300);
-      const intv3=null;
-      intv2Ref.current=intv2;intv3Ref.current=intv3;
+      intv2Ref.current=intv2;
       let result;let extractedText=null;
       try{
         if(isPDF){
@@ -1078,7 +1071,7 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
                 }
                 const errBody = await jobRes.json().catch(() => ({}));
                 console.error('[Wovely] Queue POST failed:', jobRes.status, errBody);
-                clearInterval(intv2);clearInterval(intv3);intv2Ref.current=null;intv3Ref.current=null;
+                clearInterval(intv2);intv2Ref.current=null;
                 onExtractionEnd?.();
                 setStage('error');
                 setErrorType('extraction_failed');
@@ -1086,7 +1079,7 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
                 return;
               } catch (queueErr) {
                 console.error('[Wovely] Queue POST exception:', queueErr.message);
-                clearInterval(intv2);clearInterval(intv3);intv2Ref.current=null;intv3Ref.current=null;
+                clearInterval(intv2);intv2Ref.current=null;
                 onExtractionEnd?.();
                 setStage('error');
                 setErrorType('server_hiccup');
@@ -1181,8 +1174,8 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
-      clearInterval(intv2);clearInterval(intv3);setProgress(66);
+      catch(ex){clearInterval(intv2);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      clearInterval(intv2);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
       setExtracted(result);setEditTitle(sanitizeTitle(result.title)||"");setEditDesigner(result.designer||"");setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
@@ -1216,13 +1209,16 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
       <label style={{display:"block",cursor:"pointer"}}><div style={{border:`2px dashed ${T.border}`,borderRadius:16,padding:"36px 20px",textAlign:"center",background:T.linen,transition:"border-color .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.terra} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}><div style={{fontSize:40,marginBottom:10}}>📄</div><div style={{fontFamily:T.serif,fontSize:17,color:T.ink,marginBottom:6}}>Upload your pattern</div><div style={{fontSize:13,color:T.ink3,marginBottom:14}}>PDF or photo — we'll read it and set up your workspace</div><div style={{background:T.terra,color:"#fff",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,display:"inline-block"}}>Choose File</div></div><input type="file" accept=".pdf,application/pdf" onChange={handleFile} style={{display:"none"}}/></label>
     </div>
   );
-  // Complexity-aware loading messages
+  // Complexity-aware loading messages. Headline pulls from stageText —
+  // which the phase effect rewrites as the worker advances — so the modal
+  // tracks the worker. Subtitle is the navigate-away reassurance line
+  // while extracting; complexity hints take precedence when set.
   const complexityMsg = complexity==="complex"
     ? {emoji:"🧶🧶🧶", headline:"Big pattern. Bev is going all in.", sub:`${complexityStats?.pages||"Many"} pages of pure craft. Every round, every stitch, every note. Grab your hook — this might take a minute.`, barSpeed:80}
     : complexity==="detailed"
     ? {emoji:"🧶🧶", headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
-    : {emoji:"🔎", headline:stageText, sub:null, barSpeed:300};
-  const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:null, barSpeed:300};
+    : {emoji:"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
+  const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
   if(stage==="uploading"||stage==="extracting"||stage==="building") return (
     <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:0,position:"relative"}}>
       {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
@@ -1231,24 +1227,12 @@ const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onMinimize,onExtracti
         <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite"}}/>
         <img src="/bev_neutral.png" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:40,height:40,objectFit:"contain"}} alt="Bev"/>
       </div>
-      {(() => {
-        // Queue-driven: phaseCopy populated once polling.currentPhase reports
-        // a phase. Legacy/synchronous fallback: phaseCopy stays null, title
-        // falls back to loadingInfo.headline (stageText or complexity hint).
-        const queueDriven = !!pollingJobId;
-        const titleText = phaseCopy || loadingInfo.headline;
-        const subText = queueDriven ? REASSURANCE_LINE : loadingInfo.sub;
-        return (
-          <>
-            <div key={titleText} style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4,animation:"fadeInMsg .4s ease both"}}>{titleText}</div>
-            {subText && (
-              <div style={{fontSize:13,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.6,marginTop:2,maxWidth:320}}>
-                {subText}
-              </div>
-            )}
-          </>
-        );
-      })()}
+      <div key={loadingInfo.headline} style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4,animation:"fadeInMsg .4s ease both"}}>{loadingInfo.headline}</div>
+      {loadingInfo.sub&&(
+        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:16,maxWidth:320}}>
+          {loadingInfo.sub}
+        </div>
+      )}
       <style>{`@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
