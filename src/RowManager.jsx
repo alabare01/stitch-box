@@ -214,13 +214,15 @@ const RowManager = ({
 
   return (
     <>
-      {/* Pattern notes section */}
-      {(p.notes||p.pattern_notes)&&<div style={{marginBottom:12}}>
+      {/* Pattern Notes — designer's read-only preamble. Reads pattern_notes
+          only (post-migration 007 split); notes is the user's journal and
+          belongs to My Notes, not here. No fallback between the two. */}
+      {p.pattern_notes&&<div style={{marginBottom:12}}>
         <button onClick={()=>setNoteEdit(noteEdit==="pnotes"?null:"pnotes")} style={{width:"100%",background:T.linen,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:13,color:T.ink2,fontWeight:500}}>📋 Pattern Notes — tap to expand</span>
           <span style={{fontSize:12,color:T.ink3}}>{noteEdit==="pnotes"?"▼":"▶"}</span>
         </button>
-        {noteEdit==="pnotes"&&<div style={{background:T.linen,border:`1px solid ${T.border}`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"12px 14px",fontSize:13,color:T.ink2,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{p.notes||p.pattern_notes}</div>}
+        {noteEdit==="pnotes"&&<div style={{background:T.linen,border:`1px solid ${T.border}`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"12px 14px",fontSize:13,color:T.ink2,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{p.pattern_notes}</div>}
       </div>}
       {rows.length===0?(
         <div style={{textAlign:"center",padding:"48px 20px"}}>
