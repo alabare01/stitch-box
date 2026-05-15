@@ -1,13 +1,22 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { T, useBreakpoint } from "./theme.jsx";
 import { PILL } from "./constants.js";
 import { buildRowsFromComponents } from "./AddPatternModal.jsx";
 import { CHECK_ICON } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
+import { getSession } from "./supabase.js";
+import { setActiveImportJob } from "./components/ImportPill.jsx";
+import { useImportJobPolling } from "./hooks/useImportJobPolling.js";
 
 
 const MAX_DIM = 1200;
 const JPEG_QUALITY = 0.75;
+
+// Strip authoring-tool file extensions left on extracted titles (e.g. ".cdr"
+// from CorelDraw exports). Mirrors sanitizeTitle in api/extract-pattern.js.
+const sanitizeTitle = (raw) => typeof raw === 'string'
+  ? raw.replace(/\.(cdr|pdf|docx|doc|ai|psd|jpg|jpeg|png)$/i, '').trim()
+  : raw;
 
 const compressImage = (file) => new Promise((resolve, reject) => {
   const url = URL.createObjectURL(file);
@@ -39,7 +48,30 @@ const LOADING_MSGS = [
   "Almost there...",
 ];
 
-const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, minimized, onMinimize, onExpand }) => {
+// Stitch multiple JPEG dataURLs into one tall composite for the queue worker.
+// Uses the existing per-image `thumb` (already JPEG via compressImage) as input.
+async function mergeImagesVertically(items) {
+  const imgs = await Promise.all(items.map(it => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("failed to decode image"));
+    img.src = it.thumb;
+  })));
+  const W = Math.min(1200, ...imgs.map(i => i.naturalWidth));
+  const heights = imgs.map(i => Math.round(i.naturalHeight * (W / i.naturalWidth)));
+  const totalH = heights.reduce((a, b) => a + b, 0);
+  const cvs = document.createElement("canvas");
+  cvs.width = W; cvs.height = totalH;
+  const ctx = cvs.getContext("2d");
+  let y = 0;
+  for (let i = 0; i < imgs.length; i++) {
+    ctx.drawImage(imgs[i], 0, y, W, heights[i]);
+    y += heights[i];
+  }
+  return cvs.toDataURL("image/jpeg", 0.85);
+}
+
+const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, initialExtracted, initialCoverUrl, initialValidationReport, initialPollingJobId }) => {
   const [items, setItems] = useState([]); // [{file, thumb, base64}]
   const [stage, setStage] = useState("pick");
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MSGS[0]);
@@ -52,11 +84,18 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   const [closing, setClosing] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
   const [validating, setValidating] = useState(false);
-  const [validationReport, setValidationReport] = useState(null);
+  // Pill → modal handoff supplies the server-side BevCheck result; otherwise
+  // null until the in-modal polling effect picks it up from the job-status
+  // payload as soon as the worker writes it.
+  const [validationReport, setValidationReport] = useState(initialValidationReport || null);
   const [bevCheckFailed, setBevCheckFailed] = useState(false);
   const bevCheckTextRef = useRef(null);
   const [showFullReport, setShowFullReport] = useState(false);
-  const [coverUrl, setCoverUrl] = useState(null);
+  // coverUrl: for image imports the uploaded Cloudinary URL is the natural
+  // cover. Threaded through import_jobs.cover_image_url so it survives the
+  // modal-close → queue → pill → re-open round trip and mirrors to
+  // patterns.photo on save.
+  const [coverUrl, setCoverUrl] = useState(initialCoverUrl || null);
   const [coverUploading, setCoverUploading] = useState(false);
   const fileRef = useRef(null);
   const dropRef = useRef(null);
@@ -64,7 +103,80 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   const { isDesktop } = useBreakpoint();
 
   const dismiss = () => { setClosing(true); setTimeout(() => { setClosing(false); onClose(); }, 220); };
-  const backdropDismiss = () => { if (!validationReport && !bevCheckFailed) dismiss(); };
+  // Backdrop click only dismisses while the modal has nothing recoverable to
+  // lose. Once we're showing a BevCheck report or an extracted-pattern review,
+  // require an explicit close — accidental click-outside would otherwise
+  // strand the user with no in-UI path back to data that's already saved on
+  // the import_jobs row. (The pill self-dismisses on tap, so it isn't a
+  // fallback re-open surface.)
+  const backdropDismiss = () => { if (!validationReport && !bevCheckFailed && !extracted) dismiss(); };
+  // X-button discard confirm (S66). When the modal has reviewable data or a
+  // validation report on screen, a single X click would destroy access with
+  // no recovery — the import_jobs row stays completed but the user has no
+  // in-UI way back. Gate dismiss behind an explicit confirm in those states.
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const hasRecoverableData = !!(validationReport || bevCheckFailed || extracted);
+  const requestDismiss = () => {
+    if (hasRecoverableData) { setDiscardConfirmOpen(true); }
+    else { dismiss(); }
+  };
+
+  // Handoff from ImportPill (queue completed) → land directly on review stage.
+  useEffect(() => {
+    if (initialExtracted) {
+      setExtracted(initialExtracted);
+      setEditTitle(sanitizeTitle(initialExtracted.title) || "");
+      setEditDesigner(initialExtracted.designer || "");
+      setEditHook(initialExtracted.hook_size || "");
+      setEditWeight(initialExtracted.yarn_weight || "");
+      setStage("review");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── In-modal queue polling — via shared hook (S66) ────────────────────────
+  // POST /api/import-job, keep this modal mounted, hook polls job-status. On
+  // completion the form flips to review in place. If the user navigates away
+  // mid-import the unmount cleanup hands the active job to ImportPill.
+  const [pollingJobId, setPollingJobId] = useState(initialPollingJobId || null);
+  const msgIntervalRef = useRef(null);
+  const pollingJobIdRef = useRef(initialPollingJobId || null);
+  useEffect(() => { pollingJobIdRef.current = pollingJobId; }, [pollingJobId]);
+  const polling = useImportJobPolling(pollingJobId);
+  useEffect(() => {
+    if (!pollingJobId) return;
+    if (polling.isComplete) {
+      if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+      const result = polling.extractedData || {};
+      setExtracted(result);
+      setEditTitle(sanitizeTitle(result.title) || "");
+      setEditDesigner(result.designer || "");
+      setEditHook(result.hook_size || "");
+      setEditWeight(result.yarn_weight || "");
+      if (polling.coverImageUrl) setCoverUrl(polling.coverImageUrl);
+      if (polling.validationReport) {
+        if (polling.validationReport.error) { setBevCheckFailed(true); }
+        else if (!polling.validationReport.skipped) { setValidationReport(polling.validationReport); }
+      }
+      setStage("review");
+      setPollingJobId(null);
+    } else if (polling.isFailed) {
+      if (msgIntervalRef.current) { clearInterval(msgIntervalRef.current); msgIntervalRef.current = null; }
+      setErrorMsg(polling.errorMessage || "Bev got tangled — try again.");
+      setStage("error");
+      setPollingJobId(null);
+    }
+  }, [pollingJobId, polling.isComplete, polling.isFailed]);
+  // Unmount-only: if we still have an active polling job (user navigated
+  // away during import), hand off to ImportPill so progress survives.
+  useEffect(() => {
+    return () => {
+      if (pollingJobIdRef.current) {
+        setActiveImportJob(pollingJobIdRef.current);
+        if (msgIntervalRef.current) clearInterval(msgIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleFiles = async (fileList) => {
     const arr = Array.from(fileList).filter(f => f.type.startsWith("image/"));
@@ -113,78 +225,75 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   }, [dragIdx]);
   const onThumbDragEnd = useCallback(() => { setDragIdx(null); }, []);
 
+  // Queue path (S65 Task 2): merge → upload to Cloudinary → POST /api/import-job
+  // → keep this modal mounted and poll job-status here. On completion the
+  // form flips to review in place. If the user navigates away mid-import the
+  // unmount cleanup hands off to ImportPill — the pill is the navigate-away
+  // fallback, not the default handoff.
   const handleSubmit = async () => {
     if (items.length === 0) return;
     setStage("loading");
     setLoadingMsg(LOADING_MSGS[0]);
-
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
       msgIdx = (msgIdx + 1) % LOADING_MSGS.length;
       setLoadingMsg(LOADING_MSGS[msgIdx]);
     }, 3000);
+    msgIntervalRef.current = msgInterval;
 
     try {
-      const extractController = new AbortController();
-      const extractTimeout = setTimeout(() => extractController.abort(), 240000);
-      let res;
-      try {
-        res = await fetch("/api/extract-pattern-vision", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            images: items.map(it => it.base64),
-            pageCount: items.length,
-            fileName: items[0].file.name,
-          }),
-          signal: extractController.signal,
-        });
-      } catch (fetchErr) {
-        clearTimeout(extractTimeout);
-        clearInterval(msgInterval);
-        if (fetchErr.name === "AbortError") throw new Error("Server extraction failed: timeout");
-        throw fetchErr;
-      }
-      clearTimeout(extractTimeout);
-      clearInterval(msgInterval);
+      const session = getSession();
+      if (!session?.access_token) throw new Error("Sign in to import patterns");
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || "Server extraction failed: " + res.status);
-      }
+      // Single image: use thumb directly. Multi-image: merge into one tall composite.
+      const uploadDataUrl = items.length === 1 ? items[0].thumb : await mergeImagesVertically(items);
 
-      const result = await res.json();
-      setExtracted(result);
-      setEditTitle(result.title || "");
-      setEditDesigner(result.designer || "");
-      setEditHook(result.hook_size || "");
-      setEditWeight(result.yarn_weight || "");
-      setStage("review");
-      // Run BevCheck in background (non-blocking)
-      {
-        setValidating(true);
-        const valText = JSON.stringify(result, null, 2);
-        const trimmed = valText.length > 20000 ? valText.slice(0, valText.lastIndexOf("\n", 20000) || 20000) : valText;
-        bevCheckTextRef.current = trimmed;
-        (async () => {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 90000);
-            const vr = await fetch("/api/extract-pattern", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "bevcheck", patternText: trimmed }), signal: controller.signal });
-            clearTimeout(timeout);
-            const data = await vr.json();
-            if (vr.ok && !data.error) { setValidationReport(data); } else { console.warn("[ImageImport] BevCheck API error:", vr.status, data.message); setBevCheckFailed(true); }
-          } catch (e) { console.warn("[ImageImport] BevCheck background validation failed:", e); setBevCheckFailed(true); }
-          setValidating(false);
-        })();
+      // Upload to Cloudinary (same preset as cover-image upload above)
+      const fd = new FormData();
+      fd.append("file", uploadDataUrl);
+      fd.append("upload_preset", "yarnhive_patterns");
+      fd.append("folder", "pattern-imports");
+      const upRes = await fetch("https://api.cloudinary.com/v1_1/dmaupzhcx/image/upload", { method: "POST", body: fd });
+      if (!upRes.ok) throw new Error("Photo upload failed (" + upRes.status + ")");
+      const upData = await upRes.json();
+      const cloudUrl = upData.secure_url;
+      if (!cloudUrl) throw new Error("Photo upload returned no URL");
+
+      // POST queue job. For images the Cloudinary URL is both the file and
+      // the natural cover, so we hand it in as cover_image_url too — the
+      // existing wire threads it back to the review modal.
+      const jobRes = await fetch("/api/import-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ file_url: cloudUrl, file_type: "image", cover_image_url: cloudUrl }),
+      });
+      if (!jobRes.ok) {
+        const errBody = await jobRes.json().catch(() => ({}));
+        throw new Error(errBody.error || "Couldn't queue import (" + jobRes.status + ")");
       }
+      const { job_id } = await jobRes.json();
+      // Cover for the in-modal review state — cloudUrl is the natural cover
+      // for image imports. The polling effect will also populate this from
+      // job-status response, but setting locally is faster and avoids one
+      // round-trip's worth of "no cover" frame.
+      setCoverUrl(cloudUrl);
+      setPollingJobId(job_id);
+      // Don't close the modal; the polling effect transitions to review.
     } catch (err) {
       clearInterval(msgInterval);
-      console.error("[ImageImport] Extraction failed:", err);
-      setErrorMsg(err.message || "We couldn't read this pattern from the photos.");
+      msgIntervalRef.current = null;
+      console.error("[ImageImport] Queue submission failed:", err);
+      setErrorMsg(err.message || "We couldn't start your import. Try again.");
       setStage("error");
     }
   };
+
+  /* DEPRECATED S64 — old inline extraction path replaced by queue above. Cleanup S65.
+  const handleSubmitInline = async () => {
+    // (kept for rollback reference) Old path: POST /api/extract-pattern-vision directly
+    // with images:items.map(it=>it.base64), wait for sync extraction, render review.
+  };
+  */
 
   const handleSave = () => {
     const rows = buildRowsFromComponents(extracted.components);
@@ -196,7 +305,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
       cat: "Uncategorized",
       hook: editHook || "",
       weight: editWeight || "",
-      notes: extracted.pattern_notes || "",
+      notes: "",
+      pattern_notes: extracted.pattern_notes || "",
       yardage: 0, rating: 0, skeins: 0, skeinYards: 200,
       gauge: { stitches: 12, rows: 16, size: 4 },
       dimensions: { width: 50, height: 60 },
@@ -316,7 +426,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
   // ── LOADING SCREEN ──
   const loadingContent = (
     <div style={{ padding: "48px 20px 36px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, position: "relative" }}>
-      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>}
+      {/* X removed in S1.5.3 — backdrop click or route nav dismisses. */}
       <style>{`@keyframes spinLoaderVision{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInMsgV{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{position:"relative",width:60,height:60,marginBottom:24}}>
         <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoaderVision 1s linear infinite"}}/>
@@ -486,7 +596,7 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
             /></div>
             {(()=>{const allChecks=validationReport.checks||[];const coreC=allChecks.filter(c=>checkTier(c)==="core");const advC=allChecks.filter(c=>checkTier(c)==="advisory");const renderC=(c,op)=>(<div key={c.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",opacity:op||1}}><span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"\u2753"}</span><div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{sentenceCase(c.label)}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div></div>);return <>{coreC.map(c=>renderC(c))}{advC.length>0&&<><div style={{borderTop:"0.5px solid #EDE4F7",margin:"10px 0"}}/><div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",color:"#9B7EC8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Advisory</div>{advC.map(c=>renderC(c,0.85))}</>}</>;})()}
             {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
-            <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>
+            <button onClick={()=>{setShowFullReport(false);handleSave();}} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Now</button>
           </div>
         </div>
       )}
@@ -501,23 +611,30 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
     : stage === "error" ? errorContent
     : reviewContent;
 
-  // ── MINIMIZED FLOATING CARD ──
-  if (minimized) {
-    return (
-      <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,overflowY:"auto",borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column"}}>
-        <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
-          <button onClick={dismiss} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>
-        </div>
-        <div style={{flex:1,overflowY:"auto",padding:"8px 18px 18px"}}>
-          {content}
+  // Discard-confirm overlay rendered above all three modal shells. Keeps
+  // import_jobs row at status='completed' — user can re-find it from a
+  // future Imports page; we don't delete here.
+  const discardConfirm = discardConfirmOpen ? (
+    <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div onClick={()=>setDiscardConfirmOpen(false)} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)"}}/>
+      <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:16,maxWidth:360,width:"100%",padding:"24px 22px",boxShadow:"0 24px 64px rgba(28,23,20,.3)",fontFamily:T.sans}}>
+        <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:T.ink,marginBottom:8}}>Discard this import?</div>
+        <div style={{fontSize:13,color:T.ink2,lineHeight:1.6,marginBottom:18}}>Bev's work won't be saved.</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setDiscardConfirmOpen(false)} style={{flex:1,background:T.linen,color:T.ink,border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Keep working</button>
+          <button onClick={()=>{setDiscardConfirmOpen(false);dismiss();}} style={{flex:1,background:"#C0544A",color:"#fff",border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Discard</button>
         </div>
       </div>
-    );
-  }
+    </div>
+  ) : null;
+
+  // Minimized floating-card render was removed in S1.5.3. The small
+  // ImportPill is the only minimized surface; closing the modal mid-import
+  // hands off to it via setActiveImportJob in the unmount cleanup.
 
   // ── MODAL SHELL ──
   if (isDesktop) return (
+    <>
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "fu"} style={{
@@ -526,19 +643,23 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         boxShadow: "0 24px 64px rgba(28,23,20,.3)",
       }}>
         <div style={{ flexShrink: 0, padding: "24px 28px 0", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={dismiss} style={{
-            background: T.linen, border: "none", borderRadius: 99, width: 32, height: 32,
-            cursor: "pointer", fontSize: 18, color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
-          }}>&times;</button>
+          <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{
+            background: T.linen, border: "none", borderRadius: 99,
+            ...(hasRecoverableData ? { padding: "6px 14px", fontSize: 12, fontWeight: 600 } : { width: 32, height: 32, fontSize: 18 }),
+            cursor: "pointer", color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
+          }}>{hasRecoverableData ? "Discard" : "×"}</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 32px" }}>
           {content}
         </div>
       </div>
     </div>
+    {discardConfirm}
+    </>
   );
 
   return (
+    <>
     <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "flex-end" }}>
       <div className={closing ? "dim-out" : "dim-in"} onClick={backdropDismiss} style={{ position: "absolute", inset: 0, background: "rgba(28,23,20,.6)", backdropFilter: "blur(4px)" }} />
       <div className={closing ? "" : "su"} style={{
@@ -548,10 +669,11 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         <div style={{ flexShrink: 0, padding: "16px 22px 0" }}>
           <div style={{ width: 36, height: 3, background: T.border, borderRadius: 99, margin: "0 auto 18px" }} />
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={dismiss} style={{
-              background: T.linen, border: "none", borderRadius: 99, width: 30, height: 30,
-              cursor: "pointer", fontSize: 16, color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
-            }}>&times;</button>
+            <button onClick={requestDismiss} aria-label={hasRecoverableData?"Discard import":"Close"} style={{
+              background: T.linen, border: "none", borderRadius: 99,
+              ...(hasRecoverableData ? { padding: "6px 14px", fontSize: 12, fontWeight: 600 } : { width: 30, height: 30, fontSize: 16 }),
+              cursor: "pointer", color: T.ink3, display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{hasRecoverableData ? "Discard" : "×"}</button>
           </div>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "0 22px 40px" }}>
@@ -559,6 +681,8 @@ const ImageImportModal = ({ onClose, onPatternSaved, userId, isPro, onUpgrade, m
         </div>
       </div>
     </div>
+    {discardConfirm}
+    </>
   );
 };
 

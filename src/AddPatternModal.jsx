@@ -4,8 +4,18 @@ import { PILL } from "./constants.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseAuth, getSession } from "./supabase.js";
 import { CHECK_ICON, extractFirstRowNumber } from "./StitchCheck.jsx";
 import BevGauge, { deriveState, sentenceCase, checkTier } from "./components/BevGauge.jsx";
+import { setActiveImportJob } from "./components/ImportPill.jsx";
+import { useImportJobPolling } from "./hooks/useImportJobPolling.js";
+import { PHASE_COPY_POOLS, REASSURANCE_LINE, pickPhaseCopy } from "./utils/importPhaseCopy.js";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+
+// Strip authoring-tool file extensions left on extracted titles (e.g. ".cdr"
+// from CorelDraw exports). Mirrors sanitizeTitle in api/extract-pattern.js;
+// duplicated here so the client bundle doesn't pull from api/.
+const sanitizeTitle = (raw) => typeof raw === 'string'
+  ? raw.replace(/\.(cdr|pdf|docx|doc|ai|psd|jpg|jpeg|png)$/i, '').trim()
+  : raw;
 
 // ─── CATEGORY IMAGES (for cover picker in PDF review) ─────────────────────
 const CAT_IMG = {
@@ -64,7 +74,11 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
-// Extract text from PDF using pdf.js — no image payload, works on any PDF size
+// Extract text + embedded metadata title from PDF using pdf.js. The metadata
+// title (pdf.getMetadata().info.Title) is a free fallback when the model
+// returns an empty title — common on chunked PDFs whose title page is
+// image-only. Returned as { text, metadataTitle } so the caller can forward
+// metadataTitle through /api/import-job without re-parsing the file.
 const extractTextFromPDF = async (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -82,6 +96,18 @@ const extractTextFromPDF = async (file) => {
         const typedArray = new Uint8Array(e.target.result);
         const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise;
         console.log("[Wovely] PDF loaded, pages:", pdf.numPages);
+        let metadataTitle = null;
+        try {
+          const meta = await pdf.getMetadata();
+          const raw = meta?.info?.Title;
+          if (raw && typeof raw === "string") {
+            const trimmed = raw.trim();
+            if (trimmed && trimmed.toLowerCase() !== "untitled") metadataTitle = trimmed;
+          }
+        } catch (metaErr) {
+          // getMetadata is best-effort; the rest of extraction is still useful.
+          console.warn("[Wovely] pdf.getMetadata failed:", metaErr?.message);
+        }
         let fullText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -89,8 +115,8 @@ const extractTextFromPDF = async (file) => {
           const pageText = content.items.map(item => item.str).join(" ");
           fullText += `\n--- PAGE ${i} ---\n${pageText}`;
         }
-        console.log("[Wovely] PDF text extracted, chars:", fullText.length);
-        resolve(fullText);
+        console.log("[Wovely] PDF text extracted, chars:", fullText.length, "metaTitle:", metadataTitle || "(none)");
+        resolve({ text: fullText, metadataTitle });
       } catch (err) {
         console.error("[Wovely] pdf.js text extraction failed:", err);
         reject(err);
@@ -662,11 +688,12 @@ const ManualEntryForm = ({onSave,Btn}) => {
   );
 };
 
-const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,onPdfHandoff}) => {
+const URLImportForm = ({onSave,Btn,Photo,initialUrl,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,onPdfHandoff}) => {
   const [url,setUrl]=useState(initialUrl||""),[loading,setLoading]=useState(false),[stageText,setStageText]=useState(""),[preview,setPreview]=useState(null),[error,setError]=useState(null);
   const [validating,setValidating]=useState(false),[validationReport,setValidationReport]=useState(null);
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
   useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
+  useEffect(()=>{onReviewActive?.(!!preview);},[preview]);
   const autoTriggered=useRef(false);
   const doImport=async()=>{
     if(!url.trim()) return;
@@ -700,9 +727,11 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
       const pdfFile = new File([pdfBlob], 'pattern.pdf', { type: 'application/pdf' });
       setStageText("Extracting pattern from PDF...");
 
-      let extractedText;
+      let extractedText, pdfMetadataTitle = null;
       try {
-        extractedText = await extractTextFromPDF(pdfFile);
+        const r = await extractTextFromPDF(pdfFile);
+        extractedText = r.text;
+        pdfMetadataTitle = r.metadataTitle;
       } catch (err) {
         clearInterval(msgIntv);
         onExtractionEnd?.();
@@ -725,7 +754,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
         const extractRes = await fetch('/api/extract-pattern', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pdfText: extractedText, pageCount: 4 })
+          body: JSON.stringify({ pdfText: extractedText, pageCount: 4, pdfMetadataTitle })
         });
         if (!extractRes.ok) throw new Error('Server extraction failed');
         pdfData = await extractRes.json();
@@ -795,7 +824,7 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   useEffect(()=>{if(initialUrl&&!autoTriggered.current){autoTriggered.current=true;doImport();}},[]);
   if(loading) return (
     <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",position:"relative"}}>
-      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+      {/* X removed in S1.5.3 — backdrop click or route nav dismisses. */}
       <style>{`@keyframes spinLoader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{width:60,height:60,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite",marginBottom:24}}/>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8}}>Reading pattern page...</div>
@@ -835,9 +864,13 @@ const URLImportForm = ({onSave,Btn,Photo,initialUrl,onMinimize,onExtractionStart
   );
 };
 
-const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,onExtractionEnd,onBevCheckActive,initialExtracted}) => {
-  const [stage,setStage]=useState(initialExtracted?"review":"pick");
-  const [progress,setProgress]=useState(initialExtracted?100:0);
+const PDFUploadForm = ({onSave,onClose,Btn,isPro,onUpgrade,onExtractionStart,onExtractionEnd,onBevCheckActive,onReviewActive,initialExtracted,initialValidationReport,initialPollingJobId}) => {
+  // initialPollingJobId (S1.5.3): when the ImportPill re-opens the modal
+  // mid-import, land directly in the extracting stage and let polling
+  // resume against the existing job_id. The hook computes totalElapsed
+  // from job.created_at, so the elapsed counter continues without reset.
+  const [stage,setStage]=useState(initialExtracted?"review":(initialPollingJobId?"extracting":"pick"));
+  const [progress,setProgress]=useState(initialExtracted?100:(initialPollingJobId?40:0));
   const [stageText,setStageText]=useState("");
   const [extracted,setExtracted]=useState(initialExtracted?.extracted||null);
   const [fileInfo,setFileInfo]=useState(initialExtracted?.fileInfo||null);
@@ -857,11 +890,87 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
   const [complexityStats,setComplexityStats]=useState(null); // {pages, textLen}
   const [validationFlags,setValidationFlags]=useState([]);
   const [flagsDismissed,setFlagsDismissed]=useState(false);
-  const [validationReport,setValidationReport]=useState(null); // BevCheck result
+  // initialValidationReport arrives from the pill → modal handoff path (queue
+  // completed; worker already wrote validation_report into the row). On the
+  // URL-import handoff path (still sync) it's null and the useEffect below
+  // calls /api/extract-pattern?mode=bevcheck client-side. Pure-queue path
+  // gets the report from the polling hook instead (see effect further down).
+  const [validationReport,setValidationReport]=useState(initialValidationReport||null);
   const [validating,setValidating]=useState(false);
   const [bevCheckFailed,setBevCheckFailed]=useState(false);
   const bevCheckTextRef=useRef(null);
   useEffect(()=>{onBevCheckActive?.(!!validationReport||bevCheckFailed);},[validationReport,bevCheckFailed]);
+  useEffect(()=>{onReviewActive?.(!!extracted);},[extracted]);
+
+  // ── In-modal queue polling — now via shared hook (S66) ───────────────────
+  // pollingJobId is set after POST /api/import-job succeeds. When the hook
+  // reports completed/failed we flip stage in place; if the user navigates
+  // away during processing the unmount cleanup hands off to ImportPill.
+  const [pollingJobId,setPollingJobId]=useState(initialPollingJobId||null);
+  const pollingJobIdRef=useRef(initialPollingJobId||null);
+  useEffect(()=>{pollingJobIdRef.current=pollingJobId;},[pollingJobId]);
+  // Pill-resume mount: announce extracting so the modal's backdrop logic
+  // knows we're in the loading state right away, before any in-modal upload.
+  useEffect(()=>{if(initialPollingJobId)onExtractionStart?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  const intv2Ref=useRef(null);
+  const polling=useImportJobPolling(pollingJobId);
+  // Stage 1.5.3: phase-driven copy from worker. Stays stable within a
+  // phase, transitions once per phase change. Same source as ImportPill,
+  // so big modal and compact pill speak with one voice.
+  const lastPickedPhaseRef=useRef(null);
+  useEffect(()=>{
+    if(!polling.currentPhase) return;
+    if(polling.currentPhase===lastPickedPhaseRef.current) return;
+    const next=pickPhaseCopy(polling.currentPhase);
+    if(next) setStageText(next);
+    lastPickedPhaseRef.current=polling.currentPhase;
+  },[polling.currentPhase]);
+  useEffect(()=>{
+    if(!pollingJobId) return;
+    if(polling.isComplete){
+      if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
+      const result=polling.extractedData||{};
+      setExtracted(result);
+      setEditTitle(sanitizeTitle(result.title)||"");setEditDesigner(result.designer||"");
+      setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
+      if(polling.coverImageUrl) setCoverUrl(polling.coverImageUrl);
+      // Server-side BevCheck result (S66). When validation_report has an
+      // error key, surface failure UI; otherwise drop it into state for the
+      // review panel. {skipped:true} (no text to validate) reads as no
+      // report — same display as the legacy null case.
+      if(polling.validationReport){
+        if(polling.validationReport.error){ setBevCheckFailed(true); }
+        else if(!polling.validationReport.skipped){ setValidationReport(polling.validationReport); }
+      }
+      const allRows=(result.components||[]).flatMap(c=>(c.rows||[]));
+      const flags=[];
+      if(allRows.length<3) flags.push("Fewer than 3 rows extracted");
+      const rndNums=allRows.map(r=>{const m=(r.label||"").match(/\d+/);return m?parseInt(m[0]):null;}).filter(Boolean);
+      for(let i=1;i<rndNums.length;i++){if(rndNums[i]-rndNums[i-1]>2) flags.push("Gap detected between round "+rndNums[i-1]+" and "+rndNums[i]);}
+      setValidationFlags(flags);
+      setProgress(100);setStage("review");
+      setPollingJobId(null);
+      onExtractionEnd?.();
+    } else if(polling.isFailed){
+      if(intv2Ref.current){clearInterval(intv2Ref.current);intv2Ref.current=null;}
+      setStage("error");setErrorType("extraction_failed");
+      setErrorMsg(polling.errorMessage||"Bev got tangled — try again.");
+      setPollingJobId(null);
+      onExtractionEnd?.();
+    }
+  },[pollingJobId,polling.isComplete,polling.isFailed]);
+  // Unmount-only: if we still have an active polling job (user navigated
+  // away during extraction), hand off to ImportPill so the import survives.
+  useEffect(()=>{
+    return ()=>{
+      if(pollingJobIdRef.current){
+        setActiveImportJob(pollingJobIdRef.current);
+        if(intv2Ref.current) clearInterval(intv2Ref.current);
+      }
+    };
+  },[]);
   const [showFullReport,setShowFullReport]=useState(false);
   const [matExpanded,setMatExpanded]=useState(false);
   const [compExpanded,setCompExpanded]=useState({});
@@ -876,7 +985,12 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
     }
   },[stage,errorType,autoRetried]);
   useEffect(()=>{
+    // Only fires on the URL-import handoff path: pdfText is non-empty (URL
+    // flow forwards the fetched PDF text) AND no validation_report came in
+    // from the queue. The queue path arrives via the pill with
+    // initialValidationReport already populated by the worker, so we skip.
     if(!initialExtracted||!initialExtracted.pdfText) return;
+    if(validationReport) return;
     setValidating(true);
     const valText=initialExtracted.pdfText.length>20000
       ?initialExtracted.pdfText.slice(0,initialExtracted.pdfText.lastIndexOf("\n",20000)||20000)
@@ -927,17 +1041,65 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
         console.warn("[Wovely] renderPDFCoverImage returned null — canvas render likely failed");
       }
       setFileInfo({url:uploaded.url,name:uploaded.filename,type:uploaded.type,coverUrl:coverCloudinaryUrl});setProgress(33);
-      // Stage 2: Extract — text mode for PDFs (fast), base64 for images
-      const EXTRACT_MSGS=["Reading your pattern...","Identifying components...","Extracting rows and rounds...","Almost there..."];
-      let extractMsgIdx=0;
-      setStage("extracting");setStageText(EXTRACT_MSGS[0]);
+      // Stage 2: Extract — stageText is now rewritten in place by the
+      // phase-change effect above (driven by polling.currentPhase). The
+      // initial value covers the brief pre-claim window and the legacy
+      // sync path which never starts polling. The old 4-string EXTRACT_MSGS
+      // rotation was removed in S1.5.3 so the modal and ImportPill never
+      // disagree about what the worker is doing.
+      setStage("extracting");setStageText("Reading your pattern...");
       const intv2=setInterval(()=>setProgress(p=>Math.min(p+1,62)),300);
-      const intv3=setInterval(()=>{extractMsgIdx=(extractMsgIdx+1)%EXTRACT_MSGS.length;setStageText(EXTRACT_MSGS[extractMsgIdx]);},8000);
+      intv2Ref.current=intv2;
       let result;let extractedText=null;
       try{
         if(isPDF){
           console.log("[Wovely] Using pdf.js text extraction for PDF...");
-          const pdfText=await extractTextFromPDF(f);extractedText=pdfText;
+          const {text:pdfText,metadataTitle:pdfMetaTitle}=await extractTextFromPDF(f);extractedText=pdfText;
+
+          // Queue path (S65 Task 2): post the job, keep this modal mounted,
+          // and poll job-status from the in-modal effect above. On completion
+          // the form flips to its review stage in place. If the user
+          // navigates away mid-import the unmount-only cleanup hands off to
+          // ImportPill. The PILL is the navigate-away fallback, not the
+          // default handoff. TODO(S66): remove inline extract-pattern path
+          // entirely once queue path is the only one in use.
+          {
+            const session = getSession();
+            const userToken = session?.access_token;
+            if (userToken && uploaded?.url) {
+              try {
+                const jobRes = await fetch('/api/import-job', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+                  body: JSON.stringify({ file_url: uploaded.url, file_type: 'pdf', raw_text: pdfText, cover_image_url: coverCloudinaryUrl || null, pdf_metadata_title: pdfMetaTitle || null }),
+                });
+                if (jobRes.ok) {
+                  const { job_id } = await jobRes.json();
+                  setPollingJobId(job_id);
+                  return; // intervals + stage="extracting" stay running; polling effect transitions to review
+                }
+                const errBody = await jobRes.json().catch(() => ({}));
+                console.error('[Wovely] Queue POST failed:', jobRes.status, errBody);
+                clearInterval(intv2);intv2Ref.current=null;
+                onExtractionEnd?.();
+                setStage('error');
+                setErrorType('extraction_failed');
+                setErrorMsg(errBody.error || 'We couldn’t start your import. Try again.');
+                return;
+              } catch (queueErr) {
+                console.error('[Wovely] Queue POST exception:', queueErr.message);
+                clearInterval(intv2);intv2Ref.current=null;
+                onExtractionEnd?.();
+                setStage('error');
+                setErrorType('server_hiccup');
+                setErrorMsg('We couldn’t reach the import service. Try again.');
+                return;
+              }
+            }
+            // Falls through to inline extraction below if no session / no upload URL —
+            // shouldn't happen in normal flow, kept as deprecated safety net.
+          }
+
           // Detect complexity from page count + text density
           const pageMatches=(pdfText.match(/--- PAGE \d+ ---/g)||[]).length;
           const textLen=pdfText.replace(/--- PAGE \d+ ---/g,"").replace(/\s+/g," ").trim().length;
@@ -1003,7 +1165,7 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
               extractRes=await fetch("/api/extract-pattern",{
                 method:"POST",
                 headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({pdfText,pageCount:pageMatches}),
+                body:JSON.stringify({pdfText,pageCount:pageMatches,pdfMetadataTitle:pdfMetaTitle||null}),
                 signal:extractController.signal,
               });
             }catch(fetchErr){
@@ -1021,11 +1183,11 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
           result=await extractPatternFromPDF(base64Data,f.name,fileMime,false);
         }
       }
-      catch(ex){clearInterval(intv2);clearInterval(intv3);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
-      clearInterval(intv2);clearInterval(intv3);setProgress(66);
+      catch(ex){clearInterval(intv2);console.error("[Wovely] Extraction failed:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"We couldn't read this pattern automatically.");setExtracted({title:f.name.replace(/\.(pdf|jpg|png|jpeg)$/i,"").replace(/[-_]/g," "),components:[],materials:[],pattern_notes:"",hook_size:"",yarn_weight:"",designer:"",difficulty:"",assembly_notes:""});return;}
+      clearInterval(intv2);setProgress(66);
       setStage("building");setStageText("Building your workspace...");
       await new Promise(r=>setTimeout(r,600));setProgress(100);
-      setExtracted(result);setEditTitle(result.title||"");setEditDesigner(result.designer||"");setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
+      setExtracted(result);setEditTitle(sanitizeTitle(result.title)||"");setEditDesigner(result.designer||"");setEditHook(result.hook_size||"");setEditWeight(result.yarn_weight||"");
       // Import failsafe: lightweight validation flags
       const allRows=(result.components||[]).flatMap(c=>(c.rows||[]));
       const flags=[];
@@ -1034,28 +1196,19 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       for(let i=1;i<rndNums.length;i++){if(rndNums[i]-rndNums[i-1]>2) flags.push("Gap detected between round "+rndNums[i-1]+" and "+rndNums[i]);}
       if(complexityStats&&complexityStats.pages>=5&&allRows.length<10) flags.push("Only "+allRows.length+" rows from a "+complexityStats.pages+"-page pattern");
       setValidationFlags(flags);
-      // Run BevCheck in background (non-blocking) — requires client-side Gemini key
-      if(extractedText){
-        setValidating(true);
-        const valText=extractedText.length>20000?extractedText.slice(0,extractedText.lastIndexOf("\n",20000)||20000):extractedText;
-        bevCheckTextRef.current=valText;
-        const controller=new AbortController();
-        const timeout=setTimeout(()=>controller.abort(),90000);
-        const bevCheckPromise=fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal})
-          .then(vr=>vr.json().then(data=>({ok:vr.ok,data})))
-          .then(({ok,data})=>{
-            if(ok&&!data.error){setValidationReport(data);}else{console.warn("[Wovely] BevCheck API error:",data.message);setBevCheckFailed(true);}
-          })
-          .catch(e=>{console.warn("[Wovely] BevCheck failed:",e);setBevCheckFailed(true);})
-          .finally(()=>{clearTimeout(timeout);setValidating(false);});
-      }
+      // Client-side BevCheck removed in S66. The queue path returned early
+      // above on success; if it didn't fail the worker runs BevCheck and
+      // writes validation_report into the row before status flips to
+      // completed. The polling effect reads it from the job-status payload.
+      // The deprecated vision/text fallback below this comment is the only
+      // way to reach here — kept as a safety net but no longer validated.
       await new Promise(r=>setTimeout(r,400));setStage("review");onExtractionEnd?.();    }catch(ex){console.error("[Wovely] PDF import error:",ex);onExtractionEnd?.();const isHiccup=(ex.httpStatus&&(ex.httpStatus>=500))||ex.message?.includes("UNAVAILABLE")||ex.message?.includes("Server extraction failed");setErrorType(isHiccup?"server_hiccup":"extraction_failed");setStage("error");setErrorMsg(isHiccup?"server_hiccup":"Something went wrong. Try again or use manual entry.");}
   };
   const handleSave=()=>{
     const rows=buildRowsFromComponents(extracted.components);
     const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));
     const finalCover=coverUrl||fileInfo?.coverUrl||null;
-    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_url:extracted?.source_url||fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
+    onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:"",pattern_notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_url:extracted?.source_url||fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?validationReport:null});
   };
   const handleFallbackSave=()=>{onSave({id:Date.now(),title:extracted?.title||"Imported Pattern",source:"PDF Import",cat:"Uncategorized",hook:"",weight:"",notes:"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:[],rows:[],photo:fileInfo?.coverUrl||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:fileInfo?.coverUrl||null,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||""});};
   const handleRetry=()=>{setStage("pick");setProgress(0);setErrorMsg("");setErrorType("");setComplexity(null);setComplexityStats(null);setAutoRetried(false);if(lastFileRef.current){const f=lastFileRef.current;setTimeout(()=>handleFile(f),100);}};
@@ -1065,35 +1218,51 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
       <label style={{display:"block",cursor:"pointer"}}><div style={{border:`2px dashed ${T.border}`,borderRadius:16,padding:"36px 20px",textAlign:"center",background:T.linen,transition:"border-color .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor=T.terra} onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}><div style={{fontSize:40,marginBottom:10}}>📄</div><div style={{fontFamily:T.serif,fontSize:17,color:T.ink,marginBottom:6}}>Upload your pattern</div><div style={{fontSize:13,color:T.ink3,marginBottom:14}}>PDF or photo — we'll read it and set up your workspace</div><div style={{background:T.terra,color:"#fff",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,display:"inline-block"}}>Choose File</div></div><input type="file" accept=".pdf,application/pdf" onChange={handleFile} style={{display:"none"}}/></label>
     </div>
   );
-  // Complexity-aware loading messages
+  // Complexity-aware loading messages. Headline pulls from stageText —
+  // which the phase effect rewrites as the worker advances — so the modal
+  // tracks the worker. Subtitle is the navigate-away reassurance line
+  // while extracting; complexity hints take precedence when set.
   const complexityMsg = complexity==="complex"
     ? {emoji:"🧶🧶🧶", headline:"Big pattern. Bev is going all in.", sub:`${complexityStats?.pages||"Many"} pages of pure craft. Every round, every stitch, every note. Grab your hook — this might take a minute.`, barSpeed:80}
     : complexity==="detailed"
     ? {emoji:"🧶🧶", headline:"This one's detailed.", sub:`Reading carefully through ${complexityStats?.pages||"all"} pages. Hang tight — about 30–60 seconds.`, barSpeed:200}
-    : {emoji:"🔎", headline:stageText, sub:null, barSpeed:300};
-  const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:null, barSpeed:300};
-  if(stage==="uploading"||stage==="extracting"||stage==="building") return (
+    : {emoji:"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
+  const loadingInfo = (stage==="extracting"&&complexity) ? complexityMsg : {emoji:stage==="building"?"✓":"🔎", headline:stageText, sub:stage==="extracting"?REASSURANCE_LINE:null, barSpeed:300};
+  if(stage==="uploading"||stage==="extracting"||stage==="building") {
+    // Elapsed shown only when polling is driving — same totalElapsed value
+    // and format the ImportPill uses (computed from job.created_at), so
+    // closing the modal mid-import and tapping the pill resumes the count
+    // without resetting. Hidden on the legacy synchronous path where no
+    // job_id exists.
+    const elapsedLabel = pollingJobId
+      ? (polling.totalElapsed >= 60
+          ? `${Math.floor(polling.totalElapsed / 60)}m ${polling.totalElapsed % 60}s`
+          : `${polling.totalElapsed}s`)
+      : null;
+    return (
     <div style={{padding:"48px 20px 36px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:0,position:"relative"}}>
-      {onMinimize&&<button onClick={onMinimize} style={{position:"absolute",top:12,right:4,background:T.linen,border:"none",borderRadius:99,width:30,height:30,cursor:"pointer",fontSize:16,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+      {/* X button removed in S1.5.3 — backdrop click or route nav dismisses,
+          and the small ImportPill is the only minimized surface. */}
       <style>{`@keyframes spinLoader{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`}</style>
       <div style={{position:"relative",width:60,height:60,marginBottom:24}}>
         <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#9B7EC8",animation:"spinLoader 1s linear infinite"}}/>
         <img src="/bev_neutral.png" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:40,height:40,objectFit:"contain"}} alt="Bev"/>
       </div>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4}}>{loadingInfo.headline}</div>
+      <div key={loadingInfo.headline} style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:600,color:"#2D2D4E",marginBottom:8,lineHeight:1.4,animation:"fadeInMsg .4s ease both"}}>{loadingInfo.headline}</div>
       {loadingInfo.sub&&(
-        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:16,maxWidth:300}}>
+        <div style={{fontSize:14,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#6B6B8A",lineHeight:1.7,marginBottom:elapsedLabel?6:16,maxWidth:320}}>
           {loadingInfo.sub}
         </div>
       )}
-      {stage==="extracting"&&(
-        <div key={stageText} style={{fontSize:13,fontFamily:"Inter,sans-serif",fontWeight:400,color:"#9B7EC8",marginTop:loadingInfo.sub?0:8,animation:"fadeInMsg .4s ease both"}}>
-          {stageText}
+      {elapsedLabel && (
+        <div style={{fontSize:12,fontFamily:"Inter,sans-serif",color:"#9B87B8",fontVariantNumeric:"tabular-nums",marginBottom:10}}>
+          {elapsedLabel}
         </div>
       )}
       <style>{`@keyframes fadeInMsg{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
+  }
   if(stage==="error") {
     const isHiccup=errorType==="server_hiccup";
     return (
@@ -1209,11 +1378,17 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
               <div style={{fontSize:11,color:"#6B6B8A",marginBottom:10}}>Bev couldn't check this one — try again</div>
               <button onClick={()=>{setBevCheckFailed(false);setValidating(true);const valText=bevCheckTextRef.current;if(!valText){setBevCheckFailed(true);setValidating(false);return;}(async()=>{try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),90000);const vr=await fetch("/api/extract-pattern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"bevcheck",patternText:valText}),signal:controller.signal});clearTimeout(timeout);const data=await vr.json();if(vr.ok&&!data.error){setValidationReport(data);}else{setBevCheckFailed(true);}}catch(e){console.warn("[Wovely] BevCheck retry failed:",e);setBevCheckFailed(true);}setValidating(false);})();}} style={{background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"6px 16px",fontSize:11,fontWeight:600,cursor:"pointer"}}>Retry BevCheck</button>
             </div>
-          ):validationReport?(()=>{const scState=deriveState(validationReport);const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);return isPro?(
+          ):validationReport?(()=>{const scState=deriveState(validationReport);const allChecks=Array.isArray(validationReport.checks)?validationReport.checks:[];const scFailed=allChecks.filter(c=>c&&c.status&&c.status!=="pass").slice(0,3);
+            // hasIssues drives the pill button's outline-vs-filled styling
+            // (flagged reports get the outlined "look here" treatment).
+            // Save lives only on the bottom modal CTA now — the BevCheck
+            // pill button just opens the full report.
+            const hasIssues=allChecks.some(c=>c&&(c.status==="fail"||c.status==="warning"||c.status==="warn"));
+            return isPro?(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
               <BevGauge variant="compact" state={scState} />
               {scFailed.length>0&&<div style={{textAlign:"left",marginTop:8}}>{scFailed.map((c,i)=>(<div key={c.id||i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}><span style={{fontSize:11,color:c.status==="fail"?"#C0544A":"#C9A84C",flexShrink:0}}>{c.status==="fail"?"✕":"⚠"}</span><span style={{fontSize:11,color:"#6B6B8A"}}>{sentenceCase(c.label||"Check")}</span></div>))}</div>}
-              <button onClick={()=>setShowFullReport(true)} style={{background:"none",border:"none",color:T.terra,cursor:"pointer",fontSize:11,fontWeight:600,padding:0,marginTop:6,textDecoration:"underline"}}>Full Report →</button>
+              <button onClick={()=>setShowFullReport(true)} style={{marginTop:14,width:"100%",background:hasIssues?"#fff":T.terra,color:hasIssues?T.terra:"#fff",border:hasIssues?`1.5px solid ${T.terra}`:"none",borderRadius:99,padding:"12px",fontSize:13,fontWeight:600,cursor:"pointer",boxShadow:hasIssues?"none":"0 4px 16px rgba(155,126,200,.3)"}}>Full Report →</button>
             </div>
           ):(
             <div style={{background:T.surface,borderRadius:16,padding:20,boxShadow:"0 4px 20px rgba(155,126,200,.08)",border:`1px solid ${T.border}`,textAlign:"center"}}>
@@ -1243,14 +1418,14 @@ const PDFUploadForm = ({onSave,Btn,isPro,onUpgrade,onMinimize,onExtractionStart,
               issueCount={(validationReport.checks || []).filter(c => c.status === "fail" || c.status === "warning" || c.status === "warn").length}
             /></div>
             {(()=>{const allChecks=validationReport.checks||[];const coreC=allChecks.filter(c=>checkTier(c)==="core");const advC=allChecks.filter(c=>checkTier(c)==="advisory");const renderC=(c,op)=>{const isIssue=c.status==="fail"||c.status==="warning"||c.status==="warn";const checkRowNum=isIssue?extractFirstRowNumber(c.detail):null;return(
-              <div key={c.id} onClick={isIssue?()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:checkRowNum});}:undefined} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",cursor:isIssue?"pointer":"default",transition:"transform .1s",opacity:op||1}} onMouseEnter={isIssue?e=>{e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={isIssue?e=>{e.currentTarget.style.transform="none";}:undefined}>
+              <div key={c.id} onClick={isIssue?()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:"",pattern_notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:checkRowNum});}:undefined} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",marginBottom:6,display:"flex",gap:8,alignItems:"flex-start",cursor:isIssue?"pointer":"default",transition:"transform .1s",opacity:op||1}} onMouseEnter={isIssue?e=>{e.currentTarget.style.transform="translateY(-1px)";}:undefined} onMouseLeave={isIssue?e=>{e.currentTarget.style.transform="none";}:undefined}>
                 <span style={{fontSize:14,flexShrink:0}}>{CHECK_ICON[c.status]||"❓"}</span>
                 <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:c.status==="fail"?"#C0544A":(c.status==="warning"||c.status==="warn")?"#C9A84C":T.ink,marginBottom:2}}>{sentenceCase(c.label)}</div><div style={{fontSize:11,color:T.ink2,lineHeight:1.5}}>{c.detail}</div></div>
                 {isIssue&&<div style={{fontSize:11,color:"#9B7EC8",fontWeight:600,fontFamily:"'Inter',sans-serif",flexShrink:0,alignSelf:"center"}}>{checkRowNum?"→ Go to row":"→ Go to rows"}</div>}
               </div>);};return <>{coreC.map(c=>renderC(c))}{advC.length>0&&<><div style={{borderTop:"0.5px solid #EDE4F7",margin:"10px 0"}}/><div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",color:"#9B7EC8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Advisory</div>{advC.map(c=>renderC(c,0.85))}</>}</>;})()}
 
             {validationReport.summary&&<div style={{background:T.linen,borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${T.border}`}}><div style={{fontSize:11,fontWeight:700,color:T.terra,marginBottom:4}}>Bev says:</div><div style={{fontSize:12,color:T.ink2,lineHeight:1.6}}>{validationReport.summary}</div></div>}
-            {(()=>{const checks=validationReport.checks||[];const hasIssues=checks.some(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");if(!hasIssues) return <button onClick={()=>setShowFullReport(false)} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Anyway →</button>;const firstIssue=checks.find(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");const rowNum=firstIssue?extractFirstRowNumber(firstIssue.detail):null;return <div style={{marginTop:14,display:"flex",gap:10}}><button onClick={()=>setShowFullReport(false)} style={{flex:1,background:"#fff",color:T.terra,border:`1.5px solid ${T.terra}`,borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",minHeight:44}}>Import Anyway</button><button onClick={()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:rowNum});}} style={{flex:1,background:"#9B7EC8",color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)",minHeight:44}}>Review Issue →</button></div>;})()}
+            {(()=>{const checks=validationReport.checks||[];const hasIssues=checks.some(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");if(!hasIssues) return <button onClick={()=>{setShowFullReport(false);handleSave();}} style={{marginTop:14,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)"}}>Import Now</button>;const firstIssue=checks.find(c=>c.status==="fail"||c.status==="warning"||c.status==="warn");const rowNum=firstIssue?extractFirstRowNumber(firstIssue.detail):null;return <div style={{marginTop:14,display:"flex",gap:10}}><button onClick={()=>{setShowFullReport(false);handleSave();}} style={{flex:1,background:"#fff",color:T.terra,border:`1.5px solid ${T.terra}`,borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",minHeight:44}}>Import Now</button><button onClick={()=>{setShowFullReport(false);const rows=buildRowsFromComponents(extracted.components);const mats=(extracted.materials||[]).map((m,i)=>({id:i+1,name:m.name||"",amount:m.amount||"",yardage:0,notes:m.notes||""}));const finalCover=coverUrl||fileInfo?.coverUrl||null;onSave({id:Date.now(),title:editTitle||"Imported Pattern",source:editDesigner||"PDF Import",cat:"Uncategorized",hook:editHook||"",weight:editWeight||"",notes:"",pattern_notes:extracted.pattern_notes||"",yardage:0,rating:0,skeins:0,skeinYards:200,gauge:{stitches:12,rows:16,size:4},dimensions:{width:50,height:60},materials:mats,rows,photo:finalCover||PILL[Math.floor(Math.random()*PILL.length)],cover_image_url:finalCover,source_file_url:fileInfo?.url||"",source_file_name:fileInfo?.name||"",source_file_type:fileInfo?.type||"",extracted_by_ai:true,components:extracted.components||[],assembly_notes:extracted.assembly_notes||"",difficulty:extracted.difficulty||"",abbreviations_map:extracted.abbreviations_map||{},suggested_resources:extracted.suggested_resources||[],validation_flags:validationFlags.length>0?validationFlags:null,validation_report:isPro&&validationReport?{...validationReport,flaggedRows:(validationReport.checks||[]).filter(ch=>ch.status==="fail"||ch.status==="warning"||ch.status==="warn").map(ch=>({rowNumber:extractFirstRowNumber(ch.detail),status:ch.status==="warn"?"warning":ch.status})).filter(f=>f.rowNumber!=null).filter((f,idx,arr)=>arr.findIndex(x=>x.rowNumber===f.rowNumber)===idx)}:null,_reviewRowNumber:rowNum});}} style={{flex:1,background:"#9B7EC8",color:"#fff",border:"none",borderRadius:99,padding:"13px",fontSize:14,fontWeight:600,cursor:"pointer",boxShadow:"0 4px 16px rgba(155,126,200,.3)",minHeight:44}}>Review Issue →</button></div>;})()}
           </div>
         </div>
       )}
@@ -1298,14 +1473,45 @@ const BrowserImport = ({onSave,Btn,Photo}) => {
   );
 };
 
-const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,minimized,onMinimize,onExpand}) => {
-  const [method,setMethod]=useState(initialMethod||null),[closing,setClosing]=useState(false);
-  const [pdfHandoff,setPdfHandoff]=useState(null);
+const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,WireframeViewer,onUpgrade,initialMethod,initialUrl,initialExtracted,initialCoverUrl,initialValidationReport,initialPollingJobId}) => {
+  // initialExtracted (from ImportPill queue completion) is wrapped into pdfHandoff
+  // so PDFUploadForm lands directly on its review stage. initialCoverUrl is the
+  // Cloudinary URL the client rendered & uploaded during the original upload
+  // step, threaded back through import_jobs.cover_image_url so the cover
+  // survives the modal-close → queue → pill → re-open round trip.
+  // initialPollingJobId (S1.5.3) is set when the pill re-opens this modal
+  // *during* processing — PDFUploadForm mounts directly into the extracting
+  // stage with that job_id so polling resumes seamlessly.
+  const initialHandoff = initialExtracted ? { extracted: initialExtracted, pdfText: "", fileInfo: null, coverUrl: initialCoverUrl || null } : null;
+  const [method,setMethod]=useState((initialExtracted||initialPollingJobId)?"pdf":(initialMethod||null)),[closing,setClosing]=useState(false);
+  const [pdfHandoff,setPdfHandoff]=useState(initialHandoff);
   const extractingRef=useRef(false);
   const bevCheckActiveRef=useRef(false);
+  // True once a child form is showing an extracted/preview review state.
+  // Backdrop click is blocked in that state — accidental click-outside would
+  // strand the user with no in-UI path back to data that's already saved on
+  // the import_jobs row (the pill self-dismisses when its tap opens review,
+  // so it isn't a fallback re-open surface).
+  const reviewActiveRef=useRef(!!initialExtracted);
+  // Mirror the ref into state so render reacts to review-active changes —
+  // refs alone don't trigger a re-render, so the X-button label wouldn't flip
+  // from "×" to "Discard" without this.
+  const [reviewActiveTick,setReviewActiveTick]=useState(!!initialExtracted);
   const{isDesktop}=useBreakpoint();
   const dismiss=()=>{setClosing(true);setTimeout(()=>{setClosing(false);onClose();},220);};
-  const backdropClick=()=>{if(bevCheckActiveRef.current)return;if(extractingRef.current&&onMinimize){onMinimize();}else{dismiss();}};
+  // Backdrop click during loading state → dismiss. The unmount handler in
+  // PDFUploadForm writes pollingJobIdRef → ImportPill via setActiveImportJob,
+  // so the pill takes over without any extra wiring here. Review/BevCheck
+  // states still block accidental dismissal.
+  const backdropClick=()=>{if(bevCheckActiveRef.current||reviewActiveRef.current)return;dismiss();};
+  // X-button discard confirm (S66). When the modal is showing review/BevCheck
+  // content, a single tap on the dismiss X would lose access to the extracted
+  // data even though the import_jobs row is still completed. Gate with an
+  // explicit confirm.
+  const [discardConfirmOpen,setDiscardConfirmOpen]=useState(false);
+  const [bevCheckActiveTick,setBevCheckActiveTick]=useState(false);
+  const hasRecoverableData=reviewActiveTick||bevCheckActiveTick;
+  const requestDismiss=()=>{if(hasRecoverableData){setDiscardConfirmOpen(true);}else{dismiss();}};
   const handleSave=(p)=>{onSave(p);dismiss();};
   const METHODS=[
     {key:"manual",icon:"✏️",label:"Manual Entry",sub:"Type it in yourself"},
@@ -1334,26 +1540,19 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
     </>
   );
   // ── STYLES ──
-  const minStyle = {position:"fixed",bottom:24,right:24,zIndex:9999,width:380,maxHeight:560,borderRadius:20,boxShadow:"0 8px 48px rgba(0,0,0,0.22)",background:"#fff",display:"flex",flexDirection:"column",overflowY:"auto"};
+  // Single modal shape on each viewport. The medium "Expand" pill was removed
+  // in S1.5.3 — the small ImportPill is now the only minimized surface, and
+  // closing the modal mid-import hands off to it via the unmount cleanup.
   const deskStyle = {position:"relative",background:T.surface,borderRadius:20,width:"100%",maxWidth:580,maxHeight:"85vh",display:"flex",flexDirection:"column",zIndex:1,boxShadow:"0 24px 64px rgba(28,23,20,.3)"};
   const mobStyle = {position:"relative",background:T.surface,borderRadius:"24px 24px 0 0",width:"100%",maxHeight:"92vh",display:"flex",flexDirection:"column",zIndex:1};
-  const containerStyle = minimized && !isDesktop ? mobStyle : minimized && isDesktop ? minStyle : isDesktop ? deskStyle : mobStyle;
-  const pad = (minimized && isDesktop) ? "8px 18px 18px" : isDesktop ? "0 28px 32px" : "0 22px 40px";
+  const containerStyle = isDesktop ? deskStyle : mobStyle;
+  const pad = isDesktop ? "0 28px 32px" : "0 22px 40px";
   const wrapStyle = isDesktop
     ? {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"center",justifyContent:"center"}
     : {position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"flex-end"};
   const animClass = isDesktop ? (closing?"":"fu") : (closing?"":"su");
 
   // ── HEADER ──
-  const deskMinHeader = (
-    <div style={{flexShrink:0,padding:"14px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <button onClick={onExpand} style={{background:T.terraLt,border:"none",borderRadius:99,padding:"4px 12px",fontSize:11,fontWeight:600,color:T.terra,cursor:"pointer"}}>⤢ Expand</button>
-        <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>Importing…</span>
-      </div>
-      <button onClick={dismiss} style={{background:T.linen,border:"none",borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:14,color:T.ink3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-    </div>
-  );
   const deskHeader = (
     <div style={{flexShrink:0,padding:"24px 28px 0"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
@@ -1371,15 +1570,18 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
       {method&&<div style={{fontSize:12,color:T.ink3,marginBottom:12,fontWeight:500}}>{METHODS.find(m=>m.key===method)?.icon} {METHODS.find(m=>m.key===method)?.label}</div>}
     </div>
   );
-  const header = (minimized && isDesktop) ? deskMinHeader : isDesktop ? deskHeader : mobHeader;
+  const header = isDesktop ? deskHeader : mobHeader;
+  // requestDismiss is still used by the review-state X (PDFUploadForm passes
+  // it via onClose). hasRecoverableData controls the Discard-vs-X label.
+  void requestDismiss; void hasRecoverableData;
 
   // ── CONTENT (single instance, never remounts) ──
   const content = (
     <div style={{flex:1,overflowY:"auto",padding:pad}}>
       {!method&&<MethodList/>}
       {method==="manual"&&<ManualEntryForm onSave={handleSave} Btn={Btn}/>}
-      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
-      {method==="pdf"&&<PDFUploadForm onSave={handleSave} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onMinimize={minimized?undefined:onMinimize} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;}} initialExtracted={pdfHandoff}/>}
+      {method==="url"&&<URLImportForm onSave={handleSave} Btn={Btn} Photo={Photo} initialUrl={initialUrl} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} onPdfHandoff={(handoffData)=>{setPdfHandoff(handoffData);setMethod('pdf');}}/>}
+      {method==="pdf"&&<PDFUploadForm onSave={handleSave} onClose={dismiss} Btn={Btn} isPro={isPro} onUpgrade={()=>{if(onUpgrade){dismiss();onUpgrade();}}} onExtractionStart={()=>{extractingRef.current=true;}} onExtractionEnd={()=>{extractingRef.current=false;}} onBevCheckActive={(v)=>{bevCheckActiveRef.current=v;setBevCheckActiveTick(v);}} onReviewActive={(v)=>{reviewActiveRef.current=v;setReviewActiveTick(v);}} initialExtracted={pdfHandoff} initialValidationReport={initialValidationReport} initialPollingJobId={initialPollingJobId}/>}
       {method==="browser"&&<BrowserImport onSave={handleSave} Btn={Btn} Photo={Photo}/>}
       {method==="snap"&&<HiveVisionForm onSave={handleSave} Btn={Btn} Bar={Bar} WireframeViewer={WireframeViewer}/>}
     </div>
@@ -1388,31 +1590,26 @@ const AddPatternModal = ({onClose,onSave,isPro,patternCount,Btn,Photo,Bar,Wirefr
   // ── SINGLE RETURN — no early exits, no remounts ──
   return (
     <>
-      {/* Mobile minimized banner — rendered outside normal flow */}
-      {minimized && !isDesktop && (
-        <div onClick={onExpand} style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,background:"#9B7EC8",display:"flex",alignItems:"center",padding:"0 16px",height:52,cursor:"pointer",boxShadow:"0 2px 12px rgba(0,0,0,0.15)"}}>
-          <style>{`@keyframes bevSpin{to{transform:rotate(360deg)}}`}</style>
-          <div style={{position:"relative",width:32,height:32,flexShrink:0,marginRight:10}}>
-            <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2.5px solid rgba(255,255,255,0.25)",borderTop:"2.5px solid #fff",animation:"bevSpin 1s linear infinite"}}/>
-            <img src="/bev_neutral.png" alt="Bev" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:22,height:22,objectFit:"contain"}}/>
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#fff",fontFamily:"Inter,sans-serif"}}>Importing your pattern…</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:"Inter,sans-serif"}}>Tap to review when ready</div>
-          </div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Inter,sans-serif",flexShrink:0}}>Tap to open →</div>
-        </div>
-      )}
-
-      {/* The modal card — always rendered, style changes only */}
-      <div style={minimized && !isDesktop ? {display:"none"} : minimized && isDesktop ? {} : wrapStyle}>
-        {!minimized && (
-          <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)"}}/>
-        )}
-        <div className={minimized?"":animClass} style={containerStyle} onClick={e=>e.stopPropagation()}>
+      <div style={wrapStyle}>
+        <div className={closing?"dim-out":"dim-in"} onClick={backdropClick} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.6)",backdropFilter:"blur(4px)"}}/>
+        <div className={animClass} style={containerStyle} onClick={e=>e.stopPropagation()}>
           {header}{content}
         </div>
       </div>
+
+      {discardConfirmOpen && (
+        <div style={{position:"fixed",inset:0,zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={()=>setDiscardConfirmOpen(false)} style={{position:"absolute",inset:0,background:"rgba(28,23,20,.65)",backdropFilter:"blur(4px)"}}/>
+          <div style={{position:"relative",zIndex:1,background:"#FFFFFF",borderRadius:16,maxWidth:360,width:"100%",padding:"24px 22px",boxShadow:"0 24px 64px rgba(28,23,20,.3)",fontFamily:T.sans}}>
+            <div style={{fontFamily:T.serif,fontSize:18,fontWeight:700,color:T.ink,marginBottom:8}}>Discard this import?</div>
+            <div style={{fontSize:13,color:T.ink2,lineHeight:1.6,marginBottom:18}}>Bev's work won't be saved.</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setDiscardConfirmOpen(false)} style={{flex:1,background:T.linen,color:T.ink,border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Keep working</button>
+              <button onClick={()=>{setDiscardConfirmOpen(false);dismiss();}} style={{flex:1,background:"#C0544A",color:"#fff",border:"none",borderRadius:99,padding:"11px",fontSize:13,fontWeight:600,cursor:"pointer"}}>Discard</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

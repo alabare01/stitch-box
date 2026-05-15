@@ -352,7 +352,7 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
         <div style={{position:"sticky",top:0,zIndex:10,transform:headerHidden?"translateY(-100%)":"translateY(0)",transition:"transform 220ms ease"}}>
           <PatternHeader p={p} rows={rows} done={done} editing={editing} draft={draft} setDraft={setDraft} milestone={milestone} setMilestone={setMilestone} onBack={onBack} onShare={()=>setShowShare(true)} onScale={()=>setShowScale(true)} onEdit={()=>editing?save():setEditing(true)} onSave={save} detailPhoto={detailPhoto} Bar={Bar} Photo={Photo} WireframeViewer={WireframeViewer} onViewSource={handleViewSource}/>
           <div style={{display:"flex",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
-            {[["materials","Materials"],["rows","Instructions/Rows"],["notes","Notes"]].map(([key,label])=>(
+            {[["materials","Materials"],["rows","Instructions/Rows"],["notes","My Notes"]].map(([key,label])=>(
               <button key={key} onClick={()=>{setTab(key);localStorage.setItem("yh_last_tab",key);}} style={{flex:1,padding:"13px 0",border:"none",background:"transparent",color:tab===key?T.terra:T.ink3,fontWeight:tab===key?600:400,fontSize:13,cursor:"pointer",borderBottom:"2px solid "+(tab===key?T.terra:"transparent"),transition:"color .15s"}}>{label}</button>
             ))}
           </div>
@@ -376,8 +376,8 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <YarnSummaryCard label="Total yardage" myKey="my_yardage" myVal={p.my_yardage} fallback={yardDisplay} onSave={saveMyField}/>
               <YarnSummaryCard label="Skeins needed" myKey="my_skeins" myVal={p.my_skeins} fallback={skeinDisplay} onSave={saveMyField}/>
-              <YarnSummaryCard label="Hook size" myKey="my_hook_size" myVal={p.my_hook_size} fallback={p.hook||"??"} onSave={saveMyField}/>
-              <YarnSummaryCard label="Yarn weight" myKey="my_yarn_weight" myVal={p.my_yarn_weight} fallback={p.weight||"??"} onSave={saveMyField}/>
+              <YarnSummaryCard label="Hook size" myKey="my_hook_size" myVal={p.my_hook_size} fallback={p.hook||"Not listed"} onSave={saveMyField}/>
+              <YarnSummaryCard label="Yarn weight" myKey="my_yarn_weight" myVal={p.my_yarn_weight} fallback={p.weight||"Not listed"} onSave={saveMyField}/>
             </div>
             <button onClick={()=>setShowScale(true)} style={{marginTop:12,width:"100%",background:T.terra,color:"#fff",border:"none",borderRadius:10,padding:"10px",fontSize:13,fontWeight:600,cursor:"pointer"}}>⚖️ Scale pattern to different size →</button>
           </div>
@@ -401,7 +401,11 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
         {tab==="notes"&&(
           <div style={{paddingTop:10}}>
             {editing?<textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} style={{width:"100%",minHeight:140,border:`1.5px solid ${T.border}`,borderRadius:12,padding:14,fontSize:14,lineHeight:1.75,resize:"vertical",outline:"none",color:T.ink,background:T.linen}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
-            :<p style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.9,paddingTop:4,whiteSpace:"pre-wrap"}}>{p.notes||"No notes yet. Tap Edit to add your thoughts."}</p>}
+            :p.notes?<p style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.9,paddingTop:4,whiteSpace:"pre-wrap"}}>{p.notes}</p>
+            :<div role="button" tabIndex={0} onClick={()=>{setDraft({...p});setEditing(true);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setDraft({...p});setEditing(true);}}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(155,126,200,0.08)";e.currentTarget.style.borderColor=T.terra;}} onMouseLeave={e=>{e.currentTarget.style.background=T.linen;e.currentTarget.style.borderColor=T.border;}} aria-label="Add your first note" style={{background:T.linen,border:`1.5px dashed ${T.border}`,borderRadius:12,padding:"20px 16px",cursor:"pointer",textAlign:"center",transition:"background .15s, border-color .15s",outline:"none"}}>
+              <div style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.5}}>No notes yet.</div>
+              <div style={{fontSize:12,color:T.ink3,marginTop:6}}>Tap to add your first note</div>
+            </div>}
             <div style={{marginTop:20,display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:12,color:T.ink3}}>Rating</span><Stars val={editing?draft.rating:p.rating} ro={!editing} onChange={v=>setDraft({...draft,rating:v})}/></div>
             <div style={{marginTop:10,fontSize:12,color:T.ink3}}>Source: {p.source}</div>
           </div>

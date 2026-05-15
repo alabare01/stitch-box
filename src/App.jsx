@@ -16,6 +16,7 @@ import AddPatternModal, { uploadPatternFile, buildRowsFromComponents } from "./A
 import CollectionView, { PatternCard } from "./Dashboard.jsx";
 import Detail, { CoverImagePicker, DeleteConfirmModal, ReadyToBuildPrompt, PatternCreatedOverlay } from "./PatternDetail.jsx";
 import ImageImportModal from "./ImageImportModal.jsx";
+import ImportPill, { setActiveImportJob } from "./components/ImportPill.jsx";
 import PrivacyPolicy from "./PrivacyPolicy.jsx";
 import TermsOfService from "./TermsOfService.jsx";
 import FeedbackWidget from "./FeedbackWidget.jsx";
@@ -171,6 +172,11 @@ const estYards = p => {
   return (p.materials||[]).reduce((s,m) => {
     if (m.yardage > 0) return s + m.yardage;
     const t = ((m.name||"")+" "+(m.amount||"")).toLowerCase();
+    // Direct yardage on the material — e.g. "13 yds", "120 yards". Checked
+    // before ball/skein so a "13 yds" amount isn't missed for materials whose
+    // name happens to contain "ball" or "skein".
+    const yd = t.match(/(\d+)\s*(yds?|yards?)\b/);
+    if (yd) return s + parseInt(yd[1]);
     const b = t.match(/(\d+)\s*ball/); const sk = t.match(/(\d+)\s*skein/);
     if (b) return s + parseInt(b[1])*200; if (sk) return s + parseInt(sk[1])*200;
     return s;
@@ -191,7 +197,10 @@ const Stars = ({val=0,onChange,ro}) => (
 const Photo = ({src,alt,style:sx}) => {
   const [err,setErr]=useState(false);
   if(err) return <div style={{...sx,background:"linear-gradient(145deg,#C4855A,#6B3A22)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:32,opacity:.4}}>🧶</span></div>;
-  return <img src={src} alt={alt} onError={()=>setErr(true)} style={{...sx,objectFit:"cover",display:"block"}}/>;
+  // Default objectFit/display BEFORE the spread so callers can override them.
+  // (Pre-S67.5 these were after the spread and silently won — library cards
+  // with portrait covers couldn't ask for objectFit:"contain".)
+  return <img src={src} alt={alt} onError={()=>setErr(true)} style={{objectFit:"cover",display:"block",...sx}}/>;
 };
 
 // ─── CATEGORY FALLBACK IMAGES (Imagen 4.0 generated) ──────────────────────
@@ -1564,8 +1573,9 @@ export default function Wovely() {
   const [showWelcomeToast,setShowWelcomeToast]=useState(false);
   const [showProModal,setShowProModal]=useState(false);
   const [pendingMethod,setPendingMethod]=useState(null);
-  const [addMinimized,setAddMinimized]=useState(false);
-  const [imageMinimized,setImageMinimized]=useState(false);
+  // Pill→modal resume hand-off (S1.5.3). { jobId, fileType } while the pill
+  // is reopening a still-processing import; cleared once the modal closes.
+  const [pendingResumeJobId,setPendingResumeJobId]=useState(null);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [justCompletedOnboarding,setJustCompletedOnboarding]=useState(false);
   const [createdPattern,setCreatedPattern]=useState(null);
@@ -1575,6 +1585,8 @@ export default function Wovely() {
   const [upgradeToast,setUpgradeToast]=useState(null);
   const [coverPickerTarget,setCoverPickerTarget]=useState(null);
   const [pendingImportUrl,setPendingImportUrl]=useState(null);
+  // Handoff from ImportPill (queue completed) → review modal. { fileType, extractedData } or null.
+  const [pendingExtractedHandoff,setPendingExtractedHandoff]=useState(null);
   // Anonymous mode: set when user clicks "Try it free" on landing. Persists in sessionStorage so
   // refresh/nav within the tab keeps them in the app shell instead of bouncing to the landing.
   const [anonymousMode,setAnonymousMode]=useState(()=>{try{return sessionStorage.getItem("wovely_anonymous_mode")==="1";}catch{return false;}});
@@ -1657,6 +1669,20 @@ export default function Wovely() {
   useEffect(() => {
     initErrorReporter();
   }, []);
+
+  // Route-change dismissal (S1.5.3). When the user navigates while an import
+  // modal is mounted, close it. If a polling job is still in flight, the
+  // modal's unmount handler writes setActiveImportJob → ImportPill takes
+  // over without any extra wiring. BrowserRouter + useLocation per the
+  // WOVELY_CONTEXT.md note against useBlocker.
+  const lastPathRef = useRef(location.pathname);
+  useEffect(() => {
+    if (lastPathRef.current === location.pathname) return;
+    lastPathRef.current = location.pathname;
+    if (addOpen) setAddOpen(false);
+    if (imageImportOpen) setImageImportOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // Guard to prevent concurrent profile fetches from racing
   const isFetchingProfile = useRef(false);
@@ -1789,7 +1815,7 @@ export default function Wovely() {
           if(data.length>0){
             const patterns=data.map(r=>({
               id:r.id,_supabaseId:r.id,title:r.title||"",cat:r.cat||"",source:r.source||"",source_url:r.source_url||"",
-              notes:r.notes||"",photo:r.cover_image_url||r.photo||r.image_url||"",cover_image_url:r.cover_image_url||null,hook:r.hook||r.hook_size||"",weight:r.weight||r.yarn_weight||"",
+              notes:r.notes||"",pattern_notes:r.pattern_notes||"",photo:r.cover_image_url||r.photo||r.image_url||"",cover_image_url:r.cover_image_url||null,hook:r.hook||r.hook_size||"",weight:r.weight||r.yarn_weight||"",
               yardage:r.yardage||0,materials:r.materials||[],rows:(r.rows||[]).map(row=>({...row,done:!!row.done})),
               rating:r.rating||0,skeins:r.skeins||0,skeinYards:r.skein_yards||200,
               gauge:r.gauge||{stitches:12,rows:16,size:4},dimensions:r.dimensions||{},
@@ -1985,7 +2011,7 @@ export default function Wovely() {
       fetch(`${SUPABASE_URL}/rest/v1/patterns?id=eq.${pid}&user_id=eq.${user.id}`,{
         method:"PATCH",
         headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null,my_hook_size:u.my_hook_size||null,my_yarn_weight:u.my_yarn_weight||null,my_yardage:u.my_yardage||null,my_skeins:u.my_skeins||null}),
+        body:JSON.stringify({rows:u.rows||[],row_count:(u.rows||[]).length,updated_at:new Date().toISOString(),source_file_url:u.source_file_url||null,source_file_name:u.source_file_name||null,source_file_type:u.source_file_type||null,my_hook_size:u.my_hook_size||null,my_yarn_weight:u.my_yarn_weight||null,my_yardage:u.my_yardage||null,my_skeins:u.my_skeins||null,...(u.notes!==undefined?{notes:u.notes}:{})}),
       }).then(r=>{console.log("[Wovely] Row progress PATCH status:",r.status,"for pattern:",pid);if(!r.ok)r.text().then(t=>console.error("[Wovely] Row PATCH error body:",t));}).catch(e=>console.error("[Wovely] Row progress save error:",e));
     }
   };
@@ -2022,6 +2048,10 @@ export default function Wovely() {
     }
   };
   const handleAddPattern=async(p)=>{
+    // Saving a pattern means we're done with the import_job that produced it —
+    // clear sessionStorage so ImportPill doesn't re-render the same job after
+    // the modal closes and walk the user through a duplicate import.
+    setActiveImportJob(null);
     posthog.capture("pattern_uploaded",{file_type:p.source_file_type||"unknown"});
     const user=supabaseAuth.getUser();
     const session=getSession();
@@ -2050,7 +2080,7 @@ export default function Wovely() {
     // "Review Issue →" flow: skip overlay, go directly to detail with scrollToRow
     if(p._reviewRowNumber!==undefined){
       setPendingScrollToRow(p._reviewRowNumber);
-      setAddOpen(false);setAddMinimized(false);
+      setAddOpen(false);
       setTimeout(()=>{startAndOpenPattern(localPattern);},100);
     } else {
       setCreatedPattern(localPattern);
@@ -2061,7 +2091,7 @@ export default function Wovely() {
         const res=await fetch(`${SUPABASE_URL}/rest/v1/patterns`,{
           method:"POST",
           headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${session.access_token}`,"Content-Type":"application/json","Prefer":"return=representation"},
-          body:JSON.stringify({user_id:user.id,title:dedupTitle,cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",cover_image_url:p.cover_image_url||null,row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null,extracted_by_ai:!!p.extracted_by_ai,components:p.components||null,validation_flags:p.validation_flags||null,validation_report:p.validation_report||null}),
+          body:JSON.stringify({user_id:user.id,title:dedupTitle,cat:p.cat||"",source:p.source||"",source_url:p.source_url||"",notes:p.notes||"",pattern_notes:p.pattern_notes||null,difficulty:p.difficulty||"",yarn_weight:p.weight||"",hook_size:p.hook||"",gauge:p.gauge||{},tags:p.tags||[],is_ai_generated:!!p.is_ai_generated,is_starter:!!p.isStarter,image_url:p.image_url||"",photo:p.photo||"",cover_image_url:p.cover_image_url||null,row_count:(p.rows||[]).length,materials:p.materials||[],rows:p.rows||[],rating:p.rating||0,yardage:p.yardage||0,skeins:p.skeins||0,skein_yards:p.skeinYards||200,dimensions:p.dimensions||{},weight:p.weight||"",hook:p.hook||"",source_file_url:p.source_file_url||null,source_file_name:p.source_file_name||null,source_file_type:p.source_file_type||null,extracted_by_ai:!!p.extracted_by_ai,components:p.components||null,validation_flags:p.validation_flags||null,validation_report:p.validation_report||null}),
         });
         console.log("[Wovely] INSERT response status:", res.status);
         if(res.ok){
@@ -2094,6 +2124,28 @@ export default function Wovely() {
       { intent: "import_pattern_image", title: "Create a free account to save patterns", subtitle: "Your imports and progress stay with you across devices." },
       () => { if(tier.atCap){setShowPaywall(true);return;} setImageImportOpen(true); }
     );
+  };
+  // ImportPill callbacks. Completed: open the review modal with extracted data.
+  // Failed: open a fresh import modal (no auto-requeue per spec).
+  // Resume (S1.5.3): pill is tapped *during* processing → reopen the full
+  // loading modal against the same job_id so polling continues seamlessly.
+  const handlePillReview=({jobId,fileType,extractedData,coverImageUrl,validationReport})=>{
+    setPendingResumeJobId(null);
+    setPendingExtractedHandoff({ fileType, extractedData, coverImageUrl: coverImageUrl || null, validationReport: validationReport || null });
+    if (fileType === 'pdf') { setPendingMethod('pdf'); setAddOpen(true); }
+    else if (fileType === 'image') { setImageImportOpen(true); }
+  };
+  const handlePillTryAgain=({jobId,fileType})=>{
+    setPendingResumeJobId(null);
+    setPendingExtractedHandoff(null);
+    if (fileType === 'pdf') { setPendingMethod('pdf'); setAddOpen(true); }
+    else if (fileType === 'image') { setImageImportOpen(true); }
+  };
+  const handlePillResume=({jobId,fileType})=>{
+    setPendingExtractedHandoff(null);
+    setPendingResumeJobId({ jobId, fileType });
+    if (fileType === 'pdf') { setPendingMethod('pdf'); setAddOpen(true); }
+    else if (fileType === 'image') { setImageImportOpen(true); }
   };
   // Generic "see Pro features" entry: routes anonymous users through AuthWall first.
   // Use for locked nav items, BevCheck-style Pro triggers, and any CTA that previously called setShowProModal directly.
@@ -2158,11 +2210,12 @@ export default function Wovely() {
       <CSS/>
       <WhatsNewModal/>
       <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      {!addOpen&&!imageImportOpen&&<ImportPill onTapReview={handlePillReview} onTapTryAgain={handlePillTryAgain} onTapResume={handlePillResume}/>}
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
-      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
+      {addOpen&&<AddPatternModal onClose={()=>{setAddOpen(false);setPendingImportUrl(null);setPendingMethod(null);setPendingExtractedHandoff(null);setPendingResumeJobId(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} initialExtracted={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.extractedData:null} initialCoverUrl={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.coverImageUrl:null} initialValidationReport={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.validationReport:null} initialPollingJobId={pendingResumeJobId?.fileType==='pdf'?pendingResumeJobId.jobId:null}/>}
+      {imageImportOpen&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setPendingExtractedHandoff(null);setPendingResumeJobId(null);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} initialExtracted={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.extractedData:null} initialCoverUrl={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.coverImageUrl:null} initialValidationReport={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.validationReport:null} initialPollingJobId={pendingResumeJobId?.fileType==='image'?pendingResumeJobId.jobId:null}/>}
       {addMenuOpen&&menuAnchor&&<><div onClick={()=>{setAddMenuOpen(false);setMenuAnchor(null);}} style={{position:"fixed",inset:0,zIndex:49}}/><div style={{position:"fixed",top:menuAnchor.top,left:menuAnchor.left,zIndex:50,background:"#fff",border:`1px solid ${T.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(45,45,78,.12)",minWidth:220,padding:"6px 0",fontFamily:"Inter,sans-serif"}}>{[{icon:"📄",label:"Add PDF",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openAddModal("pdf");}},{icon:"📸",label:"Add from photos",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openImageImport();}},{icon:"🔗",label:"Paste a URL",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);openAddModal("url");}},{icon:"🌐",label:"Explore free patterns",action:()=>{setAddMenuOpen(false);setMenuAnchor(null);navigateToView("browse");}}].map(item=>(<div key={item.label} onClick={item.action} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",cursor:"pointer",fontSize:13,fontWeight:500,color:T.ink,transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=T.linen} onMouseLeave={e=>e.currentTarget.style.background="transparent"}><span style={{fontSize:16,width:22,textAlign:"center"}}>{item.icon}</span>{item.label}</div>))}</div></>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
@@ -2204,14 +2257,15 @@ export default function Wovely() {
       <CSS/>
       <WhatsNewModal/>
       <AuthWallModal isOpen={authWallOpen} onClose={()=>{setAuthWallOpen(false);setAuthWallContext(null);}} onSuccess={handleAuthWallSuccess} title={authWallContext?.title} subtitle={authWallContext?.subtitle} intent={authWallContext?.intent}/>
+      {!addOpen&&!imageImportOpen&&<ImportPill onTapReview={handlePillReview} onTapTryAgain={handlePillTryAgain} onTapResume={handlePillResume}/>}
       {showOnboarding&&<OnboardingScreen onComplete={()=>{setShowOnboarding(false);setJustCompletedOnboarding(true);localStorage.removeItem("yh_welcome_dismissed");navigate("/profile");}} onBackToAuth={async()=>{setShowOnboarding(false);await supabaseAuth.signOut();setAuthed(false);setIsPro(false);setUserPatterns([]);}}/>}
       <WelcomeToast visible={showWelcomeToast}/>
       {upgradeToast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:upgradeToast==="success"?"#5B9B6B":"#6B6B8A",color:"#fff",borderRadius:14,padding:"12px 24px",fontSize:14,fontWeight:600,boxShadow:"0 8px 32px rgba(0,0,0,.2)",animation:"modalPop .3s ease both",textAlign:"center"}}>{upgradeToast==="success"?"Welcome to Wovely Pro!":"No worries — you can upgrade anytime"}</div>}
       <NavPanel open={navOpen} onClose={()=>setNavOpen(false)} view={view} onNavigate={navigateToView} count={userPatterns.length} isPro={isPro} isAnonymous={!authed} onSignOut={handleSignOut} onUpgrade={()=>openProGate("locked_nav")} onOpenAuthWall={()=>gateAction({ intent: "nav_sign_in", title: "Create a free account", subtitle: "Takes 10 seconds. No credit card." }, ()=>{})}/>
       {showPaywall&&<PaywallGate patternCount={userPatterns.length} onClose={()=>setShowPaywall(false)} onUpgrade={()=>setShowPaywall(false)}/>}
       {showProModal&&<ProInfoModal onClose={()=>setShowProModal(false)}/>}
-      {(addOpen||addMinimized)&&<AddPatternModal onClose={()=>{setAddOpen(false);setAddMinimized(false);setPendingImportUrl(null);setPendingMethod(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} minimized={addMinimized} onMinimize={()=>{setAddOpen(false);setAddMinimized(true);}} onExpand={()=>{setAddMinimized(false);setAddOpen(true);}}/>}
-      {(imageImportOpen||imageMinimized)&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setImageMinimized(false);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} minimized={imageMinimized} onMinimize={()=>{setImageImportOpen(false);setImageMinimized(true);}} onExpand={()=>{setImageMinimized(false);setImageImportOpen(true);}}/>}
+      {addOpen&&<AddPatternModal onClose={()=>{setAddOpen(false);setPendingImportUrl(null);setPendingMethod(null);setPendingExtractedHandoff(null);setPendingResumeJobId(null);}} onSave={handleAddPattern} isPro={isPro} patternCount={userPatterns.length} Btn={Btn} Photo={Photo} Bar={Bar} WireframeViewer={WireframeViewer} onUpgrade={()=>openProGate("bevcheck_preview")} initialMethod={pendingImportUrl?"url":pendingMethod||undefined} initialUrl={pendingImportUrl||undefined} initialExtracted={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.extractedData:null} initialCoverUrl={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.coverImageUrl:null} initialValidationReport={pendingExtractedHandoff?.fileType==='pdf'?pendingExtractedHandoff.validationReport:null} initialPollingJobId={pendingResumeJobId?.fileType==='pdf'?pendingResumeJobId.jobId:null}/>}
+      {imageImportOpen&&<ImageImportModal onClose={()=>{setImageImportOpen(false);setPendingExtractedHandoff(null);setPendingResumeJobId(null);}} onPatternSaved={handleAddPattern} userId={supabaseAuth.getUser()?.id} isPro={isPro} onUpgrade={()=>openProGate("bevcheck_preview")} initialExtracted={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.extractedData:null} initialCoverUrl={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.coverImageUrl:null} initialValidationReport={pendingExtractedHandoff?.fileType==='image'?pendingExtractedHandoff.validationReport:null} initialPollingJobId={pendingResumeJobId?.fileType==='image'?pendingResumeJobId.jobId:null}/>}
       {createdPattern&&<PatternCreatedOverlay pattern={createdPattern} onStartBuilding={()=>{const p=createdPattern;setCreatedPattern(null);startAndOpenPattern(p);}} onGoToHive={()=>{setCreatedPattern(null);navigateToView("collection");}}/>}
       {readyPromptPattern&&<ReadyToBuildPrompt pattern={readyPromptPattern} onStartBuilding={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);startAndOpenPattern(p);}} onViewDetails={()=>{const p=readyPromptPattern;setReadyPromptPattern(null);setSelected(p);navigateToView("detail",p._supabaseId||p.id);}} onDismiss={()=>setReadyPromptPattern(null)}/>}
       {deleteTarget&&<DeleteConfirmModal pattern={deleteTarget} isPro={isPro} onCancel={()=>setDeleteTarget(null)} onDelete={confirmDelete} onPark={parkInsteadOfDelete} onGoPro={()=>{setDeleteTarget(null);setShowProModal(true);}}/>}
@@ -2239,7 +2293,7 @@ export default function Wovely() {
         {view==="terms"&&<TermsOfService/>}
         {location.pathname.startsWith("/stitch/")&&<div style={{paddingTop:18}}><StitchResultPage/></div>}
       </div>
-      {!addOpen&&!imageImportOpen&&!addMinimized&&!imageMinimized&&!addMenuOpen&&<button onClick={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} style={{position:"fixed",right:0,top:"50%",transform:"translateY(-50%)",zIndex:40,display:"flex",alignItems:"center",justifyContent:"center",writingMode:"vertical-rl",textOrientation:"mixed",background:"#9B7EC8",color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:600,letterSpacing:"0.05em",padding:"16px 10px",borderRadius:"12px 0 0 12px",cursor:"pointer",boxShadow:"-3px 0 16px rgba(155,126,200,0.25)",userSelect:"none",border:"none",outline:"none"}}>+ Add Pattern</button>}
+      {!addOpen&&!imageImportOpen&&!addMenuOpen&&<button onClick={()=>{if(tier.atCap){setShowPaywall(true);return;}setAddMenuOpen(v=>!v);}} style={{position:"fixed",right:0,top:"50%",transform:"translateY(-50%)",zIndex:40,display:"flex",alignItems:"center",justifyContent:"center",writingMode:"vertical-rl",textOrientation:"mixed",background:"#9B7EC8",color:"#fff",fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:600,letterSpacing:"0.05em",padding:"16px 10px",borderRadius:"12px 0 0 12px",cursor:"pointer",boxShadow:"-3px 0 16px rgba(155,126,200,0.25)",userSelect:"none",border:"none",outline:"none"}}>+ Add Pattern</button>}
     </div>
   );
 }
