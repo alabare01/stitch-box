@@ -111,9 +111,14 @@ export default function ImportPill({ onTapReview, onTapTryAgain, onTapResume }) 
       dismiss();
       return;
     }
-    // Active/processing: reopen the full modal in its loading state. Pill
-    // stays — the user can close-and-resume any number of times until the
-    // job completes or fails.
+    // Active/processing: reopen the full modal in its loading state. Clear
+    // sessionStorage — the modal owns the import now; if the user closes it
+    // again before completion the modal's unmount handler re-writes the key.
+    // Without this clear, sessionStorage holds the job_id through the whole
+    // resume → save round-trip, and ImportPill re-renders the same job after
+    // save (offering a duplicate import).
+    setActiveImportJob(null);
+    setJobId(null);
     onTapResume?.({ jobId: job.id, fileType });
   };
 

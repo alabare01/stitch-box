@@ -2048,6 +2048,10 @@ export default function Wovely() {
     }
   };
   const handleAddPattern=async(p)=>{
+    // Saving a pattern means we're done with the import_job that produced it —
+    // clear sessionStorage so ImportPill doesn't re-render the same job after
+    // the modal closes and walk the user through a duplicate import.
+    setActiveImportJob(null);
     posthog.capture("pattern_uploaded",{file_type:p.source_file_type||"unknown"});
     const user=supabaseAuth.getUser();
     const session=getSession();
@@ -2076,7 +2080,7 @@ export default function Wovely() {
     // "Review Issue →" flow: skip overlay, go directly to detail with scrollToRow
     if(p._reviewRowNumber!==undefined){
       setPendingScrollToRow(p._reviewRowNumber);
-      setAddOpen(false);setAddMinimized(false);
+      setAddOpen(false);
       setTimeout(()=>{startAndOpenPattern(localPattern);},100);
     } else {
       setCreatedPattern(localPattern);
