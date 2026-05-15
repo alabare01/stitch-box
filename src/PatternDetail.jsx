@@ -401,7 +401,11 @@ const Detail = ({p,onBack,onSave,pct,estYards,estSkeins,pdfThumbUrl,CSS,Bar,Phot
         {tab==="notes"&&(
           <div style={{paddingTop:10}}>
             {editing?<textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} style={{width:"100%",minHeight:140,border:`1.5px solid ${T.border}`,borderRadius:12,padding:14,fontSize:14,lineHeight:1.75,resize:"vertical",outline:"none",color:T.ink,background:T.linen}} onFocus={e=>e.target.style.borderColor=T.terra} onBlur={e=>e.target.style.borderColor=T.border}/>
-            :<p style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.9,paddingTop:4,whiteSpace:"pre-wrap"}}>{p.notes||"No notes yet. Tap Edit to add your thoughts."}</p>}
+            :p.notes?<p style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.9,paddingTop:4,whiteSpace:"pre-wrap"}}>{p.notes}</p>
+            :<div role="button" tabIndex={0} onClick={()=>{setDraft({...p});setEditing(true);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setDraft({...p});setEditing(true);}}} onMouseEnter={e=>{e.currentTarget.style.background="rgba(155,126,200,0.08)";e.currentTarget.style.borderColor=T.terra;}} onMouseLeave={e=>{e.currentTarget.style.background=T.linen;e.currentTarget.style.borderColor=T.border;}} aria-label="Add your first note" style={{background:T.linen,border:`1.5px dashed ${T.border}`,borderRadius:12,padding:"20px 16px",cursor:"pointer",textAlign:"center",transition:"background .15s, border-color .15s",outline:"none"}}>
+              <div style={{fontFamily:T.serif,fontStyle:"italic",fontSize:15,color:T.ink2,lineHeight:1.5}}>No notes yet.</div>
+              <div style={{fontSize:12,color:T.ink3,marginTop:6}}>Tap to add your first note</div>
+            </div>}
             <div style={{marginTop:20,display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:12,color:T.ink3}}>Rating</span><Stars val={editing?draft.rating:p.rating} ro={!editing} onChange={v=>setDraft({...draft,rating:v})}/></div>
             <div style={{marginTop:10,fontSize:12,color:T.ink3}}>Source: {p.source}</div>
           </div>
